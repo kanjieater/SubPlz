@@ -2,6 +2,7 @@ from fuzzywuzzy import fuzz
 import argparse
 import sys
 import re
+from more_itertools import pairwise
 
 parser = argparse.ArgumentParser(description='Align a script to vtt subs')
 parser.add_argument('--mode', dest='mode', type=int, default=2,
@@ -70,8 +71,8 @@ def read_vtt(file):
         m = re.findall(r'(\d\d:\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)', line)
         assert m
         matchPair = [list(filter(None, x)) for x in m][0]
-        sub_start = matchPair[0].replace('.', ',')
-        sub_end = matchPair[1].replace('.', ',')
+        sub_start = matchPair[0] #.replace('.', ',')
+        sub_end = matchPair[1]
 
         line = next(lines)
         while line:
@@ -289,6 +290,18 @@ elif args.mode == 2:
 else:
   sys.exit('Unknown mode %d' % args.mode)
 
+def pairwise(iterable):
+    it = iter(iterable)
+    a = next(it, None)
+
+    for b in it:
+        yield (a, b)
+        a = b
+
+for s, sNext in pairwise(new_subs):
+    s.end = sNext.start
+    
+args.out.write('WEBVTT\n\n')
 for n, sub in enumerate(new_subs):
     args.out.write('%d\n' % (n + 1))
     args.out.write('%s --> %s\n' % (sub.start, sub.end))
