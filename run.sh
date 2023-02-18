@@ -15,13 +15,18 @@ echo "Timing Subs: $FOLDER/$TIMINGSUBS";
 #prep
 # ffmpeg -i "$FOLDER/1.mp3" -ar 16000 -ac 1 "$FOLDER/1.wav"
 
-stable-ts "$FOLDER/audio.mp3" --language ja --output_dir "$FOLDER/" --model large-v2 -o "$FOLDER/timings.ass" --overwrite
+
+
 
 # whisperx "/mnt/d/Editing/Audiobooks/かがみの孤城/i/1.wav" --language ja --output_dir "/mnt/d/Editing/Audiobooks/かがみの孤城/" --model large-v2 --vad_filter --align_model WAV2VEC2_ASR_LARGE_LV60K_960H --hf_token $HF
 
 # whisper "$FOLDER/audio.mp3" --language ja --model large --output_dir "$FOLDER"
 
-python split-sentences.py "$FOLDER/$SCRIPTNAME"
-ffmpeg -y -i "$FOLDER/timings.ass" "$FOLDER/timings.vtt"
-python align-vtt-v2.py "$FOLDER/$SCRIPTNAME.split.txt" "$FOLDER/$TIMINGSUBS" "$FOLDER/done.vtt" --mode 2
-ffmpeg -y -c:s subrip -i "$FOLDER/done.vtt" "$FOLDER/audio.srt"
+# Main Procedure
+# stable-ts "$FOLDER/audio.mp3" --language ja --output_dir "$FOLDER/" --model large-v2 -o "$FOLDER/timings.ass" --overwrite
+
+# ffmpeg -y -i "$FOLDER/timings.ass" "$FOLDER/timings.vtt"
+
+# python split-sentences.py "$FOLDER/$SCRIPTNAME"
+# python align_vtt_v2.py "$FOLDER/$SCRIPTNAME.split.txt" "$FOLDER/$TIMINGSUBS" "$FOLDER/done.vtt" --mode 2
+# ffmpeg -y -c:s subrip -i "$FOLDER/done.vtt" "$FOLDER/audio.srt"

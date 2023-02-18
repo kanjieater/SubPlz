@@ -2,7 +2,8 @@ from fuzzywuzzy import fuzz
 import argparse
 import sys
 import re
-from more_itertools import pairwise
+from vtt_utils import Subtitle, read_vtt, write_sub
+
 
 parser = argparse.ArgumentParser(description='Align a script to vtt subs')
 parser.add_argument('--mode', dest='mode', type=int, default=2,
@@ -30,15 +31,9 @@ class ScriptLine:
     def __repr__(self):
         return 'ScriptLine(%s)' % self.line
 
-class Subtitle:
-    def __init__(self, start, end, line):
-        self.start = start
-        self.end = end
-        self.line = line
 
-def get_lines(file):
-    for line in file:
-        yield line.rstrip('\n')
+
+
 
 def read_script(file):
     for line in file:
@@ -47,49 +42,8 @@ def read_script(file):
             continue
         yield line
 
-def remove_tags(line):
-    return re.sub('<[^>]*>', '', line)
 
-def read_vtt(file):
-    lines = get_lines(file)
-    subs = []
 
-    # Read header
-    assert next(lines) == "WEBVTT"
-    # assert next(lines) == "Kind: captions"
-    # assert next(lines).startswith("Language:")
-    assert next(lines) == ""
-
-    last_sub = ' '
-
-    while True:
-    #for t in range(0, 10):
-        line = next(lines, None)
-        if line == None: # EOF
-            break
-
-        m = re.findall(r'(\d\d:\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)', line)
-        assert m
-        matchPair = [list(filter(None, x)) for x in m][0]
-        sub_start = matchPair[0] #.replace('.', ',')
-        sub_end = matchPair[1]
-
-        line = next(lines)
-        while line:
-            sub = remove_tags(line)
-            if last_sub != sub and sub not in [' ', '[音楽]']:
-                last_sub = sub
-                # print("sub:", sub_start, sub_end, sub)
-                subs.append(Subtitle(sub_start, sub_end, sub))
-            elif last_sub == sub and subs:
-                subs[-1].end = sub_end
-                # print("Update sub:", subs[-1].start, subs[-1].end, subs[-1].line)
-            try:
-                line = next(lines)
-            except StopIteration:
-                line = None
-
-    return subs
 
 script = [ScriptLine(line.strip()) for line in read_script(args.script)]
 subs = read_vtt(args.subs)
@@ -293,8 +247,4 @@ elif args.mode == 2:
 else:
   sys.exit('Unknown mode %d' % args.mode)
 
-args.out.write('WEBVTT\n\n')
-for n, sub in enumerate(new_subs):
-    args.out.write('%d\n' % (n + 1))
-    args.out.write('%s --> %s\n' % (sub.start, sub.end))
-    args.out.write('%s\n\n' % (sub.line))
+write_sub(args.out, new_subs)
