@@ -17,7 +17,10 @@ Run ./run.sh "<folder>"
 
 Transcript to match must be in <folder> and named `script.txt`
 
-Audio file must be in <folder> and named 1.wav
+Audio file must be in <folder> and named audio.mp3
+
+Examples:
+./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\2")"
 
 sh run.sh "/mnt/d/Editing/Audiobooks/mushoku 2/p1"
 

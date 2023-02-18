@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "args": ["/mnt/d/Editing/Audiobooks/a7/script.txt.split.txt", "/mnt/d/Editing/Audiobooks/a7/captions.vtt", "/mnt/d/Editing/Audiobooks/a7/done.vtt"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "host": "127.0.0.1"
+    }
+  ]
+}

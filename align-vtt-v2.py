@@ -79,8 +79,11 @@ def read_vtt(file):
             sub = remove_tags(line)
             if last_sub != sub and sub not in [' ', '[音楽]']:
                 last_sub = sub
-                print("sub:", sub_start, sub_end, sub)
+                # print("sub:", sub_start, sub_end, sub)
                 subs.append(Subtitle(sub_start, sub_end, sub))
+            elif last_sub == sub and subs:
+                subs[-1].end = sub_end
+                # print("Update sub:", subs[-1].start, subs[-1].end, subs[-1].line)
             try:
                 line = next(lines)
             except StopIteration:
@@ -290,17 +293,6 @@ elif args.mode == 2:
 else:
   sys.exit('Unknown mode %d' % args.mode)
 
-def pairwise(iterable):
-    it = iter(iterable)
-    a = next(it, None)
-
-    for b in it:
-        yield (a, b)
-        a = b
-
-for s, sNext in pairwise(new_subs):
-    s.end = sNext.start
-    
 args.out.write('WEBVTT\n\n')
 for n, sub in enumerate(new_subs):
     args.out.write('%d\n' % (n + 1))
