@@ -1,8 +1,17 @@
 # SubGen POC
 
+
+https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-874c-5731b4261736.mp4
+
+
+
+
+
 This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. 
 
-Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. The currently used library for generating those offsets is the best I've found so far that works stably, but leaves much to be desired. I'm looking forward to being able to run more accurate models to fix this in the future.
+Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. The currently used library for generating those offsets is the best I've found so far that works stably, but leaves much to be desired. See the video at the bottom for such an example.
+
+ I'm looking forward to being able to run more accurate models to fix this in the future.
 
 # Install
 
@@ -44,3 +53,11 @@ You can also run for a single file. Beware if it's over 1GB/19hr you need as muc
 
 # Combine split files into a single m4b
 `./combine.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
+
+
+# What does "bad" look like using the stable-ts library?
+
+At this point I would recommend reading from the texthooker instead of a sub. (CTRL+SHIFT+RIGHT in mpv to set offset as the next sub). Then you can see the next line coming in the texthooker, and not be distracted by subtitle jumps.
+
+https://user-images.githubusercontent.com/32607317/219973663-7fcac162-b162-4a02-839c-0be2385f6166.mp4
+
