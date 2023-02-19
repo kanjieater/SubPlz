@@ -40,7 +40,7 @@ def run_stable_whisper(audio_file, full_timings_path):
     if not model:
         model = stable_whisper.load_model("large-v2")
         modify_model(model)
-    results = model.transcribe(audio_file, language="ja", suppress_silence=False, ts_num=16)
+    results = model.transcribe(audio_file, language="ja", suppress_silence=True, ts_num=16)
     stable_whisper.results_to_sentence_word_ass(results, full_timings_path)
 
 
