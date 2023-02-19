@@ -26,7 +26,7 @@ MAX_SEARCH_CONTEXT = MAX_MERGE_COUNT * 2
 class ScriptLine:
     def __init__(self, line):
         self.line = line
-        self.txt = re.sub('「|」|『|』|、|。|・|？|…|―', '', line)
+        self.txt = re.sub('「|」|『|』|、|。|・|？|…|―|─|！|（|）', '', line)
 
     def __repr__(self):
         return 'ScriptLine(%s)' % self.line

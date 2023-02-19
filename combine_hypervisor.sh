@@ -19,8 +19,11 @@ ls "$FOLDER/$(echo $NAME)_splitted/"
 # cd $FOLDER
 # echo $(pwd)
 # m4b-tool merge "$FOLDER" --output-file="$FOLDER/merged.m4b"
+# function m4b-tool {
+  docker run -it --rm -v ${PWD}:/mnt sandreas/m4b-tool:latest $args
+# }
 
-docker run -it --rm -u $(id -u):$(id -g) -v "$FOLDER":/mnt sandreas/m4b-tool:latest merge "./$(echo $NAME)_splitted/" --output-file="./$NAME.m4b"
+docker.exe run -it --rm -u $(id -u):$(id -g) -v "$FOLDER":/mnt sandreas/m4b-tool:latest merge "./$(echo $NAME)_splitted/" --output-file="./$NAME.m4b" -vvv
 
 # ffmpeg -f concat -safe 0 -i <( for f in "$FOLDER/"*.mp3; do echo "file '$f'"; done ) -map_metadata 0 -c copy -write_id3v1 true -id3v2_version 0 "$FOLDER/audio.mp3"
 # ffmpeg -f concat -safe 0 -i <( for f in "$FOLDER/"*.mp3; do echo "file '$f'"; done ) -c copy -filter_complex "color[c];[c][0]scale2ref[c][art];[c][art]overlay" -shortest "$FOLDER/audio.mp3"

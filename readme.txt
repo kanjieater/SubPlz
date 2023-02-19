@@ -20,8 +20,14 @@ Transcript to match must be in <folder> and named `script.txt`
 Audio file must be in <folder> and named audio.mp3
 
 Examples:
+
+#Single File
+
 ./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\2")"
 
-sh run.sh "/mnt/d/Editing/Audiobooks/mushoku 2/p1"
 
-sh run.sh "/mnt/d/Editing/Audiobooks/mushoku 2/p2" && sh run.sh "/mnt/d/Editing/Audiobooks/mushoku 3/p1" && sh run.sh "/mnt/d/Editing/Audiobooks/mushoku 3/p2" && sh run.sh "/mnt/d/Editing/Audiobooks/pengin/p1" && sh run.sh "/mnt/d/Editing/Audiobooks/yahari/p1"
+# Get a single transcript from split files
+./split_run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"
+
+# Combine split files into a single m4b
+./combine.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"

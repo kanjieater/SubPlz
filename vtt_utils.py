@@ -33,10 +33,9 @@ def read_vtt(file):
     while True:
     #for t in range(0, 10):
         line = next(lines, None)
-        line = next(lines, None)
         if line == None: # EOF
             break
-        print(line)
+        # print(line)
         m = re.findall(r'(\d\d:\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)', line)
         assert m
         matchPair = [list(filter(None, x)) for x in m][0]
@@ -64,6 +63,6 @@ def read_vtt(file):
 def write_sub(outfile, subs):
     outfile.write('WEBVTT\n\n')
     for n, sub in enumerate(subs):
-        outfile.write('%d\n' % (n + 1))
+        # outfile.write('%d\n' % (n + 1))
         outfile.write('%s --> %s\n' % (sub.start, sub.end))
         outfile.write('%s\n\n' % (sub.line))
