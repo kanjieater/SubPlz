@@ -1,0 +1,4 @@
+#Anki support
+requests==2.23.0
+# subs2cia==0.4.2
+git+https://github.com/kanjieater/subs2cia@2391f40#egg=subs2cia
