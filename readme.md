@@ -7,7 +7,7 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 
 
-This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. 
+This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book.
 
 Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. The currently used library for generating those offsets is the best I've found so far that works stably, but leaves much to be desired. See the video at the bottom for such an example.
 
@@ -36,17 +36,18 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 4. Split files should be `./<name>/<name>_splitted/`.If you have the full audiobook as a m4b, you can split it into chapters using `./split.sh "<full folder path>"`. eg `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 5. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b,mp3, or mp4's you can run `./combine.sh "<full folder path>"`,
  eg `./combine.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
-6. If you have the `script.txt` and `./<name>/<name>_splitted/`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `./split_run.sh "<full folder path>"` eg `./split_run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each split file individually to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is combined into a phrase level, and your result should be a `<name>.srt` file that can be watched with `mpv`, showing audio in time with the full book as a subtitle. From there use a texthooker and enjoy.
+6. If you have the `script.txt` and `./<name>/<name>_splitted/`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `./run.sh "<full folder path>"` eg `./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each split file individually to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is combined into a phrase level, and your result should be a `<name>.srt` file that can be watched with `mpv`, showing audio in time with the full book as a subtitle. From there use a texthooker and enjoy.
 
 
 # Single File
 
 You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 23GB of RAM available.
+You need two copies of your file. One in "<full folder path>" and one in `<full folder path>/splitted_<name>`, as described in the How to Use section
 `./run.sh "<full folder path>"` eg `./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"`
 
 
 # Get a single transcript from split files
-`./split_run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
+`./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Split m4b by chapter
 `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`

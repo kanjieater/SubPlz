@@ -5,8 +5,13 @@ import csv
 import requests
 import os
 import tempfile
+import json
 
-ANKI_CONNECT_URL = "http://192.168.1.3:8765"
+ANKI_CONNECT_URL = ''
+
+
+def deep_copy(d):
+    return json.loads(json.dumps(d))
 
 
 def parse_arguments():
@@ -16,14 +21,6 @@ def parse_arguments():
 
     parser.add_argument("-p", "--path", help="the path of the local CSV file")
     parser.add_argument("-u", "--url", help="the URL of the remote CSV file")
-
-    parser.add_argument(
-        "-d",
-        "--deck",
-        help="the name of the deck to import the sheet to",
-        required=True,
-    )
-    parser.add_argument("-n", "--note", help="the note type to import", required=True)
 
     parser.add_argument(
         "--no-anki-connect",
@@ -46,31 +43,21 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
-        "--expression-index",
-        help='mapping of the source csv row number to your note type\'s expression field, "--expression-index 1 --expression-field Expression" would map the 1st aka 0th column from the csv to the expression field named Expression in your note type)',
+        "--mapping",
+        help="The file that defines how to map your note to your tsv",
         action="store",
-        type=int,
         required=True
     )
     parser.add_argument(
-        "--audio-index",
-        help="mapping of the source csv row number to your note type's audio field, --audio-index 3 --expression-field Audio, same as expression",
+        "--name",
+        help="The name of the file to add to the deck name - so if you have a deckName in your mapping of Default, and pass in hello for the name you would get Default::hello",
         action="store",
-        type=int,
         required=True
     )
     parser.add_argument(
-        "--expression-field",
-        help='mapping of the source csv row number to your note type\'s expression field, see as expression',
+        "--anki-connect-url",
+        help="The url in AnkiConnect, 'localhost:8755' or $(hostname).local:8765. If using WSL2, AnkiConnect in Anki's addon config shows webBindAddress: 0.0.0.0, webBindPort: 8765 and you should use `export ANKICONNECT=http://$(hostname).local:8765` in an env variable to talk to Anki in windows from your Linux Distro. https://github.com/microsoft/WSL/issues/5211#issuecomment-751945803",
         action="store",
-        type=str,
-        required=True
-    )
-    parser.add_argument(
-        "--audio-field",
-        help="mapping of the source csv row number to your note type's audio field, see as expression",
-        action="store",
-        type=str,
         required=True
     )
 
@@ -117,12 +104,12 @@ def parse_ac_response(response):
     return response["result"]
 
 
-def make_ac_request(action, **params):
+def create_ac_payload(action, **params):
     return {"action": action, "params": params, "version": 6}
 
 
 def invoke_ac(action, **params):
-    requestJson = make_ac_request(action, **params)
+    requestJson = create_ac_payload(action, **params)
     # try:
     response = requests.post(ANKI_CONNECT_URL, json=requestJson).json()
     # except requests.exceptions.ConnectionError:
@@ -138,63 +125,89 @@ def get_fields(note_type):
 
 def map_fields_to_note(row, field_mappings):
     fields = {}
-    for field_mapping in field_mappings:
-        csv_index, field_name = field_mapping
+    for field_name, csv_index in field_mappings.items():
         fields[field_name] = row[csv_index - 1]
 
     return fields
 
 
-def csv_to_ac_notes(csv_path, deck_name, note_type, field_mappings):
+def csv_to_ac_notes(csv_path, note_template, field_mappings):
     notes = []
     # model_fields = get_fields(note_type)
 
     with open(csv_path) as csv_file:
         reader = csv.reader(csv_file, delimiter="\t")
         for i, row in enumerate(reader):
-            note = {
-                "deckName": deck_name,
-                "modelName": note_type,
-                "tags": None,
-                # 'options': {
-                #     # "allowDuplicate": True,
-                #     # "duplicateScope": "deck"
-                # }
-            }
-            note["fields"] = map_fields_to_note(row, field_mappings)
+            note = deep_copy(note_template)
+            # Doing the one field that needs to be deep merged manually
+            note["fields"] = deep_copy(note_template["fields"] | map_fields_to_note(row, field_mappings))
             notes.append(note)
 
     return notes
 
 
-def get_ac_add_and_update_note_lists(notes):
-    result = invoke_ac("canAddNotes", notes=notes)
+def empty_fields():
+    pass
 
-    notes_to_add = []
-    notes_to_update = []
-    for i, b in enumerate(result):
-        if b:
-            notes_to_add.append(notes[i])
-        else:
-            notes_to_update.append(notes[i])
+def set_empty(empty_fields, ids):
+    actions = []
+    for id in ids:
+        note = {
+            "note": id,
+            "fields": empty_fields
+        }
+        actions.append(create_ac_payload('updateNoteFields', note=note))
+    return = invoke_ac('multi', actions=actions)
 
-    return notes_to_add, notes_to_update
+
+def send_to_anki_connect(csv_path, note_template, field_mappings):
+    notes = csv_to_ac_notes(csv_path, note_template, field_mappings)
 
 
-def send_to_anki_connect(csv_path, deck_name, note_type, field_mappings):
-    notes = csv_to_ac_notes(csv_path, deck_name, note_type, field_mappings)
-    invoke_ac("createDeck", deck=deck_name)
-    notes_to_add = notes
-    print("[+] Adding {} new notes".format(len(notes_to_add)))
-    notes_response = invoke_ac("addNotes", notes=notes_to_add)
+    print("[+] Prepared {} new notes".format(len(notes)))
+    notes_response = invoke_ac("addNotes", notes=notes)
     successes = [x for x in notes_response if x is not None]
+    failures = len(notes) - len(successes)
+    # empty_fields = get_empty_fields(note_template)
+    # empty = set_empty(empty_fields, successes)
+
+
     print("[+] Created {} new notes".format(len(successes)))
+    if failures:
+        print(f"Failed to create: {failures}. Some cards failed. Maybe their primary field was left empty in the mapping?")
+
+def get_mapping(mapping_path):
+    with open(mapping_path) as f:
+        mapping = json.load(f)
+        print(f"Reading mapping: {mapping}")
+    return mapping
+
+
+def parse_mapping(mapping):
+    note_template = deep_copy(mapping)
+    field_mapping = {}
+
+    for k, v, in note_template['fields'].items():
+        if isinstance(v, int):
+            field_mapping[k] = v
+    for k, v in field_mapping.items():
+        del note_template['fields'][k]
+    return note_template, field_mapping
+
+
+def create_deck(deck, name):
+    deck_name = f"{deck}::{name}"
+    invoke_ac("createDeck", deck=deck_name)
+    print(f"Deck to be used: {deck_name}")
+    return deck_name
 
 
 def main():
     args = parse_arguments()
     validate_args(args)
-
+    global ANKI_CONNECT_URL
+    ANKI_CONNECT_URL = args.anki_connect_url
+    print(ANKI_CONNECT_URL)
     if args.path:
         # Use an existing CSV file. We convert this to an absolute path because
         # CWD might change later
@@ -202,8 +215,13 @@ def main():
     else:
         assert False  # Should never reach here
 
-    field_mappings = [(args.expression_index, args.expression_field), (args.audio_index, args.audio_field)]
-    send_to_anki_connect(csv_path, args.deck, args.note, field_mappings)
+    # field_mappings = [(args.expression_index, args.expression_field), (args.audio_index, args.audio_field)]
+    mapping = get_mapping(args.mapping)
+
+    deck_name = create_deck(mapping["deckName"], args.name)
+    note_template, field_mappings = parse_mapping(mapping)
+    note_template['deckName'] = deck_name
+    send_to_anki_connect(csv_path, note_template, field_mappings)
 
 
 main()

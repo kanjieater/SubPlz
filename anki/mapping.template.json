@@ -1,0 +1,16 @@
+{
+  "deckName": "!優先::Y メディア::本",
+  "modelName": "Japanese",
+  "fields": {
+    "Audio": 3,
+    "Expression": 1,
+    "Vocab": "Something hardcoded",
+    "Front": ""
+  },
+  "options": {
+    "allowDuplicate": true
+  },
+  "tags": [
+    "auto-kanjieater"
+  ]
+}
