@@ -15,13 +15,15 @@ Current State: The transcript will be extremely accurate. The timings will be mo
 
 # Install
 
+Currently supports unix based OS's like Ubuntu 20.04 on WSL2.
+
 1. Install `ffmpeg` and make it available on the path
 
 2. Use python `3.9.9`
 
 3. `pip install stable-ts`
 
-4. Install [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them.
+4. Be able to run the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them.
 
 
 
