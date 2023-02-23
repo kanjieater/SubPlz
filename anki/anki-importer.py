@@ -146,31 +146,40 @@ def csv_to_ac_notes(csv_path, note_template, field_mappings):
     return notes
 
 
-def empty_fields():
-    pass
+def set_empty_fields(note_template):
+    for k, v in note_template['fields'].items():
+        if v == '':
+            note_template['fields'][k] = 'empty'
+    return note_template
+
+
+def replace_empty_fields(note_template):
+    for k, v in note_template['fields'].items():
+        if v == 'empty':
+            note_template['fields'][k] = ''
+    return note_template
+
 
 def set_empty(empty_fields, ids):
+    print("[+] Emptying any fields left empty intentionally")
     actions = []
     for id in ids:
         note = {
-            "note": id,
+            "id": id,
             "fields": empty_fields
         }
         actions.append(create_ac_payload('updateNoteFields', note=note))
-    return = invoke_ac('multi', actions=actions)
-
+    return invoke_ac('multi', actions=actions)
 
 def send_to_anki_connect(csv_path, note_template, field_mappings):
-    notes = csv_to_ac_notes(csv_path, note_template, field_mappings)
-
-
-    print("[+] Prepared {} new notes".format(len(notes)))
+    print("[+] Preparing new notes")
+    empty_fields_note_template = set_empty_fields(note_template)
+    notes = csv_to_ac_notes(csv_path, empty_fields_note_template, field_mappings)
     notes_response = invoke_ac("addNotes", notes=notes)
     successes = [x for x in notes_response if x is not None]
     failures = len(notes) - len(successes)
-    # empty_fields = get_empty_fields(note_template)
-    # empty = set_empty(empty_fields, successes)
 
+    empty = set_empty(replace_empty_fields(empty_fields_note_template)['fields'], successes)
 
     print("[+] Created {} new notes".format(len(successes)))
     if failures:
