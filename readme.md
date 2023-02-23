@@ -7,7 +7,7 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 
 
-This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book.
+This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. It requires a modern GPU with decent VRAM, CPU, and RAM.
 
 Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. The currently used library for generating those offsets is the best I've found so far that works stably, but leaves much to be desired. See the video at the bottom for such an example.
 
@@ -111,6 +111,16 @@ curl --header "Content-Type: application/json" \
   --data '{ "action": "guiBrowse", "version": 6, "params": { "query": "flag:3 is:new -is:suspended -tag:重複 tag:重複3" } }' \
   http://172.18.224.1:8765
 ```
+# Troubleshooting
+You might see various issues while trying this out in the early state. Here are some of the pieces at work in sequence:
+## Stages
+1. (not pushed yet) Filter down audio to improve future results - slow & probably not heavy cpu or gpu usage. Heavier on cpu
+2. split_run & stable-ts: Starts off heavy on CPU & RAM to identify the audio spectrum
+3. stable-ts: GPU heavy & requires lots of vRAM depending on the model. This is the part with the long taskbar, where it tries to transcribe a text from the audio. Currently the default is [large-v2](https://github.com/openai/whisper#available-models-and-languages) 
+4. Merge vtt's for split subs
+5. Split the script
+6. match the script to the generated transcription to get good timestamps
+
 
 # Thanks
 
