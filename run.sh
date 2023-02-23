@@ -9,6 +9,10 @@ echo "Script: $FOLDER/$SCRIPTNAME";
 
 NAME="$(basename "$FOLDER" )"
 
+# Cleaning any previous runs data
+rm -f "$FOLDER/matched.vtt"
+rm -f "$FOLDER/timings.vtt"
+rm -f "$FOLDER/$SCRIPTNAME.split.txt"
 
 python split_run.py "$FOLDER"
 
@@ -17,4 +21,5 @@ python align_vtt_v2.py "$FOLDER/$SCRIPTNAME.split.txt" "$FOLDER/$TIMINGSUBS" "$F
 ffmpeg -y -c:s subrip -i "$FOLDER/matched.vtt" "$FOLDER/$NAME.srt"
 rm "$FOLDER/matched.vtt"
 rm "$FOLDER/timings.vtt"
+rm -f "$FOLDER/$NAME.vtt"
 rm "$FOLDER/$SCRIPTNAME.split.txt"

@@ -32,6 +32,8 @@ Currently supports unix based OS's like Ubuntu 20.04 on WSL2.
 
 Primarily I'm using this for syncing audiobooks to their book script. So while you could use this for video files, I'm not doing that just yet. Note: I'm using the term "splitted" because that's what m4b refers to as the split files.
 
+1. `git clone https://github.com/kanjieater/AudiobookTextSync.git`
+2. Make sure you run any commands that start with `./` from the project root, eg after you clone you can run `cd ./AudiobookTextSync`
 1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`
 2. Put the script in place: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
 3. You need _both_ the audiobook as a full m4b (technically other formats would work), AND the split parts. As long as you have one, you can easily get the other. You could technically only use the full single file, but you will most-likely run out of ram for longer works. See [Whisper ~13GB Memory Usage Issue for 19hr Audiobook](https://github.com/jianfch/stable-ts/issues/79). By using small splits, we can have more confidence the Speech To Text analysis won't get killed by an Out Of Memory error.
@@ -44,7 +46,8 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 # Single File
 
 You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 23GB of RAM available.
-You need two copies of your file. One in "<full folder path>" and one in `<full folder path>/splitted_<name>`, as described in the How to Use section
+You need two copies of your file. One in "<full folder path>" and one in `<full folder path>/splitted_<name>`, as described in the How to Use section. The single file will only run if you don't have `<name>_splitted` folder, otherwise we'll assume you want to use the data from there in parts.
+
 `./run.sh "<full folder path>"` eg `./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"`
 
 
@@ -64,3 +67,55 @@ At this point I would recommend reading from the texthooker instead of a sub. (C
 
 https://user-images.githubusercontent.com/32607317/219973663-7fcac162-b162-4a02-839c-0be2385f6166.mp4
 
+
+
+
+
+# Anki Support
+
+- Generates subs2srs style deck
+- Imports the deck into Anki automatically
+
+The Anki support currently takes your m4b file in `<full_folder_path>` named `<name>.m4b`, where `<name>` is the name of the media, and it outputs srs audio and a TSV file that can is sent via AnkiConnect to Anki. This is useful for searching across [GoldenDict](https://www.youtube.com/playlist?list=PLV9y64Yrq5i-1ztReLQQ2oyg43uoeyri-) to find sentences that use a word, or to combine automatically with custom scripts (more releases to support this coming hopefully).
+
+
+1. Install ankiconnect add-on to Anki.
+2. I recommend using ANKICONNECT as an environment variable. Set `export ANKICONNECT=localhost:8755` or `export ANKICONNECT="$(hostname).local:8765"` in your `~/.zshrc` or bashrc & activate it.
+3. Make sure you are in the project directory `cd ./AudiobookTextSync`
+4. Install `pip install ./anki/requirements.txt`
+
+
+
+Command:
+`./anki/anki.sh "<full_folder_path>"`
+
+Example:
+`./anki/anki.sh "/mnt/d/sync/kokoro"`
+
+
+
+
+# WSL2
+
+If you're using WSL2 there a few networking quirks.
+
+1. Enable WSL2 to talk to your Windows machine. https://github.com/microsoft/WSL/issues/4585#issuecomment-610061194
+2. Set your `$ANKICONNECT` url to your windows machine url, `export ANKICONNECT="http://$(hostname).local:8765"`. https://github.com/microsoft/WSL/issues/5211
+3. Make sure inside of Anki's addon config `"webBindAddress": "0.0.0.0", "webBindPort": "8765"`. `0.0.0.0` binds to all network interfaces, so WSL2 can connect.
+
+# Testing connection to Anki from WSL2
+
+```
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{ "action": "guiBrowse", "version": 6, "params": { "query": "flag:3 is:new -is:suspended -tag:重複 tag:重複3" } }' \
+  http://172.18.224.1:8765
+```
+
+# Thanks
+
+Besides the other ones already mentioned & installed this project uses other open source projects subs2cia, & anki-csv-importer
+
+https://github.com/gsingh93/anki-csv-importer
+
+https://github.com/kanjieater/subs2cia

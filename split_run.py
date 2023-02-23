@@ -1,10 +1,7 @@
-from fuzzywuzzy import fuzz
 import argparse
 import sys
-import re
 from glob import glob
 from os import path
-import subprocess
 import stable_whisper
 from stable_whisper import modify_model
 import ffmpeg
@@ -19,9 +16,13 @@ parser = argparse.ArgumentParser(description="Match audio to a transcript")
 #                     help='max subs to merge into one line')
 
 full_folder = [sys.argv[1]][0]
-input_folder = path.basename(path.dirname(full_folder))
-split_folder = path.join(full_folder, f"{input_folder}_splitted")
-print(split_folder)
+folder_name = path.basename(path.dirname(full_folder))
+split_folder = path.join(full_folder, f"{folder_name}_splitted")
+if path.exists(split_folder) and path.isdir(split_folder):
+    working_folder = split_folder
+else:
+    working_folder = full_folder
+print(f"Working on {working_folder}")
 
 model = False  # global model preserved between files
 
@@ -117,11 +118,11 @@ def get_offsets(audio_files):
     return offsets
 
 
-audio_files = grab_files(split_folder, ["*.mp3", "*.m4b", "*.mp4"])
+audio_files = grab_files(working_folder, ["*.mp3", "*.m4b", "*.mp4"])
 
 for audio_file in audio_files:
     file_name = path.splitext(audio_file)[0]
-    full_timings_path = path.join(split_folder, f"{file_name}.ass")
+    full_timings_path = path.join(working_folder, f"{file_name}.ass")
     full_vtt_path = path.splitext(full_timings_path)[0] + ".vtt"
 
     generate_transcript_from_audio(audio_file, full_timings_path)
@@ -129,5 +130,5 @@ for audio_file in audio_files:
 
 audio_file_offsets = get_offsets(audio_files)
 
-vtt_files = grab_files(split_folder, ["*.vtt"])
+vtt_files = grab_files(working_folder, ["*.vtt"])
 combine_vtt(vtt_files, audio_file_offsets, path.join(full_folder, f'{"timings"}.vtt'))
