@@ -1,5 +1,5 @@
 import argparse
-import sys
+import sys, os
 from glob import glob
 from os import path
 import stable_whisper
@@ -7,24 +7,12 @@ from stable_whisper import modify_model
 import ffmpeg
 from vtt_utils import read_vtt, write_sub
 from datetime import datetime, timedelta
+from tqdm.contrib.concurrent import process_map
+from tqdm import tqdm
 
+import multiprocessing
 
-parser = argparse.ArgumentParser(description="Match audio to a transcript")
-# parser.add_argument('--mode', dest='mode', type=int, default=2,
-#                     help='matching mode')
-# parser.add_argument('--max-merge', dest='max_merge', type=int, default=6,
-#                     help='max subs to merge into one line')
-
-full_folder = [sys.argv[1]][0]
-folder_name = path.basename(path.dirname(full_folder))
-split_folder = path.join(full_folder, f"{folder_name}_splitted")
-if path.exists(split_folder) and path.isdir(split_folder):
-    working_folder = split_folder
-else:
-    working_folder = full_folder
-print(f"Working on {working_folder}")
-
-model = False  # global model preserved between files
+SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
 
 def grab_files(folder, types):
@@ -32,16 +20,22 @@ def grab_files(folder, types):
     for type in types:
         pattern = f"{folder}/{type}"
         files.extend(glob(pattern))
-    print(files)
     return files
 
 
 def run_stable_whisper(audio_file, full_timings_path):
     global model
     if not model:
-        model = stable_whisper.load_model("large-v2")
+        model = stable_whisper.load_model("tiny")
         modify_model(model)
-    results = model.transcribe(audio_file, language="ja", suppress_silence=True, ts_num=16)
+    results = model.transcribe(
+        audio_file,
+        language="ja",
+        suppress_silence=True,
+        remove_background=False,
+        time_scale=1.1,
+        ts_num=16,
+    )
     stable_whisper.results_to_sentence_word_ass(results, full_timings_path)
 
 
@@ -51,7 +45,7 @@ def generate_transcript_from_audio(audio_file, full_timings_path):
 
 def convert_ass_to_vtt(full_timings_path, full_vtt_path):
     stream = ffmpeg.input(full_timings_path)
-    stream = ffmpeg.output(stream, full_vtt_path)
+    stream = ffmpeg.output(stream, full_vtt_path, loglevel="error").global_args('-hide_banner')
     ffmpeg.run(stream, overwrite_output=True)
 
 
@@ -78,10 +72,12 @@ def get_time_as_delta(time_str):
 def get_time_str_from_delta(delta):
     s = delta.total_seconds()
     micro = delta.microseconds
-    mif = str(micro).rjust(6,'0')[:3]
+    mif = str(micro).rjust(6, "0")[:3]
     hours, remainder = divmod(s, 3600)
     minutes, seconds = divmod(remainder, 60)
-    formatted_string = '{:02}:{:02}:{:02}.{:s}'.format(int(hours), int(minutes), int(seconds), mif)
+    formatted_string = "{:02}:{:02}:{:02}.{:s}".format(
+        int(hours), int(minutes), int(seconds), mif
+    )
     return formatted_string
 
 
@@ -105,7 +101,7 @@ def combine_vtt(vtt_files, offsets, output_file_path):
 
 
 def get_audio_duration(audio_file_path):
-    duration_string = ffmpeg.probe(audio_file_path)['format']['duration']
+    duration_string = ffmpeg.probe(audio_file_path)["format"]["duration"]
     duration = timedelta(seconds=float(duration_string))
     return duration
 
@@ -118,9 +114,41 @@ def get_offsets(audio_files):
     return offsets
 
 
-audio_files = grab_files(working_folder, ["*.mp3", "*.m4b", "*.mp4"])
+def filter_audio(file_path):
+    filename, ext = path.splitext(file_path)
+    stream = ffmpeg.input(file_path)
+    # stream = ffmpeg.filter('highpass', f='200')
+    # stream = ffmpeg.filter('lowpass', f='3000')
+    stream = ffmpeg.output(
+        stream,
+        path.join(path.dirname(file_path), f"{filename}.filtered{ext}"),
+        af="highpass=f=200,lowpass=f=3000",
+        vn=None,
+        loglevel="error"
+    ).global_args('-hide_banner')
+    # print(str(stream.get_args()))
+    return ffmpeg.run(stream, overwrite_output=True)
 
-for audio_file in audio_files:
+
+def prep_audio(file_paths, working_folder):
+    process_map(filter_audio, file_paths, max_workers=multiprocessing.cpu_count())
+    return grab_files(
+        working_folder,
+        [format.replace("*", "*.filtered") for format in SUPPORTED_FORMATS],
+    )
+    # for file in files:
+
+
+def remove_temp_files(files):
+    for file in files:
+        try:
+            os.remove(file)
+        except OSError as e:
+            print("Error: %s - %s." % (e.filename, e.strerror))
+
+def generate_transcript_from_audio_wrapper(audio_path_dict):
+    audio_file = audio_path_dict['audio_file']
+    working_folder = audio_path_dict['working_folder']
     file_name = path.splitext(audio_file)[0]
     full_timings_path = path.join(working_folder, f"{file_name}.ass")
     full_vtt_path = path.splitext(full_timings_path)[0] + ".vtt"
@@ -128,7 +156,48 @@ for audio_file in audio_files:
     generate_transcript_from_audio(audio_file, full_timings_path)
     convert_ass_to_vtt(full_timings_path, full_vtt_path)
 
-audio_file_offsets = get_offsets(audio_files)
 
-vtt_files = grab_files(working_folder, ["*.vtt"])
-combine_vtt(vtt_files, audio_file_offsets, path.join(full_folder, f'{"timings"}.vtt'))
+def run():
+    full_folder = [sys.argv[1]][0]
+    folder_name =  path.dirname(full_folder)
+    content_name = path.basename(folder_name)
+    split_folder = path.join(full_folder, f"{content_name}_splitted")
+
+    if path.exists(split_folder) and path.isdir(split_folder):
+        working_folder = split_folder
+    else:
+        working_folder = full_folder
+    print(f"Working on {working_folder}")
+
+    global model
+    model = False  # global model preserved between files
+
+    temp_files = grab_files(working_folder, ['*.filtered.*'])
+    remove_temp_files(temp_files)
+
+    audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
+    prepped_audio = prep_audio(audio_files, working_folder)
+    audio_path_dicts = [{"working_folder":working_folder, "audio_file":af} for af in prepped_audio]
+    # process_map(generate_transcript_from_audio, audio_path_dicts, max_workers=multiprocessing.cpu_count())
+    for audio_path_dict in tqdm(audio_path_dicts):
+        generate_transcript_from_audio_wrapper(audio_path_dict)
+
+    audio_file_offsets = get_offsets(prepped_audio)
+
+    vtt_files = grab_files(working_folder, ["*.vtt"])
+    combine_vtt(
+        vtt_files, audio_file_offsets, path.join(full_folder, f'{"timings"}.vtt')
+    )
+    temp_files = grab_files(working_folder, ['*.filtered.*'])
+    remove_temp_files(temp_files)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Match audio to a transcript")
+    run()
+    # parser.add_argument('--mode', dest='mode', type=int, default=2,
+    #                     help='matching mode')
+    # parser.add_argument('--max-merge', dest='max_merge', type=int, default=6,
+    #                     help='max subs to merge into one line')
+
+

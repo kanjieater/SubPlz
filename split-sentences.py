@@ -2,6 +2,7 @@
 
 import pysbd
 import sys
+from tqdm import tqdm
 
 inputs = [sys.argv[1]]
 for file_name in inputs:
@@ -11,9 +12,10 @@ for file_name in inputs:
     seg = pysbd.Segmenter(language="en", clean=False)
     with open(file_name + '.split.txt', 'w', encoding='UTF-8') as fo:
         lines = []
-        for i, text in enumerate(ilines):
-            if (i % 10) == 0:
-                print('%d/%d' % (i, len(ilines)))
+        print("Splitting script into sentences")
+        for i, text in enumerate(tqdm(ilines)):
+            # if (i % 10) == 0:
+                # print('%d/%d' % (i, len(ilines)))
             text.rstrip('\n')
             lines += seg.segment(text)
 

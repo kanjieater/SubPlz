@@ -5,11 +5,12 @@
 
 
 
+
     {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
-      "program": "${file}",
+      "program": "",
       // "args": ["/mnt/d/Editing/Audiobooks/a7/script.txt.split.txt", "/mnt/d/Editing/Audiobooks/a7/captions.vtt", "/mnt/d/Editing/Audiobooks/a7/done.vtt"],
       "args": ["--anki-connect-url", "http://172.18.224.1:8765", "--path", "/mnt/d/sync/test/srs_export/test.tsv", "--mapping", "./anki/mapping.json", "--name", "test"],
       "console": "integratedTerminal",
@@ -17,12 +18,13 @@
       "host": "127.0.0.1"
     },
     {
-      "name": "Python: Current File",
+      "name": "Python:Split run",
       "type": "python",
       "request": "launch",
-      "program": "${file}",
+      "program": "split_run.py",
       // "args": ["/mnt/d/Editing/Audiobooks/a7/script.txt.split.txt", "/mnt/d/Editing/Audiobooks/a7/captions.vtt", "/mnt/d/Editing/Audiobooks/a7/done.vtt"],
-      "args": ["/mnt/d/Editing/Audiobooks/かがみの孤城/"],
+      // "args": ["/mnt/d/Editing/Audiobooks/かがみの孤城/"],
+      "args": ["/mnt/d/sync/test/"],
       "console": "integratedTerminal",
       "justMyCode": true,
       "host": "127.0.0.1"

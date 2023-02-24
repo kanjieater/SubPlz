@@ -3,6 +3,7 @@ import argparse
 import sys
 import re
 from vtt_utils import Subtitle, read_vtt, write_sub
+from tqdm import tqdm
 
 
 parser = argparse.ArgumentParser(description='Align a script to vtt subs')
@@ -143,7 +144,9 @@ def test_sub_pos(script_pos, last_script_pos, first_sub_to_test, last_sub_to_tes
     for sub_pos in range(last_sub_to_test - 1, first_sub_to_test - 1, -1):
         calc_best_score(script_pos, last_script_pos, sub_pos, last_sub_to_test)
 
-def recursively_find_match(result, first_script, last_script, first_sub, last_sub):
+def recursively_find_match(result, first_script, last_script, first_sub, last_sub, bar):
+    bar.total += 1
+    bar.refresh()
     if first_script == last_script or first_sub == last_sub:
         return
 
@@ -172,17 +175,21 @@ def recursively_find_match(result, first_script, last_script, first_sub, last_su
         num_used_sub = mid_memo[1]
 
         # Recurse before
-        recursively_find_match(result, first_script, script_pos, first_sub, sub_pos)
-
+        recursively_find_match(result, first_script, script_pos, first_sub, sub_pos, bar)
+        bar.update(1)
         scr = get_script(script_pos, num_used_script, ' ‖ ')
         scr_out = get_script(script_pos, num_used_script, '')
         base = get_base(sub_pos, num_used_sub, ' ‖ ')
 
-        print((script_pos, num_used_script, sub_pos, num_used_sub), scr, '==', base)
+        # print((script_pos, num_used_script, sub_pos, num_used_sub), scr, '==', base)
         result.append((script_pos, num_used_script, sub_pos, num_used_sub))
 
         # Recurse after
-        recursively_find_match(result, script_pos + num_used_script, last_script, sub_pos + num_used_sub, last_sub)
+        recursively_find_match(result, script_pos + num_used_script, last_script, sub_pos + num_used_sub, last_sub, bar)
+        bar.update(1)
+    bar.update(1)
+    # t.total = new_total
+    # t.refresh()
 
 new_subs = []
 
@@ -224,9 +231,10 @@ if args.mode == 1:
       script_pos += num_used_script
 elif args.mode == 2:
   result = []
-  recursively_find_match(result, 0, len(script), 0, len(subs))
-
-  for i, (script_pos, num_used_script, sub_pos, num_used_sub) in enumerate(result):
+  print('Matching subs to sentences. This can take a while...')
+  bar = tqdm(total=0)
+  recursively_find_match(result, 0, len(script), 0, len(subs), bar)
+  for i, (script_pos, num_used_script, sub_pos, num_used_sub) in enumerate(tqdm(result)):
     if i == 0:
       script_pos = 0
       sub_pos = 0
@@ -242,7 +250,7 @@ elif args.mode == 2:
     scr = get_script(script_pos, num_used_script, ' ‖ ')
     base = get_base(sub_pos, num_used_sub, ' ‖ ')
 
-    print('Record:', script_pos, scr, '==', base)
+    # print('Record:', script_pos, scr, '==', base)
     new_subs.append(Subtitle(subs[sub_pos].start, subs[sub_pos+num_used_sub-1].end, scr_out))
 else:
   sys.exit('Unknown mode %d' % args.mode)
