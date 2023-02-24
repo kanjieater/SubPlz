@@ -1,6 +1,6 @@
 import argparse
 import sys, os
-from glob import glob
+from glob import glob, escape
 from os import path
 import stable_whisper
 from stable_whisper import modify_model
@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 from natsort import os_sorted
-
+from pprint import pprint
 import multiprocessing
 
 SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
@@ -19,7 +19,7 @@ SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 def grab_files(folder, types):
     files = []
     for type in types:
-        pattern = f"{folder}/{type}"
+        pattern = f"{escape(folder)}/{type}"
         files.extend(glob(pattern))
     return os_sorted(files)
 
@@ -167,6 +167,11 @@ def run():
     remove_temp_files(temp_files)
 
     audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
+    pprint(f"{len(audio_files)} files will be combined in this order:")
+    pprint(audio_files)
+    if len(audio_files) == 0:
+        raise Exception(f"No audio files found at {working_folder}")
+
     prepped_audio = prep_audio(audio_files, working_folder)
     prepped_audio = audio_files
     audio_path_dicts = [{"working_folder":working_folder, "audio_file":af} for af in prepped_audio]
