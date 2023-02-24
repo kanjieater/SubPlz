@@ -114,7 +114,7 @@ You might see various issues while trying this out in the early state. Here are 
 ## Stages
 1. (not pushed yet) Filter down audio to improve future results - slow & probably not heavy cpu or gpu usage. Heavier on cpu
 2. split_run & stable-ts: Starts off heavy on CPU & RAM to identify the audio spectrum
-3. stable-ts: GPU heavy & requires lots of vRAM depending on the model. This is the part with the long taskbar, where it tries to transcribe a text from the audio. Currently the default is [large-v2](https://github.com/openai/whisper#available-models-and-languages)
+3. stable-ts: GPU heavy & requires lots of vRAM depending on the model. This is the part with the long taskbar, where it tries to transcribe a text from the audio. Currently the default is [tiny](https://github.com/openai/whisper#available-models-and-languages). Ironically tiny, does a better job of keeping the phrases short, at the cost of accuracy of transcription, which since we are matching a script, doesn't matter. Also it runs 32x faster than large.
 4. Merge vtt's for split subs
 5. Split the script
 6. match the script to the generated transcription to get good timestamps
