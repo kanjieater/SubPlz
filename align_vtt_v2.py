@@ -5,7 +5,6 @@ import re
 from vtt_utils import Subtitle, read_vtt, write_sub
 from tqdm import tqdm
 
-
 parser = argparse.ArgumentParser(description='Align a script to vtt subs')
 parser.add_argument('--mode', dest='mode', type=int, default=2,
                     help='matching mode')
@@ -234,6 +233,7 @@ elif args.mode == 2:
   print('Matching subs to sentences. This can take a while...')
   bar = tqdm(total=0)
   recursively_find_match(result, 0, len(script), 0, len(subs), bar)
+  bar.close()
   for i, (script_pos, num_used_script, sub_pos, num_used_sub) in enumerate(tqdm(result)):
     if i == 0:
       script_pos = 0

@@ -1,17 +1,22 @@
 {
   "version": "0.2.0",
   "configurations": [
-
-
-
-
+    {
+      "name": "Python: align vtt",
+      "type": "python",
+      "request": "launch",
+      "program": "align_vtt_v2.py",
+      "args": ["/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/script.txt.split.txt", "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/timings.vtt", "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/matched.vtt"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "host": "127.0.0.1"
+    },
 
     {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
       "program": "",
-      // "args": ["/mnt/d/Editing/Audiobooks/a7/script.txt.split.txt", "/mnt/d/Editing/Audiobooks/a7/captions.vtt", "/mnt/d/Editing/Audiobooks/a7/done.vtt"],
       "args": ["--anki-connect-url", "http://172.18.224.1:8765", "--path", "/mnt/d/sync/test/srs_export/test.tsv", "--mapping", "./anki/mapping.json", "--name", "test"],
       "console": "integratedTerminal",
       "justMyCode": true,

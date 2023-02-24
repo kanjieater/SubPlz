@@ -9,6 +9,7 @@ from vtt_utils import read_vtt, write_sub
 from datetime import datetime, timedelta
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
+from natsort import os_sorted
 
 import multiprocessing
 
@@ -20,7 +21,7 @@ def grab_files(folder, types):
     for type in types:
         pattern = f"{folder}/{type}"
         files.extend(glob(pattern))
-    return files
+    return os_sorted(files)
 
 
 def run_stable_whisper(audio_file, full_timings_path):
@@ -47,15 +48,6 @@ def convert_ass_to_vtt(full_timings_path, full_vtt_path):
     stream = ffmpeg.input(full_timings_path)
     stream = ffmpeg.output(stream, full_vtt_path, loglevel="error").global_args('-hide_banner')
     ffmpeg.run(stream, overwrite_output=True)
-
-
-# def combine_vtt(vtt_files, output_file_path):
-#     streams = []
-#     for file in vtt_files:
-#         streams.append(ffmpeg.input(file))
-#     combined = ffmpeg.concat(*streams)
-#     stream = ffmpeg.output(combined, output_file_path)
-#     ffmpeg.run(stream, overwrite_output=True)
 
 
 def get_time_as_delta(time_str):
@@ -136,7 +128,6 @@ def prep_audio(file_paths, working_folder):
         working_folder,
         [format.replace("*", "*.filtered") for format in SUPPORTED_FORMATS],
     )
-    # for file in files:
 
 
 def remove_temp_files(files):
@@ -177,6 +168,7 @@ def run():
 
     audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
     prepped_audio = prep_audio(audio_files, working_folder)
+    prepped_audio = audio_files
     audio_path_dicts = [{"working_folder":working_folder, "audio_file":af} for af in prepped_audio]
     # process_map(generate_transcript_from_audio, audio_path_dicts, max_workers=multiprocessing.cpu_count())
     for audio_path_dict in tqdm(audio_path_dicts):

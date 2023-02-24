@@ -42,6 +42,11 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
  eg `./combine.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
 6. If you have the `script.txt` and `./<name>/<name>_splitted/`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `./run.sh "<full folder path>"` eg `./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each split file individually to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is combined into a phrase level, and your result should be a `<name>.srt` file that can be watched with `mpv`, showing audio in time with the full book as a subtitle. From there use a texthooker and enjoy.
 
+# Split m4b by chapter
+`./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
+
+# Get a subtitle with synced transcript from split files
+`./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Single File
 
@@ -49,13 +54,6 @@ You can also run for a single file. Beware if it's over 1GB/19hr you need as muc
 You need two copies of your file. One in "<full folder path>" and one in `<full folder path>/splitted_<name>`, as described in the How to Use section. The single file will only run if you don't have `<name>_splitted` folder, otherwise we'll assume you want to use the data from there in parts.
 
 `./run.sh "<full folder path>"` eg `./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"`
-
-
-# Get a single transcript from split files
-`./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
-
-# Split m4b by chapter
-`./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Combine split files into a single m4b
 `./combine.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
@@ -116,7 +114,7 @@ You might see various issues while trying this out in the early state. Here are 
 ## Stages
 1. (not pushed yet) Filter down audio to improve future results - slow & probably not heavy cpu or gpu usage. Heavier on cpu
 2. split_run & stable-ts: Starts off heavy on CPU & RAM to identify the audio spectrum
-3. stable-ts: GPU heavy & requires lots of vRAM depending on the model. This is the part with the long taskbar, where it tries to transcribe a text from the audio. Currently the default is [large-v2](https://github.com/openai/whisper#available-models-and-languages) 
+3. stable-ts: GPU heavy & requires lots of vRAM depending on the model. This is the part with the long taskbar, where it tries to transcribe a text from the audio. Currently the default is [large-v2](https://github.com/openai/whisper#available-models-and-languages)
 4. Merge vtt's for split subs
 5. Split the script
 6. match the script to the generated transcription to get good timestamps
