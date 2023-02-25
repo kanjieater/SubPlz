@@ -2,7 +2,7 @@ from fuzzywuzzy import fuzz
 import argparse
 import sys
 import re
-from vtt_utils import Subtitle, read_vtt, write_sub
+from utils import Subtitle, read_vtt, write_sub
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='Align a script to vtt subs')

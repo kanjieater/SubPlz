@@ -3,3 +3,8 @@ pysbd==0.3.4
 python-Levenshtein==0.12.2
 stable-ts @ git+https://github.com/jianfch/stable-ts.git@0b423391e115abcb8b8fdbb581b75f5b1fc746d3
 natsort==8.2.0
+
+#Anki support
+requests==2.23.0
+# subs2cia==0.4.2
+git+https://github.com/kanjieater/subs2cia@2391f40#egg=subs2cia

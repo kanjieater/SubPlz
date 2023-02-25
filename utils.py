@@ -1,5 +1,7 @@
 
 import re
+from natsort import os_sorted
+from glob import glob, escape
 
 
 class Subtitle:
@@ -66,3 +68,13 @@ def write_sub(outfile, subs):
         # outfile.write('%d\n' % (n + 1))
         outfile.write('%s --> %s\n' % (sub.start, sub.end))
         outfile.write('%s\n\n' % (sub.line))
+
+
+def grab_files(folder, types, sort=True):
+    files = []
+    for type in types:
+        pattern = f"{escape(folder)}/{type}"
+        files.extend(glob(pattern))
+    if sort:
+        return os_sorted(files)
+    return files

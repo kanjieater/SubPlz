@@ -78,17 +78,19 @@ The Anki support currently takes your m4b file in `<full_folder_path>` named `<n
 
 
 1. Install ankiconnect add-on to Anki.
-2. I recommend using ANKICONNECT as an environment variable. Set `export ANKICONNECT=localhost:8755` or `export ANKICONNECT="$(hostname).local:8765"` in your `~/.zshrc` or bashrc & activate it.
+2. I recommend using `ANKICONNECT` as an environment variable. Set `export ANKICONNECT=localhost:8755` or `export ANKICONNECT="$(hostname).local:8765"` in your `~/.zshrc` or bashrc & activate it.
 3. Make sure you are in the project directory `cd ./AudiobookTextSync`
-4. Install `pip install ./anki/requirements.txt`
+4. Install `pip install ./requirements.txt` (only needs to be done once)
+5. Set `ANKI_MEDIA_DIR` to your anki profile's media path: `/mnt/f/Anki2/KanjiEater/collection.media/`
+6. Run the command below
 
 
 
 Command:
-`./anki/anki.sh "<full_folder_path>"`
+`./anki.sh "<full_folder_path>"`
 
 Example:
-`./anki/anki.sh "/mnt/d/sync/kokoro"`
+`./anki.sh "/mnt/d/sync/kokoro/"`
 
 
 

@@ -1,27 +1,20 @@
 import argparse
 import sys, os
-from glob import glob, escape
 from os import path
 import stable_whisper
 from stable_whisper import modify_model
 import ffmpeg
-from vtt_utils import read_vtt, write_sub
+from utils import read_vtt, write_sub, grab_files
 from datetime import datetime, timedelta
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
-from natsort import os_sorted
 from pprint import pprint
 import multiprocessing
 
 SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
 
-def grab_files(folder, types):
-    files = []
-    for type in types:
-        pattern = f"{escape(folder)}/{type}"
-        files.extend(glob(pattern))
-    return os_sorted(files)
+
 
 
 def run_stable_whisper(audio_file, full_timings_path):

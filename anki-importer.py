@@ -6,6 +6,12 @@ import requests
 import os
 import tempfile
 import json
+import shutil
+import multiprocessing
+from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map
+from utils import grab_files
+
 
 ANKI_CONNECT_URL = ''
 
@@ -57,6 +63,12 @@ def parse_arguments():
     parser.add_argument(
         "--anki-connect-url",
         help="The url in AnkiConnect, 'localhost:8755' or $(hostname).local:8765. If using WSL2, AnkiConnect in Anki's addon config shows webBindAddress: 0.0.0.0, webBindPort: 8765 and you should use `export ANKICONNECT=http://$(hostname).local:8765` in an env variable to talk to Anki in windows from your Linux Distro. https://github.com/microsoft/WSL/issues/5211#issuecomment-751945803",
+        action="store",
+        required=True
+    )
+    parser.add_argument(
+        "--anki-media-dir",
+        help="The anki media directory: '/mnt/f/Anki2/KanjiEater/collection.media/'",
         action="store",
         required=True
     )
@@ -161,7 +173,6 @@ def replace_empty_fields(note_template):
 
 
 def set_empty(empty_fields, ids):
-    print("[+] Emptying any fields left empty intentionally")
     actions = []
     for id in ids:
         note = {
@@ -175,11 +186,23 @@ def send_to_anki_connect(csv_path, note_template, field_mappings):
     print("[+] Preparing new notes")
     empty_fields_note_template = set_empty_fields(note_template)
     notes = csv_to_ac_notes(csv_path, empty_fields_note_template, field_mappings)
-    notes_response = invoke_ac("addNotes", notes=notes)
+    chunk_size = 250
+    print(f"[+] Adding {len(notes)} new notes in batchs of {chunk_size}")
+    notes_response = []
+    # I would love if anki didn't freeze on 2.1.35 when doing a addNote of everything. This keeps Anki from freezing
+    for i in tqdm(range(0, len(notes), chunk_size)):
+        notes_response += invoke_ac("addNotes", notes=notes[i:i+chunk_size])
     successes = [x for x in notes_response if x is not None]
     failures = len(notes) - len(successes)
 
-    empty = set_empty(replace_empty_fields(empty_fields_note_template)['fields'], successes)
+    print("[+] Emptying any fields left empty intentionally")
+    empty_fields = replace_empty_fields(empty_fields_note_template)['fields']
+    empty = []
+    for i in tqdm(range(0, len(successes), chunk_size)):
+        empty += set_empty(empty_fields, successes[i:i+chunk_size])
+
+
+
 
     print("[+] Created {} new notes".format(len(successes)))
     if failures:
@@ -210,27 +233,45 @@ def create_deck(deck, name):
     print(f"Deck to be used: {deck_name}")
     return deck_name
 
+def create_deck(deck, name):
+    deck_name = f"{deck}::{name}"
+    invoke_ac("createDeck", deck=deck_name)
+    print(f"Deck to be used: {deck_name}")
+    return deck_name
+
+def move_individual_media(file_data):
+    shutil.move(file_data['src'], file_data['dest'])
+
+def move_media(srs_export_dir, anki_media_dir):
+    print(f'Exporting media from {srs_export_dir}')
+    files = grab_files(srs_export_dir, ["*.mp3"], False)
+    file_data = []
+    for file in files:
+        dest = os.path.join(anki_media_dir, os.path.basename(file))
+        file_data.append({"src": file, "dest": dest})
+
+    process_map(move_individual_media, files, max_workers=multiprocessing.cpu_count())
+
+def get_srs_export_dir(csv_path):
+    return os.path.dirname(csv_path)
+
 
 def main():
     args = parse_arguments()
     validate_args(args)
     global ANKI_CONNECT_URL
     ANKI_CONNECT_URL = args.anki_connect_url
-    print(ANKI_CONNECT_URL)
-    if args.path:
-        # Use an existing CSV file. We convert this to an absolute path because
-        # CWD might change later
-        csv_path = os.path.abspath(args.path)
-    else:
-        assert False  # Should never reach here
+    folder_name = os.path.basename(os.path.dirname(args.path))
+    srs_export_dir = os.path.join(args.path, 'srs_export')
+    csv_path = os.path.join(srs_export_dir, f"{folder_name}.tsv")
 
-    # field_mappings = [(args.expression_index, args.expression_field), (args.audio_index, args.audio_field)]
     mapping = get_mapping(args.mapping)
 
     deck_name = create_deck(mapping["deckName"], args.name)
     note_template, field_mappings = parse_mapping(mapping)
     note_template['deckName'] = deck_name
-    send_to_anki_connect(csv_path, note_template, field_mappings)
+    # send_to_anki_connect(csv_path, note_template, field_mappings)
+    move_media(srs_export_dir, args.anki_media_dir)
 
 
 main()
