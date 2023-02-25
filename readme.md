@@ -63,6 +63,8 @@ You need two copies of your file. One in "<full folder path>" and one in `<full 
 
 At this point I would recommend reading from the texthooker instead of a sub. (CTRL+SHIFT+RIGHT in mpv to set offset as the next sub). Then you can see the next line coming in the texthooker, and not be distracted by subtitle jumps.
 
+Update: The timing is much more accurate, but it still makes sense to show what going wrong could look like
+
 https://user-images.githubusercontent.com/32607317/219973663-7fcac162-b162-4a02-839c-0be2385f6166.mp4
 
 
