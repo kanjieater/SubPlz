@@ -187,7 +187,7 @@ def send_to_anki_connect(csv_path, note_template, field_mappings):
     empty_fields_note_template = set_empty_fields(note_template)
     notes = csv_to_ac_notes(csv_path, empty_fields_note_template, field_mappings)
     chunk_size = 250
-    print(f"[+] Adding {len(notes)} new notes in batchs of {chunk_size}")
+    print(f"[+] Adding {len(notes)} new notes in batches of {chunk_size}")
     notes_response = []
     # I would love if anki didn't freeze on 2.1.35 when doing a addNote of everything. This keeps Anki from freezing.
     # Anki is the bottleneck. Running in parallel does nothing.
