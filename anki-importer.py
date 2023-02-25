@@ -278,7 +278,7 @@ def main():
     deck_name = create_deck(mapping["deckName"], args.name)
     note_template, field_mappings = parse_mapping(mapping)
     note_template["deckName"] = deck_name
-    # send_to_anki_connect(csv_path, note_template, field_mappings)
+    send_to_anki_connect(csv_path, note_template, field_mappings)
     move_media(srs_export_dir, args.anki_media_dir)
 
 
