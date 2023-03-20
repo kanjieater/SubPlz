@@ -11,6 +11,7 @@
     "allowDuplicate": true
   },
   "tags": [
-    "kanjieater_data_card"
+    "kanjieater_data_card",
+    "suspendMe"
   ]
 }

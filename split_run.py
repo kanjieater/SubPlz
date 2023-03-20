@@ -2,7 +2,6 @@ import argparse
 import sys, os
 from os import path
 import stable_whisper
-from stable_whisper import modify_model
 import ffmpeg
 from utils import read_vtt, write_sub, grab_files
 from datetime import datetime, timedelta
@@ -21,17 +20,15 @@ def run_stable_whisper(audio_file, full_timings_path):
     global model
     if not model:
         model = stable_whisper.load_model("tiny")
-        modify_model(model)
-    results = model.transcribe(
+    result = model.transcribe(
         audio_file,
         language="ja",
         suppress_silence=True,
-        remove_background=False,
-        time_scale=1.1,
-        ts_num=16,
+        vad=True,
+        regroup=True,
+        word_timestamps=True,
     )
-    stable_whisper.results_to_sentence_word_ass(results, full_timings_path)
-
+    result.to_ass(full_timings_path)
 
 def generate_transcript_from_audio(audio_file, full_timings_path):
     run_stable_whisper(audio_file, full_timings_path)
@@ -88,6 +85,7 @@ def combine_vtt(vtt_files, offsets, output_file_path):
 def get_audio_duration(audio_file_path):
     duration_string = ffmpeg.probe(audio_file_path)["format"]["duration"]
     duration = timedelta(seconds=float(duration_string))
+    # print(duration)
     return duration
 
 
@@ -166,7 +164,7 @@ def run():
         raise Exception(f"No audio files found at {working_folder}")
 
     prepped_audio = prep_audio(audio_files, working_folder)
-    prepped_audio = audio_files
+    # prepped_audio = audio_files
     audio_path_dicts = [{"working_folder":working_folder, "audio_file":af} for af in prepped_audio]
     # process_map(generate_transcript_from_audio, audio_path_dicts, max_workers=multiprocessing.cpu_count())
     for audio_path_dict in tqdm(audio_path_dicts):
