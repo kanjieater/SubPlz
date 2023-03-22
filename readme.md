@@ -51,7 +51,7 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 
 # Single File
 
-You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 23GB of RAM available.
+You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 8GB of RAM available.
 You need two copies of your file. One in "<full folder path>" and one in `<full folder path>/splitted_<name>`, as described in the How to Use section. The single file will only run if you don't have `<name>_splitted` folder, otherwise we'll assume you want to use the data from there in parts.
 
 `./run.sh "<full folder path>"` eg `./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"`
