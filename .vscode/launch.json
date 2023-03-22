@@ -29,7 +29,7 @@
       "program": "split_run.py",
       // "args": ["/mnt/d/Editing/Audiobooks/a7/script.txt.split.txt", "/mnt/d/Editing/Audiobooks/a7/captions.vtt", "/mnt/d/Editing/Audiobooks/a7/done.vtt"],
       // "args": ["/mnt/d/Editing/Audiobooks/かがみの孤城/"],
-      "args": ["/mnt/d/sync/test/"],
+      "args": ["/mnt/d/sync/アルスラーン戦記7 王都奪還/"],
       "console": "integratedTerminal",
       "justMyCode": true,
       "host": "127.0.0.1"

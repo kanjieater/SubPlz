@@ -23,7 +23,6 @@ def get_lines(file):
 def read_vtt(file):
     lines = get_lines(file)
     subs = []
-
     # Read header
     assert next(lines) == "WEBVTT"
     # assert next(lines) == "Kind: captions"
@@ -39,7 +38,10 @@ def read_vtt(file):
             break
         # print(line)
         m = re.findall(r'(\d\d:\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)', line)
-        assert m
+        if(not m):
+            print(f'Warning: Line "{line}" did not look like a valid VTT input. There could be issues parsing this sub')
+            continue
+
         matchPair = [list(filter(None, x)) for x in m][0]
         sub_start = matchPair[0] #.replace('.', ',')
         sub_end = matchPair[1]
