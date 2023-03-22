@@ -35,7 +35,7 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 1. `git clone https://github.com/kanjieater/AudiobookTextSync.git`
 2. Make sure you run any commands that start with `./` from the project root, eg after you clone you can run `cd ./AudiobookTextSync`
 1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`
-2. Put the script in place: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
+2. Get the book script as text from a digital copy. Put the script at: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
 3. You need _both_ the audiobook as a full m4b (technically other formats would work), AND the split parts. As long as you have one, you can easily get the other. You could technically only use the full single file, but you will most-likely run out of ram for longer works. See [Whisper ~13GB Memory Usage Issue for 19hr Audiobook](https://github.com/jianfch/stable-ts/issues/79). By using small splits, we can have more confidence the Speech To Text analysis won't get killed by an Out Of Memory error.
 4. Split files should be `./<name>/<name>_splitted/`.If you have the full audiobook as a m4b, you can split it into chapters using `./split.sh "<full folder path>"`. eg `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 5. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b,mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
@@ -123,6 +123,20 @@ You might see various issues while trying this out in the early state. Here are 
 5. Split the script
 6. match the script to the generated transcription to get good timestamps
 
+# Getting Book Scripts 
+
+This program supports `txt` files. You may need to use an external program like Calibre to convert your `epub` or kindle formats like `azw3` to a `txt` file. 
+
+To convert in Calibre:
+1. Right click on the book and convert the individual book (or use the batch option beneath it)
+![image](https://user-images.githubusercontent.com/32607317/226463043-f2f89382-a75f-48ea-bb91-00efe0f05893.png)
+2. At the top right for output format, select `txt`
+![image](https://user-images.githubusercontent.com/32607317/226463797-1c19385d-c6e7-4564-a795-926e04716562.png)
+3. Click Find & Replace. If your book has 《》for furigana as some aozora books do (戦場《せんじょう》), then add a regex. If they have rt for furigana use the rt one: 《(.+?)》 or <rt>(.*?)<\/rt>. When you copy the regex into the regex box, don't forget to click the Add button
+![image](https://user-images.githubusercontent.com/32607317/226463912-48bcfd57-4935-48fb-af7e-13d2a024cdee.png)
+4. You can add multiple regexes to strip any extra content or furigana as need be.
+![image](https://user-images.githubusercontent.com/32607317/226464346-a752970e-0f1c-42db-b64d-a3bc6df6ebdd.png)
+5. Click ok and convert it & you should now be able to find the file wherever Calibre is saving your books
 
 # Thanks
 
