@@ -30,6 +30,7 @@ def run_stable_whisper(audio_file, full_timings_path):
     )
     result.to_ass(full_timings_path)
 
+
 def generate_transcript_from_audio(audio_file, full_timings_path):
     run_stable_whisper(audio_file, full_timings_path)
 
