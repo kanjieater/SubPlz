@@ -3,7 +3,8 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 
 ## Usage
-`usage: main.py [-h] [--language LANGUAGE] [--model MODEL] [--output-file OUTPUT_FILE] --audio-files AUDIO_FILES [AUDIO_FILES ...] --script SCRIPT
+```
+usage: main.py [-h] [--language LANGUAGE] [--model MODEL] [--output-file OUTPUT_FILE] --audio-files AUDIO_FILES [AUDIO_FILES ...] --script SCRIPT
 
 Match audio to a transcript
 
@@ -15,7 +16,7 @@ options:
   --audio-files AUDIO_FILES [AUDIO_FILES ...]
                         List of audio files to process (in the correct order)
   --script SCRIPT       Path to the script file``
-`
+```
 
 ## Dependencies
 - At least python 3.9
