@@ -4,18 +4,19 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 ## Usage
 ```
-usage: main.py [-h] [--language LANGUAGE] [--model MODEL] [--output-file OUTPUT_FILE] --audio-files AUDIO_FILES [AUDIO_FILES ...] --script SCRIPT
+usage: main.py [-h] --audio-files AUDIO_FILES [AUDIO_FILES ...] --script SCRIPT [--language LANGUAGE] [--model MODEL] [--output-file OUTPUT_FILE]
 
 Match audio to a transcript
 
 options:
   -h, --help            show this help message and exit
-  --language LANGUAGE
-  --model MODEL
-  --output-file OUTPUT_FILE
   --audio-files AUDIO_FILES [AUDIO_FILES ...]
-                        List of audio files to process (in the correct order)
-  --script SCRIPT       Path to the script file``
+                        list of audio files to process (in the correct order)
+  --script SCRIPT       path to the script file
+  --language LANGUAGE   language of the script and audio
+  --model MODEL         whisper model to use. can be one of tiny, small, large, huge
+  --output-file OUTPUT_FILE
+                        name of the output subtitle file
 ```
 
 ## Dependencies
