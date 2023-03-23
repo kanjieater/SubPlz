@@ -249,19 +249,17 @@ def process_audio(model, model_name, language, files):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
-    parser.add_argument("--language", type=str, default="ja")
-    parser.add_argument("--model", type=str, default="tiny")
-    parser.add_argument("--output-file", type=str, default=None)
     parser.add_argument(
         "--audio-files",
         type=str,
         nargs="+",
         required=True,
-        help="List of audio files to process (in the correct order)",
+        help="list of audio files to process (in the correct order)",
     )
-    parser.add_argument(
-        "--script", required=True, type=str, help="Path to the script file"
-    )
+    parser.add_argument("--script", required=True, type=str, help="path to the script file")
+    parser.add_argument("--language", help="language of the script and audio", type=str, default="ja")
+    parser.add_argument("--model", help="whisper model to use. can be one of tiny, small, large, huge", type=str, default="tiny")
+    parser.add_argument("--output-file", help="name of the output subtitle file", type=str, default=None)
     args = parser.parse_args()
 
     if args.output_file is None:
