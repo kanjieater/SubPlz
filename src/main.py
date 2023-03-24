@@ -12,6 +12,7 @@ import multiprocessing
 import os
 import numpy as np
 from tqdm import tqdm
+from functools import partialmethod
 
 
 CACHEDIR = "/tmp/AudiobookTextSyncCache/"
@@ -27,12 +28,12 @@ class Segment:
     start: float
     end: float
     def __repr__(self):
-        return f"Segment(text={self.text}, start={secs_to_hhmmss(self.start)}, end={secs_to_hhmmss(self.end)})"
+        return f"Segment(text='{self.text}', start={secs_to_hhmmss(self.start)}, end={secs_to_hhmmss(self.end)})"
     def vtt(self):
         return f"{secs_to_hhmmss(self.start)} --> {secs_to_hhmmss(self.end)}\n{self.text}"
 
 
-def find_matches(script, subs, max_merge_count=6):
+def find_matches(script, subs, max_merge_count=12):
     max_search_context = max_merge_count * 2  # Should probably just be its own thing
 
     bar = tqdm(total=len(script))
@@ -43,16 +44,15 @@ def find_matches(script, subs, max_merge_count=6):
         line = "".join(script[scs:scs+script_used])
         for used_subs in range(1, min(sue - sus, max_subs)+1):
             subtitle = "".join(i.text for i in subs[sus:sus+used_subs])
-            score = fuzz.ratio(subtitle, line) / 100.0 * min(len(line), len(subtitle))
+            score = fuzz.ratio(subtitle, line.replace('「', '').replace('」', '')) / 100.0# * min(len(line), len(subtitle))
             score += best(scs + script_used, sce, sus + used_subs, sue)
             if score > best_score:
                 best_score, best_used_sub = score, used_subs
         return (best_score, best_used_sub)
 
     memo, best_script = {}, {}
-    def best(scs, sce, sus, sue):  # Having to use subindex here is just sad
-        if (sce - scs) <= 0:
-            return 0
+    def best(scs, sce, sus, sue):
+        if sce == scs: return 0
 
         key = (scs, sus)
         if key in memo:
@@ -76,59 +76,26 @@ def find_matches(script, subs, max_merge_count=6):
 
         return best_score
 
-    def get_best_sub_path(script_pos, n, last_script_pos, last_sub_to_test):
-        _, key = best_script[script_pos]
-        ret = []
-        sub_pos = key[1]
-
-        i = 0
-        while i < n and script_pos < last_script_pos and sub_pos < last_sub_to_test:
-            ret.append((script_pos, sub_pos))
-            decision = memo[(script_pos, sub_pos)]
-            num_used_sub = decision[1]
-            num_used_script = decision[2]
-            sub_pos += num_used_sub
-            script_pos += num_used_script
-            i += 1
-        return ret
-
     results = []
     def find_match(scs, sce, sus, sue):
-        # print(scs, sce, sus, sue)
-        # print()
         if sce == scs or sue == sus: return
 
         memo.clear()
         best_script.clear()
         mid = (sce + scs) // 2
         s, e = max(scs, mid - max_search_context), min(sce, mid + max_search_context)
-        # print("s", s, "e", e)
 
         for i in reversed(range(s, e)):
             for j in reversed(range(sus, sue)):
                 best(i, e, j, sue)
 
-        best_path = get_best_sub_path(s, e - s, e, sue)
-        if len(best_path) > 0:
-            for p in best_path:
-                if p[0] > mid:
-                    break
-                mid_key = p
-        else:
-            return
-        m = memo[mid_key]
-        scriptp, subp = mid_key
-        _, sub_used, script_used = m
-
-        # key = best_script[s][1]
-        # _, sub_used, script_used = memo[key]
-        # scriptp, subp = s, key[1]
-        # while (scriptp + script_used) < mid and (subp + sub_used) < sue:
-        #     # print(scriptp, subp)
-        #     scriptp += script_used
-        #     subp += sub_used
-        #     _, sub_used, script_used = memo[(scriptp, subp)]
-        # print(scriptp, subp, sub_used, script_used)
+        key = best_script[s][1]
+        _, sub_used, script_used = memo[key]
+        scriptp, subp = s, key[1]
+        while (scriptp + script_used) < mid and (subp + sub_used) < sue:
+            scriptp += script_used
+            subp += sub_used
+            _, sub_used, script_used = memo[(scriptp, subp)]
 
         subs_result = subs[subp : subp + sub_used]
         out = (
@@ -151,27 +118,33 @@ def find_matches(script, subs, max_merge_count=6):
     return results
 
 
-def segment(file, language):
+def segment(file, language, progress=True, spaces=True, whitespace=False):
     import pysbd
     seg = pysbd.Segmenter(language=language, clean=False)
 
     sentences = [" "]
-    with tqdm(file.strip().split("\n")) as bar:
+    file = file.strip() if whitespace else file
+    with tqdm(file.split("\n"), disable=not progress) as bar:
         bar.set_description("Segmenting the script to sentences")
         for line in bar:
             for i in seg.segment(line):
-                i = i.strip()  # Ugly
-                while len(i) and i[1] in ["」", " ", "　", "’"]:  # Fix end of quotes
+                i = i.strip() if whitespace else i# Ugly
+                l = ["」", " ", "　", "’"] if whitespace else ["」", "’"]
+                while len(i) and i[0] in l:  # Fix end of quotes
                     sentences[-1] += i[0]
                     i = i[1:]
-                if sentences[-1][-1] in ["」", "’"] and len(sentences[-1] + i) < 80:  # Merge short lines with quotes
-                    sentences[-1] += i
-                elif len(i):
+                # if sentences[-1][0] in ["」", "’"] and len(sentences[-1] + i) < 50:  # Merge short lines with quotes
+                #     sentences[-1] += i
+                # if len(i):
+                if spaces:
+                    f =  i.split()
+                    sentences.extend([f[0]] + [z for z in f[1:] ])
+                else:
                     sentences.append(i)
     return sentences[1:]
 
 
-def process_audio(model, model_name, language, files):
+def process_audio(model, model_name, language, files, use_cache=True):
     def load(file, start, end):
         out, _ = (
             ffmpeg.input(file, ss=start, to=end)
@@ -184,11 +157,13 @@ def process_audio(model, model_name, language, files):
         return model.transcribe(
             data,
             fp16=False,
+            # demucs=True,
             language=language,
             suppress_silence=True,
-            # vad=True,
-            regroup=True,
-            word_timestamps=True
+            vad=True,
+            regroup=False,
+            verbose=None, # IT"S NONE NOT FALSE
+            word_timestamps=True,
         )
 
     # this is neat, but the code is awful, and it dosen't cover all the edge cases.
@@ -218,33 +193,49 @@ def process_audio(model, model_name, language, files):
             for ch in (bar2 := tqdm(info["chapters"])):
                 s, e = float(ch["start_time"]), float(ch["end_time"])
                 q = Path(CACHEDIR) / (os.path.basename(info["format"]["filename"]) + '.' + str(ch["id"]) +  '.' + model_name + ".subs")
-                if q.exists():
+                if q.exists() and use_cache:
                     seg_ts = eval(q.read_bytes().decode('utf-8'))
                 else:
                     bar.refresh()  # first bar gets broken if i don't do this
                     bar2.set_description(f"{ch['id']} {ch['tags']['title']}" + (" is more than an hour, this may crash" if e - s > 60 * 60 * 1 else ""))
                     seg_ts = process(load(file, s, e)).to_dict()
-                    pprint(seg_ts)
+                    # pprint(seg_ts)
                     q.write_bytes(repr(seg_ts).encode('utf-8'))
 
-                # print(seg_ts)
-                # segs = text_output.to_word_level_segments()
-                # print()
-                # print(segs)
-                # print()
-                # exit()
-                segs = [Segment(text=''.join(seg['text']), start=seg['start']+offset, end=seg['end']+offset) for seg in seg_ts['segments']]
+                # words = [Segment(text=''.join(seg['text']), start=seg['start']+offset, end=seg['end']+offset) for seg in seg_ts['segments']]
+                words = []
+                for seg in seg_ts['segments']:
+                    z = segment(seg['text'], language, spaces=True, progress=False, whitespace=False)
+                    # pprint(z)
+                    seg['words'][0]['word'] = seg['words'][0]['word'].lstrip() # This sucks
+                    string, start, end = "", seg['words'][0]['start'], seg['words'][0]['end']
+                    for word in seg['words']:
+                        if not z[0].startswith(string + word['word']):
+                            # print("OUT")
+                            # print(repr(string), repr(word['word']))
+                            words.append(Segment(text=string, start=start+offset, end=end+offset))
+                            z = z[1:]
+                            string, start, end = word['word'].lstrip(), word['start'], word['end']
+                        else:
+                            string += word['word']
+                            end = word['end']
+                    words.append(Segment(text=string, start=start+offset, end=end+offset))
+
+                # words = [Segment(text=word['word'], start=word['start']+offset, end=word['end']+offset) for seg in seg_ts['segments'] for word in seg['words']]
                 # print('WEBVTT\n\n')
                 # print('\n\n'.join(i.vtt() for i in segs))
                 # segs = [Segment(text=text, start=seg['start']+offset, end=seg['end']+offset) for text, seg in chain.from_iterable(zip(*i) for i in seg_ts)]
-                transcript.extend(segs)
+                transcript.extend(words)
                 offset += e - s
-    pprint(transcript)
-    out = list(sorted(sorted(transcript, key=lambda x: x.start), key=lambda x: x.end))
-    print()
-    print(out)
-    print()
-    return out
+    # print()
+    # pprint(len(transcript))
+    # transcript = [i for i in transcript if len(i.text) > 0]
+    # with open("whatever.vtt", "w") as f:
+    #     f.write('WEBVTT\n\n')
+    #     f.write('\n\n'.join(i.vtt() for i in transcript))
+    # pprint(transcript)
+    # pprint(len(transcript))
+    return transcript
 
 
 if __name__ == "__main__":
@@ -260,16 +251,21 @@ if __name__ == "__main__":
     parser.add_argument("--language", help="language of the script and audio", type=str, default="ja")
     parser.add_argument("--model", help="whisper model to use. can be one of tiny, small, large, huge", type=str, default="tiny")
     parser.add_argument("--output-file", help="name of the output subtitle file", type=str, default=None)
+    parser.add_argument("--progress",default=True,  help="no progress bars", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--use-cache", default=True, help="whether to use the cache or not", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--split-script", help=r"the regex to split the script with. for monogatari it is something like ^\s[\uFF10-\uFF19]*\s$", type=str, default="")
     args = parser.parse_args()
+
+    tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.progress)
 
     if args.output_file is None:
         args.output_file = args.script + ".vtt"
 
     with open(args.script, "r") as f:
-        sentences = segment(f.read(), args.language)
+        sentences = segment(f.read(), args.language, spaces=False)
 
     model = stable_whisper.load_model(args.model)
-    transcripts = process_audio(model, args.model, args.language, args.audio_files)
+    transcripts = process_audio(model, args.model, args.language, args.audio_files, use_cache=args.use_cache)
     results = find_matches(sentences, transcripts)
     with open(args.output_file, "w") as out:
         out.write("WEBVTT\n\n")
