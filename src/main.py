@@ -273,8 +273,8 @@ if __name__ == "__main__":
     if args.output_file is None:
         args.output_file = args.script + ".vtt"
 
-    with open(args.script, "r") as f:
-        sentences = segment(f.read(), args.language, whatever=False, spaces=True)
+    with open(args.script, "rb") as f:
+        sentences = segment(f.read().decode('utf-8'), args.language, whatever=False, spaces=True)
 
     model = stable_whisper.load_model(args.model)
     # model = faster_whisper.WhisperModel(args.model, device='cpu', compute_type="float32")
@@ -297,8 +297,8 @@ if __name__ == "__main__":
     #     file.write(segment.vtt() + "\n\n")
 
 #     # f = open(
-    with open(args.output_file, "w") as out:
+    with open(args.output_file, "wb") as out:
         out.write("WEBVTT\n\n")
         # for i in results:
         subs = "\n\n".join(Segment(text=t, start=s.start, end=s.end).vtt() for t, s in results)
-        out.write(subs)
+        out.write(subs.encode('utf-8')
