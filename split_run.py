@@ -148,6 +148,7 @@ def run():
 
     if path.exists(split_folder) and path.isdir(split_folder):
         working_folder = split_folder
+        print(f"Warning: Using split files causes a fixed delay for every split file. This is a known bug. Use the single file method instead")
     else:
         working_folder = full_folder
     print(f"Working on {working_folder}")

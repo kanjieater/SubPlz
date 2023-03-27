@@ -196,11 +196,11 @@ def send_to_anki_connect(csv_path, note_template, field_mappings):
     successes = [x for x in notes_response if x is not None]
     failures = len(notes) - len(successes)
 
-    print("[+] Emptying any fields left empty intentionally")
-    empty_fields = replace_empty_fields(empty_fields_note_template)["fields"]
-    empty = []
-    for i in tqdm(range(0, len(successes), chunk_size)):
-        empty += set_empty(empty_fields, successes[i : i + chunk_size])
+    # print("[+] Emptying any fields left empty intentionally")
+    # empty_fields = replace_empty_fields(empty_fields_note_template)["fields"]
+    # empty = []
+    # for i in tqdm(range(0, len(successes), chunk_size)):
+    #     empty += set_empty(empty_fields, successes[i : i + chunk_size])
 
     print("[+] Created {} new notes".format(len(successes)))
     if failures:
@@ -249,6 +249,7 @@ def move_individual_media(file_data):
     shutil.move(file_data["src"], file_data["dest"])
 
 
+
 def move_media(srs_export_dir, anki_media_dir):
     print(f"Exporting media from {srs_export_dir}")
     files = grab_files(srs_export_dir, ["*.mp3"], False)
@@ -256,8 +257,8 @@ def move_media(srs_export_dir, anki_media_dir):
     for file in files:
         dest = os.path.join(anki_media_dir, os.path.basename(file))
         file_data.append({"src": file, "dest": dest})
-
-    process_map(move_individual_media, files, max_workers=multiprocessing.cpu_count())
+    cpu_count = multiprocessing.cpu_count()
+    process_map(move_individual_media, file_data, max_workers=cpu_count, chunksize=len(file_data) // cpu_count)
 
 
 def get_srs_export_dir(csv_path):
