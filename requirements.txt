@@ -1,7 +1,7 @@
 fuzzywuzzy==0.18.0
 pysbd==0.3.4
 python-Levenshtein==0.12.2
-stable-ts @ git+https://github.com/jianfch/stable-ts.git@0b423391e115abcb8b8fdbb581b75f5b1fc746d3
+stable-ts @ git+https://github.com/jianfch/stable-ts.git@8fa5670316eecf3b823a7bc453866c907d616a51
 natsort==8.2.0
 
 #Anki support

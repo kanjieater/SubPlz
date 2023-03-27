@@ -1,7 +1,5 @@
 from pprint import pprint
 import os
-# import intel_extension_for_pytorch as ipex
-# import faster_whisper
 from fuzzywuzzy import fuzz
 from dataclasses import dataclass
 from itertools import chain
@@ -18,8 +16,8 @@ from tqdm import tqdm
 from functools import partialmethod
 
 
-# CACHEDIR = "/tmp/AudiobookTextSyncCache/"
-CACHEDIR = "/home/ym/fun/AudiobookTextSync/AudiobookTextSyncCache/"
+CACHEDIR = "/tmp/AudiobookTextSyncCache/"
+# CACHEDIR = "/home/ym/fun/AudiobookTextSync/AudiobookTextSyncCache/"
 
 def secs_to_hhmmss(secs):
     mm, ss = divmod(secs, 60)
@@ -48,7 +46,7 @@ def find_matches(script, subs, max_merge_count=6):
         line = "".join(script[scs:scs+script_used])
         for used_subs in range(1, min(sue - sus, max_subs)+1):
             subtitle = "".join(i.text for i in subs[sus:sus+used_subs])
-            score = fuzz.ratio(subtitle, line.replace('「', '').replace('」', '')) / 100.0 * min(len(line), len(subtitle))
+            score = fuzz.ratio(subtitle, line.replace('「', '').replace('」', '').replace("《", "").replace("》", "")) / 100.0 * min(len(line), len(subtitle)) # Sometimes removing the length multiplication leads to better results, we really need a better heuristic that considers more things tbh
             score += best(scs + script_used, sce, sus + used_subs, sue)
             if score > best_score:
                 best_score, best_used_sub = score, used_subs
@@ -136,7 +134,7 @@ def segment(file, language, progress=True, spaces=True, whatever=False, whitespa
         for line in bar:
             for i in seg.segment(line):
                 i = i.strip() if whitespace else i# Ugly
-                l = ["」", " ", "　", "’"] if whitespace else ["」", "’"]
+                l = ["」", " ", "　", "’"] if whitespace else ["」", "》", "’"]
                 while len(i) and i[0] in l:  # Fix end of quotes
                     sentences[-1] += i[0]
                     i = i[1:]
@@ -156,9 +154,11 @@ def segment(file, language, progress=True, spaces=True, whatever=False, whitespa
 
 def process_audio(model, model_name, language, files, use_cache=True):
     def load(file, start, end):
+        # the highpass, lowpass filters should options
         out, _ = (
             ffmpeg.input(file, ss=start, to=end)
-            .output("-", format="s16le", acodec="pcm_s16le", ac=1, af="highpass=f=200,lowpass=f=3000", ar="16k")
+            # .output("-", format="s16le", acodec="pcm_s16le", ac=1, af="highpass=f=200,lowpass=f=3000", ar="16k")
+            .output("-", format="s16le", acodec="pcm_s16le", ac=1, ar="16k")
             .run(cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
         )
         return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
@@ -203,6 +203,14 @@ def process_audio(model, model_name, language, files, use_cache=True):
             info = edit_tags(ffmpeg.probe(file, show_chapters=None))
             for ch in (bar2 := tqdm(info["chapters"])):
                 s, e = float(ch["start_time"]), float(ch["end_time"])
+                # 幼女戦記 has a 付録 that isn't included in the book
+                # This should be more generalized to allow skipping chapters based on regex or something
+                # if ch['tags']['title'].find("付録") >= 0:
+                #     print(f"\n\n{ch['tags']['title']}\n\n")
+                #     offset += e - s
+                #     h.append(offset)
+                #     continue
+
                 q = Path(CACHEDIR) / (os.path.basename(info["format"]["filename"]) + '.' + str(ch["id"]) +  '.' + model_name + ".subs")
                 if q.exists() and use_cache:
                     seg_ts = eval(q.read_bytes().decode('utf-8'))
@@ -214,6 +222,7 @@ def process_audio(model, model_name, language, files, use_cache=True):
                     q.write_bytes(repr(seg_ts).encode('utf-8'))
 
                 words = [Segment(text=''.join(seg['text']), start=seg['start']+offset, end=seg['end']+offset) for seg in seg_ts['segments']]
+                # Random tests
                 # words = []
                 # for seg in seg_ts['segments']:
                 #     z = segment(seg['text'], language, spaces=True, progress=False, whitespace=False)
@@ -239,6 +248,7 @@ def process_audio(model, model_name, language, files, use_cache=True):
                 transcript.extend(words)
                 offset += e - s
                 h.append(offset)
+    # Debugging stuff
     # print()
     # pprint(len(transcript))
     # transcript = [i for i in transcript if len(i.text) > 0]
@@ -271,17 +281,18 @@ if __name__ == "__main__":
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.progress)
 
     if args.output_file is None:
-        args.output_file = args.script + ".vtt"
+        args.output_file = args.script + '.vtt'
+        # args.output_file = os.path.splitext(args.audio_files[0])[0] + ".vtt"
+        # args.output_file = "whatever.vtt"
 
-    with open(args.script, "rb") as f:
-        sentences = segment(f.read().decode('utf-8'), args.language, whatever=False, spaces=True)
+    with open(args.script, "r") as f:
+        sentences = segment(f.read(), args.language, whatever=False, spaces=True)
 
     model = stable_whisper.load_model(args.model)
-    # model = faster_whisper.WhisperModel(args.model, device='cpu', compute_type="float32")
-    # stable_whisper.modify_model(model)
-    # model = ipex.optimize(model)
     transcripts, h = process_audio(model, args.model, args.language, args.audio_files, use_cache=args.use_cache)
     results = find_matches(sentences, transcripts)
+
+    # For split files
     # file = open(os.path.splitext(args.audio_files[0])[0] + '.vtt', "w")
     # file.write("WEBVTT\n\n")
     # for i in results:
@@ -296,9 +307,8 @@ if __name__ == "__main__":
     #     segment = Segment(text=i[0], start=i[1].start-h[0], end=i[1].end-h[0])
     #     file.write(segment.vtt() + "\n\n")
 
-#     # f = open(
-    with open(args.output_file, "wb") as out:
+    with open(args.output_file, "w") as out:
         out.write("WEBVTT\n\n")
         # for i in results:
         subs = "\n\n".join(Segment(text=t, start=s.start, end=s.end).vtt() for t, s in results)
-        out.write(subs.encode('utf-8')
+        out.write(subs)
