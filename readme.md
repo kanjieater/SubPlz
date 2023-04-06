@@ -21,40 +21,54 @@ Currently supports unix based OS's like Ubuntu 20.04 on WSL2.
 
 2. Use python `3.9.9`
 
-3. `pip install stable-ts`
+3. `pip install -r requirements.txt`
 
-4. Be able to run the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them.
+4. If you're using a single file for the entire audiobook you are good to go. If you have individually split audio tracks, they need to be combined. You can use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
 
 
 
 # How to use
 
+## Quick Guide
 
-Primarily I'm using this for syncing audiobooks to their book script. So while you could use this for video files, I'm not doing that just yet. Note: I'm using the term "splitted" because that's what m4b refers to as the split files.
+1. Put an `m4b` and a `txt` file in a folder
+1. Run `python run.py -d "<full folder path>"`
+
+Primarily I'm using this for syncing audiobooks to their book script. So while you could use this for video files, I'm not doing that just yet.
 
 1. `git clone https://github.com/kanjieater/AudiobookTextSync.git`
 1. Make sure you run any commands that start with `./` from the project root, eg after you clone you can run `cd ./AudiobookTextSync`
 1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`
 1. Get the book script as text from a digital copy. Put the script at: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
 1. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b,mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
- eg `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`. The split files must be in `./<name>/<name>_merge/`.
-1. If you are not using split files you can skip this step. If you have less than ~4GB of free RAM you may need _both_ the audiobook as a full m4b (technically other formats would work), AND the split parts. However, it is recommended to use only the single file as split  causes a stacking delay per file currently. That is a known bug and can be avoided by using the single combined file. By using small splits, we can have more confidence the Speech To Text analysis won't get killed by an Out Of Memory error. But this introduces a ~50ms delay in the subtitles. It's shouldn't be an issue if you use MPV and can correct the subtitle timings with a hotkey press though.
-Split files should be `./<name>/<name>_splitted/`.If you have the full audiobook as a m4b, you can split it into chapters using `./split.sh "<full folder path>"`. eg `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. If you don't want to use split files, make sure there isn't a folder with `./<name>/<name>_splitted/` existing, or the program will automatically look for the split files.
-6. If you have the `script.txt` and either `./<name>/<name>.m4b` or `./<name>/<name>_splitted/`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `./run.sh "<full folder path>"` eg `./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each split file individually to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file that can be watched with `MPV`, showing audio in time with the full book as a subtitle.
+ eg `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`. The split files must be in `./<name>/<name>_merge/`. This will merge your file into a single file so it can be processed.
+6. If you have the `script.txt` and either `./<name>/<name>.m4b`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `python run.py -d "<full folder path>"` eg `python run.py -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file that can be watched with `MPV`, showing audio in time with the full book as a subtitle.
 7. From there, use a [texthooker](https://github.com/Renji-XD/texthooker-ui) with something like [mpv_websocket](https://github.com/kuroahna/mpv_websocket) and enjoy Immersion Reading.
 
 # Split m4b by chapter
 `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Get a subtitle with synced transcript from split files
-`./run.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
+`python run.py -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Single File
 
 You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 8GB of RAM available.
-You need two copies of your file. One in "<full folder path>" and one in `<full folder path>/splitted_<name>`, as described in the How to Use section. The single file will only run if you don't have `<name>_splitted` folder, otherwise we'll assume you want to use the data from there in parts.
+You need your`m4b`, `mp3`, or `mp4` audiobook file to be inside the folder: "<full folder path>", with a `txt` file in the same folder. The `txt` file can be named anything as long as it has a `txt` extension.
+The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter 2 The Spooky Sequel/"`
+```bash
+/sync/
+└── /Harry Potter/
+   ├── Harry Potter.m4b
+   └── Harry Potter.txt
+└── /Harry Potter 2 The Spooky Sequel/
+   ├── Harry Potter 2 The Spooky Sequel.mp3
+   └── script.txt
+```
 
-`./run.sh "<full folder path>"` eg `./run.sh "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"`
+
+
+`python run.py -d "<full folder path>"` eg `python run.py -d "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"` or `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter The Sequel/"`
 
 # Merge split files into a single m4b
 `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`

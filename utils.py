@@ -1,4 +1,3 @@
-
 import re
 from natsort import os_sorted
 from glob import glob, escape
@@ -22,9 +21,10 @@ def get_lines(file):
 
 def read_vtt(file):
     lines = get_lines(file)
+
     subs = []
-    # Read header
-    assert next(lines) == "WEBVTT"
+    header = next(lines)
+    assert header == "WEBVTT"
     # assert next(lines) == "Kind: captions"
     # assert next(lines).startswith("Language:")
     assert next(lines) == ""
@@ -64,12 +64,13 @@ def read_vtt(file):
     return subs
 
 
-def write_sub(outfile, subs):
-    outfile.write('WEBVTT\n\n')
-    for n, sub in enumerate(subs):
-        # outfile.write('%d\n' % (n + 1))
-        outfile.write('%s --> %s\n' % (sub.start, sub.end))
-        outfile.write('%s\n\n' % (sub.line))
+def write_sub(output_file_path, subs):
+    with open(output_file_path, "w") as outfile:
+        outfile.write('WEBVTT\n\n')
+        for n, sub in enumerate(subs):
+            # outfile.write('%d\n' % (n + 1))
+            outfile.write('%s --> %s\n' % (sub.start, sub.end))
+            outfile.write('%s\n\n' % (sub.line))
 
 
 def grab_files(folder, types, sort=True):
