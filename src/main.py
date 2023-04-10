@@ -15,6 +15,9 @@ import numpy as np
 from tqdm import tqdm
 from functools import partialmethod
 
+import sudachipy
+from sudachipy import dictionary
+
 
 CACHEDIR = "/tmp/AudiobookTextSyncCache/"
 # CACHEDIR = "/home/ym/fun/AudiobookTextSync/AudiobookTextSyncCache/"
@@ -46,7 +49,7 @@ def find_matches(script, subs, max_merge_count=6):
         line = "".join(script[scs:scs+script_used])
         for used_subs in range(1, min(sue - sus, max_subs)+1):
             subtitle = "".join(i.text for i in subs[sus:sus+used_subs])
-            score = fuzz.ratio(subtitle, line.replace('「', '').replace('」', '').replace("《", "").replace("》", "")) / 100.0 * min(len(line), len(subtitle)) # Sometimes removing the length multiplication leads to better results, we really need a better heuristic that considers more things tbh
+            score = fuzz.ratio(subtitle, line.replace('「', '').replace('」', '').replace("《", "").replace("》", "")) / 100.00 * min(len(line), len(subtitle)) # Sometimes removing the length multiplication leads to better results, we really need a better heuristic that considers more things tbh
             score += best(scs + script_used, sce, sus + used_subs, sue)
             if score > best_score:
                 best_score, best_used_sub = score, used_subs
@@ -157,11 +160,37 @@ def process_audio(model, model_name, language, files, use_cache=True):
         # the highpass, lowpass filters should options
         out, _ = (
             ffmpeg.input(file, ss=start, to=end)
-            # .output("-", format="s16le", acodec="pcm_s16le", ac=1, af="highpass=f=200,lowpass=f=3000", ar="16k")
-            .output("-", format="s16le", acodec="pcm_s16le", ac=1, ar="16k")
+            .output("-", format="s16le", acodec="pcm_s16le", ac=1, af="highpass=f=200,lowpass=f=3000", ar="16k")
+            # .output("-", format="s16le", acodec="pcm_s16le", ac=1, ar="16k")
             .run(cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
         )
         return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+
+
+    jptokenizer = dictionary.Dictionary(dict_type="full").create()
+    def split_tokens(tokens, tokenizer):
+        words, word_tokens = stable_whisper.timing._split_tokens(tokens, tokenizer)
+
+        if tokenizer.language == 'ja':
+            jp_words, jp_tokens = [], []
+            tokenized = list(jptokenizer.tokenize(''.join(words), sudachipy.Tokenizer.SplitMode.C))
+            tstart, wstart = 0,  0
+            while tstart < len(tokenized) or wstart < len(words):
+                tend, wend = tstart+1, wstart+1
+                x = ''.join(map(lambda x: x.surface(), tokenized[tstart:tend]))
+                y = ''.join(words[wstart:wend])
+                while len(x) != len(y):
+                    if len(x) < len(y):
+                        x += tokenized[tend].surface()
+                        tend += 1
+                    else:
+                        y += words[wend]
+                        wend += 1
+                jp_words.append(x)
+                jp_tokens.append(list(chain.from_iterable(word_tokens[wstart:wend])))
+                tstart, wstart = tend, wend
+            words, word_tokens = jp_words, jp_tokens
+        return words, word_tokens
 
     def process(data):
         return model.transcribe(
@@ -174,6 +203,7 @@ def process_audio(model, model_name, language, files, use_cache=True):
             regroup=True,
             verbose=None, # IT"S NONE NOT FALSE
             word_timestamps=True,
+            split_callback=split_tokens,
         )
 
     # this is neat, but the code is awful, and it dosen't cover all the edge cases.
@@ -205,11 +235,11 @@ def process_audio(model, model_name, language, files, use_cache=True):
                 s, e = float(ch["start_time"]), float(ch["end_time"])
                 # 幼女戦記 has a 付録 that isn't included in the book
                 # This should be more generalized to allow skipping chapters based on regex or something
-                # if ch['tags']['title'].find("付録") >= 0:
-                #     print(f"\n\n{ch['tags']['title']}\n\n")
-                #     offset += e - s
-                #     h.append(offset)
-                #     continue
+                if ch['tags']['title'].find("付録") >= 0:
+                    print(f"\n\n{ch['tags']['title']}\n\n")
+                    offset += e - s
+                    h.append(offset)
+                    continue
 
                 q = Path(CACHEDIR) / (os.path.basename(info["format"]["filename"]) + '.' + str(ch["id"]) +  '.' + model_name + ".subs")
                 if q.exists() and use_cache:
@@ -221,6 +251,7 @@ def process_audio(model, model_name, language, files, use_cache=True):
                     # pprint(seg_ts)
                     q.write_bytes(repr(seg_ts).encode('utf-8'))
 
+                stable_whisper.result_to_ass(seg_ts, os.path.basename(info["format"]["filename"]) + '.' + str(ch["id"]) +  '.' + model_name + ".subs")
                 words = [Segment(text=''.join(seg['text']), start=seg['start']+offset, end=seg['end']+offset) for seg in seg_ts['segments']]
                 # Random tests
                 # words = []
@@ -281,8 +312,8 @@ if __name__ == "__main__":
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.progress)
 
     if args.output_file is None:
-        args.output_file = args.script + '.vtt'
-        # args.output_file = os.path.splitext(args.audio_files[0])[0] + ".vtt"
+        # args.output_file = args.script + '.vtt'
+        args.output_file = os.path.splitext(args.audio_files[0])[0] + ".vtt"
         # args.output_file = "whatever.vtt"
 
     with open(args.script, "r") as f:
@@ -292,20 +323,20 @@ if __name__ == "__main__":
     transcripts, h = process_audio(model, args.model, args.language, args.audio_files, use_cache=args.use_cache)
     results = find_matches(sentences, transcripts)
 
-    # For split files
-    # file = open(os.path.splitext(args.audio_files[0])[0] + '.vtt', "w")
-    # file.write("WEBVTT\n\n")
-    # for i in results:
-    #     if i[1].start > h[1]:
-    #         file.flush()
-    #         file.close()
-    #         h = h[1:]
-    #         args.audio_files = args.audio_files[1:]
-    #         file = open(os.path.splitext(args.audio_files[0])[0] + '.vtt', "w")
-    #         file.write("WEBVTT\n\n")
+    # # For split files
+    # # file = open(os.path.splitext(args.audio_files[0])[0] + '.vtt', "w")
+    # # file.write("WEBVTT\n\n")
+    # # for i in results:
+    # #     if i[1].start > h[1]:
+    # #         file.flush()
+    # #         file.close()
+    # #         h = h[1:]
+    # #         args.audio_files = args.audio_files[1:]
+    # #         file = open(os.path.splitext(args.audio_files[0])[0] + '.vtt', "w")
+    # #         file.write("WEBVTT\n\n")
 
-    #     segment = Segment(text=i[0], start=i[1].start-h[0], end=i[1].end-h[0])
-    #     file.write(segment.vtt() + "\n\n")
+    # #     segment = Segment(text=i[0], start=i[1].start-h[0], end=i[1].end-h[0])
+    # #     file.write(segment.vtt() + "\n\n")
 
     with open(args.output_file, "w") as out:
         out.write("WEBVTT\n\n")
