@@ -73,6 +73,12 @@ The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/
 # Merge split files into a single m4b
 `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
 
+# Merge split files into a single m4b for a library
+
+This assumes you just have mp4's in a folder like `/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠`. It will run all of the folder's with mp4's and do a check on them after to make sure the chapters line up. Requires `docker` command to be available.
+
+`python merge.py "/mnt/d/Editing/Audiobooks/"`
+
 
 # What does "bad" look like using the stable-ts library?
 
