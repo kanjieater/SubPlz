@@ -3,6 +3,7 @@ import warnings
 import os
 import tqdm
 import math
+from pprint import pprint
 
 import whisper
 from whisper.utils import (
@@ -41,7 +42,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from audio import log_mel_spectrogram, compare_spectrogram
 import decoding
 
-def segment_text(file, language, progress=True, spaces=True, whatever=False, whitespace=False):
+def segment_text(file, language, progress=True, spaces=False, whatever=False, whitespace=False):
     import pysbd
     seg = pysbd.Segmenter(language=language, clean=False)
 
@@ -68,6 +69,7 @@ def segment_text(file, language, progress=True, spaces=True, whatever=False, whi
                 else:
                     sentences.append(i)
     return sentences[1:]
+    # return [i + ' ' for i in sentences[1:]]
 
 def transcribe(
     model: "Whisper",
@@ -104,7 +106,7 @@ def transcribe(
     mel_gen = log_mel_spectrogram(audio, apply_silence=False)
     mel, speech_timestamps = next(mel_gen)
     speech_timestamps = [i // HOP_LENGTH  for i in speech_timestamps]
-    print(speech_timestamps)
+    # print(speech_timestamps)
 
     if not model.is_multilingual: decode_options["language"] = "en"
     if decode_options.get("language", None) is None:
@@ -158,15 +160,16 @@ def transcribe(
     decode_options.pop("best_of", None)
     decode_options.pop("beam_size", None)
     decode_options.pop("patience", None)
-    options = DecodingOptions(**decode_options, temperature=0)
+    options = DecodingOptions(**decode_options, temperature=0)#, without_timestamps=True)
     decoder = decoding.DirectedDecoder(text, tokenizer)
+
 
     with tqdm.tqdm(total=len(audio)//HOP_LENGTH, unit="frames", disable=verbose is not False) as pbar:
         last_speech_timestamp = 0.0
         ntimestamps = 0
         speech_start, speech_end = speech_timestamps[ntimestamps], speech_timestamps[ntimestamps+1]
-        while seek < 100000 and mel.shape[-1] > 5:
-            if mel.shape[-1] < 4 * N_FRAMES and (x := next(mel_gen, None)) is not None:
+        while mel.shape[-1] > 5:
+            if mel.shape[-1] < 2 * N_FRAMES and (x := next(mel_gen, None)) is not None:
                 new_speech = [i//HOP_LENGTH + seek + mel.shape[-1] for i in x[1]]
                 speech_timestamps += new_speech
                 mel = torch.concat([mel, x[0]], dim=-1)
@@ -184,8 +187,8 @@ def transcribe(
                 speech_start, speech_end = speech_timestamps[ntimestamps], speech_timestamps[ntimestamps+1]
 
             seek_shift = 0
-            print(seek, speech_start)
-            speech_start = None if seek > speech_start else speech_start
+            # print(seek, speech_start)
+            speech_start = None if speech_start is not None and seek > speech_start else speech_start
             if speech_start is not None and seek + segment_size < speech_start:
                 seek_shift += segment_size  # fast-forward to the next segment boundary
                 pbar.update(seek_shift)
@@ -193,6 +196,10 @@ def transcribe(
                 mel = mel[:, seek_shift:]
                 continue
             decoder.start_timestamp = (speech_start - seek) / N_FRAMES * 30 if speech_start else None
+            decoder.timestamps = speech_timestamps[ntimestamps:]
+            decoder.tiktok = False
+            decoder.seek = seek
+            decoder.ntimestamps = 0
 
             segment_duration = segment_size * HOP_LENGTH / SAMPLE_RATE
             mel_segment = pad_or_trim(mel_segment, N_FRAMES).to(model.device).to(dtype)
@@ -293,7 +300,8 @@ def transcribe(
                     prepend_punctuations=prepend_punctuations,
                     append_punctuations=append_punctuations,
                     last_speech_timestamp=last_speech_timestamp,
-                )
+                    )
+                # print([w['word'] for s in current_segments for w in s["words"]])
                 word_end_timestamps = [
                     w["end"] for s in current_segments for w in s["words"]
                 ]
@@ -339,9 +347,43 @@ def transcribe(
             seek += seek_shift
             mel = mel[:, seek_shift:]
 
+
+    with open(text_path) as x:
+        text = segment_text(x.read(), language)
+
+    # for x in all_segments:
+    #     if len(x['words']):
+    #         x['words'][0]['start'] = x['start']
+    #         x['words'][-1]['end'] = x['end']
+
+    new = []
+    x = [w for x in all_segments for w in x['words']]
+    # print(x)
+    s, e, current = 0, 0, 0
+    for i in text:
+        if e == len(x):
+            break
+        n = len(i)
+        while n > current and e < len(x):
+            current += len(x[e]['word'])
+            e += 1
+        # print(i, ''.join([i['word'] for i in x[s:e]]))
+        new.append({
+            "start": x[s]['start'],
+            "end": x[e-1]['end'],
+            "words": x[s:e],
+            "text": i,
+            "tokens": tokenizer.encode(i),
+            "temperature": 0,
+            "avg_logprob": 0,
+            "compression_ratio": 0,
+            "no_speech_prob": 0,
+        })
+        s, e, current = e, e, 0
+
     return dict(
         text=tokenizer.decode(all_tokens[len(initial_prompt_tokens) :]),
-        segments=all_segments,
+        segments=new,#all_segments,
         language=language,
     )
 
@@ -353,7 +395,7 @@ def cli():
     parser.add_argument("--model_dir", type=str, default=None, help="the path to save model files; uses ~/.cache/whisper by default")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu", help="device to use for PyTorch inference")
     parser.add_argument("--output_dir", "-o", type=str, default=".", help="directory to save the outputs")
-    parser.add_argument("--output_format", "-f", type=str, default="all", choices=["txt", "vtt", "srt", "tsv", "json", "all"], help="format of the output file; if not specified, all available formats will be produced")
+    parser.add_argument("--output_format", "-f", type=str, default="srt", choices=["txt", "vtt", "srt", "tsv", "json", "all"], help="format of the output file; if not specified, all available formats will be produced")
     parser.add_argument("--verbose", type=str2bool, default=True, help="whether to print out the progress and debug messages")
 
     # parser.add_argument("--task", type=str, default="transcribe", choices=["transcribe", "translate"], help="whether to perform X->X speech recognition ('transcribe') or X->English translation ('translate')")

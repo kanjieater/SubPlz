@@ -17,10 +17,12 @@ def pad(audio):
 vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', force_reload=False, onnx=False)
 vad_get_speech_timestamps = utils[0]
 
+def get_speech_timestamps(audio):
+    return vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=100) # TODO(YM): play with this idk
 
 def vad_and_write(audio):
     audio = audio.numpy()
-    speech_segments = vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=50) # TODO(YM): play with this idk
+    speech_segments = get_speech_timestamps(audio)
     l = [0] + [z for i in speech_segments for z in i.values()] + [audio.shape[-1]]
     # print(l)
     for i in range(0, len(l), 2): audio[l[i]:l[i+1]] = -1
@@ -41,14 +43,14 @@ def vad_and_write(audio):
 
 
 def log_mel_spectrogram(audio, apply_silence=False, n_mels=80):
-    chunk_size = 6*N_SAMPLES
-    max_mel = 0 # Idk why clipping with this is needed in the original implementation, but keep it consistent anw
-    vad_and_write(audio)
+    chunk_size = 10*N_SAMPLES
+    max_mel = 0 # Idk why clipping with this is needed in the original implementation, but keep it "consistent" anw
+    # vad_and_write(audio)
     audio = pad(audio)
     current = HOP_LENGTH
     while current < len(audio)-3*HOP_LENGTH:
         chunk = audio[current-HOP_LENGTH:current+chunk_size+HOP_LENGTH]
-        speech_segments = vad_get_speech_timestamps(chunk, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=30) # TODO(YM): play with this idk
+        speech_segments = get_speech_timestamps(chunk)
         speech_segments = [z for i in speech_segments for z in i.values()]
         if apply_silence:
             l = [0] + speech_segments + [len(chunk)]

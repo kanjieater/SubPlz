@@ -3,6 +3,7 @@ from torch import Tensor
 import torch.nn.functional as F
 
 from whisper.decoding import DecodingOptions, DecodingResult, DecodingTask, TokenDecoder
+from whisper.audio import N_FRAMES
 from whisper.tokenizer import get_tokenizer
 
 from typing import TYPE_CHECKING, List, Optional, Union
@@ -19,8 +20,10 @@ class DirectedDecoder(TokenDecoder):
         self.oseg = 0
         self.opos = 0
 
-        self.start_timestamp = None
-        self.end_timestamp = None
+        self.timestamps = None
+        self.tiktok = False
+        self.ntimestamps = 0
+        self.seek = None
 
         self.end = False
 
@@ -32,10 +35,18 @@ class DirectedDecoder(TokenDecoder):
         self.oseg = self.cseg
         self.opos = self.cpos
 
+    def to_ts(self, timestamp):
+        t = int(((timestamp - self.seek) / N_FRAMES * 30) // 0.02)
+        if t > (30 // 0.02):
+            t = 1500
+        if t < 0:
+            t = 0
+        return self.tokenizer.timestamp_begin + t
+
     def update(self, tokens: Tensor, logits: Tensor, sum_logprobs: Tensor):
         assert tokens.shape[0] == 1, "batch size != 1"
 
-        print(self.tokenizer.decode_with_timestamps(tokens[0].tolist()))
+        # print(self.tokenizer.decode_with_timestamps(tokens[0].tolist()))
 
         mout, tout = logits.argmax(dim=-1), torch.tensor([self.token_segments[self.cseg][self.cpos]])
         next_tokens = mout if mout >= self.tokenizer.eot or self.end else tout
@@ -48,8 +59,26 @@ class DirectedDecoder(TokenDecoder):
                 self.cseg, self.cpos = -1, -1
                 self.end = True
 
-        if tokens.shape[-1] == 3 and self.start_timestamp is not None:
-            next_tokens = torch.tensor([int(self.tokenizer.timestamp_begin + self.start_timestamp // 0.02)])
+        if mout >= self.tokenizer.timestamp_begin:
+            # print(self.tokenizer.decode_with_timestamps(mout.tolist()))
+            start, end = self.to_ts(self.timestamps[self.ntimestamps]), self.to_ts(self.timestamps[self.ntimestamps+1])
+            # print(self.tokenizer.decode_with_timestamps([start, end]))
+            while self.ntimestamps < len(self.timestamps)-2 and mout > end:
+                self.ntimestamps += 2
+                start, end = self.to_ts(self.timestamps[self.ntimestamps]), self.to_ts(self.timestamps[self.ntimestamps+1])
+                # print(self.tokenizer.decode_with_timestamps([start, end]))
+            # print(self.tiktok)
+            if mout < start and (not self.tiktok or self.ntimestamps == 0):
+                mout = torch.tensor([start])
+            elif mout < start and self.tiktok:
+                mout = torch.tensor([self.to_ts(self.timestamps[self.ntimestamps-1])])
+
+            self.tiktok = not self.tiktok
+
+            next_tokens = mout
+        # print(next_tokens)
+
+#             next_tokens = torch.tensor([int(self.tokenizer.timestamp_begin + self.to_ts(self.timestamps[0]) // 0.02)])
 
         current_logprobs = F.log_softmax(logits.float(), dim=-1)[torch.arange(tokens.shape[0]), next_tokens]
         sum_logprobs += current_logprobs * (tokens[:, -1] != self.tokenizer.eot)
