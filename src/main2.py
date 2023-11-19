@@ -104,7 +104,7 @@ def transcribe(
     # audio = audio.to(model.device)
     # print("Spectrograms", compare_spectrogram(audio))
     audio = audio.to(model.device)
-    mel_gen = log_mel_spectrogram(audio, apply_silence=False)
+    mel_gen = log_mel_spectrogram(audio, apply_silence=False, n_mels=model.dims.n_mels)
     mel, speech_timestamps = next(mel_gen)
     speech_timestamps = [i // HOP_LENGTH  for i in speech_timestamps]
     # print(speech_timestamps)
