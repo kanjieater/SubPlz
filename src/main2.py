@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from audio import log_mel_spectrogram, compare_spectrogram
 import decoding
+from quantization import ptdq_linear
 
 def segment_text(file, language, progress=True, spaces=False, whatever=False, whitespace=False):
     import pysbd
@@ -197,7 +198,7 @@ def transcribe(
                 continue
             decoder.start_timestamp = (speech_start - seek) / N_FRAMES * 30 if speech_start else None
             decoder.timestamps = speech_timestamps[ntimestamps:]
-            decoder.tiktok = False
+            # decoder.tiktok = False
             decoder.seek = seek
             decoder.ntimestamps = 0
 
@@ -404,7 +405,7 @@ def cli():
 
     parser.add_argument("--suppress_tokens", type=str, default="-1", help="comma-separated list of token ids to suppress during sampling; '-1' will suppress most special characters except common punctuations")
     parser.add_argument("--initial_prompt", type=str, default=None, help="optional text to provide as a prompt for the first window.")
-    parser.add_argument("--condition_on_previous_text", type=str2bool, default=True, help="if True, provide the previous output of the model as a prompt for the next window; disabling may make the text inconsistent across windows, but the model becomes less prone to getting stuck in a failure loop")
+    parser.add_argument("--condition_on_previous_text", type=str2bool, default=False, help="if True, provide the previous output of the model as a prompt for the next window; disabling may make the text inconsistent across windows, but the model becomes less prone to getting stuck in a failure loop")
     parser.add_argument("--fp16", type=str2bool, default=False, help="whether to perform inference in fp16; True by default")
 
     # parser.add_argument("--temperature_increment_on_fallback", type=optional_float, default=0.2, help="temperature to increase when falling back when the decoding fails to meet either of the thresholds below")
@@ -418,6 +419,7 @@ def cli():
     parser.add_argument("--max_line_width", type=optional_int, default=None, help="(requires --word_timestamps True) the maximum number of characters in a line before breaking the line")
     parser.add_argument("--max_line_count", type=optional_int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
     parser.add_argument("--threads", type=optional_int, default=0, help="number of threads used by torch for CPU inference; supercedes MKL_NUM_THREADS/OMP_NUM_THREADS")
+    parser.add_argument("--dynamic_quantization", "--dq", type=str2bool, default=True, help="Use dynamic quantization")
 
     args = parser.parse_args().__dict__
     model_name: str = args.pop("model")
@@ -439,6 +441,9 @@ def cli():
 
     Whisper.decode = decoding.decode
     model = whisper.load_model(model_name, device=device, download_root=model_dir)
+    dynamic_quantization = args.pop("dynamic_quantization")
+    if dynamic_quantization and device == "cpu":
+        ptdq_linear(model)
     # model.decode = decoding.decode
 
     writer = get_writer(output_format, output_dir)

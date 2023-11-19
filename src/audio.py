@@ -18,7 +18,10 @@ vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='sile
 vad_get_speech_timestamps = utils[0]
 
 def get_speech_timestamps(audio):
-    return vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=100) # TODO(YM): play with this idk
+    if audio.device != vad_model.device:
+        print(audio.device)
+        vad_model = vad_model.to(audio.device)
+    return vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=50) # TODO(YM): play with this idk
 
 def vad_and_write(audio):
     audio = audio.numpy()
