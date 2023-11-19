@@ -14,14 +14,18 @@ def pad(audio):
     audio = F.pad(audio.view(extended_shape), [pad, pad], 'reflect')
     return audio.view(audio.shape[-signal_dim:])
 
-vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', force_reload=False, onnx=False)
-vad_get_speech_timestamps = utils[0]
+vad_model, vad_get_speech_timestamps = None, None
+# vad_get_speech_timestamps = None
+# vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', force_reload=False, onnx=False)
+# vad_get_speech_timestamps = utils[0]
 
 def get_speech_timestamps(audio):
-    global vad_model
-    if audio.device != vad_model.device:
+    global vad_model, vad_get_speech_timestamps
+    if vad_model == None:#audio.device != vad_model.device:
         print(audio.device)
-        vad_model = vad_model.to(audio.device)
+        vad_model_utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', map_location=audio.device force_reload=False, onnx=False)
+        vad_model = vad_model[0]
+        vad_get_speech_timestamps = vad_model[1][0]
     return vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=50) # TODO(YM): play with this idk
 
 def vad_and_write(audio):
