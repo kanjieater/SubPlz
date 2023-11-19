@@ -23,7 +23,7 @@ def get_speech_timestamps(audio):
     global vad_model, vad_get_speech_timestamps
     if vad_model == None:#audio.device != vad_model.device:
         print(audio.device)
-        vad_model_utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', map_location=audio.device force_reload=False, onnx=False)
+        vad_model_utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', map_location=audio.device, force_reload=False, onnx=False)
         vad_model = vad_model[0]
         vad_get_speech_timestamps = vad_model[1][0]
     return vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=50) # TODO(YM): play with this idk
