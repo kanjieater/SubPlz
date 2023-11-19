@@ -319,12 +319,12 @@ def transcribe(
                     line = f"[{format_timestamp(start)} --> {format_timestamp(end)}] {text}"
                     print(make_safe(line))
 
-            # if a segment is instantaneous or does not contain text, clear it
-            for i, segment in enumerate(current_segments):
-                if segment["start"] == segment["end"] or segment["text"].strip() == "":
-                    segment["text"] = ""
-                    segment["tokens"] = []
-                    segment["words"] = []
+            # # if a segment is instantaneous or does not contain text, clear it
+            # for i, segment in enumerate(current_segments):
+            #     if segment["start"] == segment["end"] or segment["text"].strip() == "":
+            #         segment["text"] = ""
+            #         segment["tokens"] = []
+            #         segment["words"] = []
 
             all_segments.extend(
                 [
