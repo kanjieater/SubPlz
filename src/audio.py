@@ -19,9 +19,9 @@ vad_model = vad_model.cuda()
 vad_get_speech_timestamps = utils[0]
 
 def get_speech_timestamps(audio):
-    global vad_model
-    if audio.device != vad_model.device:
-        vad_model = vad_model.cpu()
+    # global vad_model
+    # if audio.device != vad_model.device:
+    #     vad_model = vad_model.cpu()
         # vad_model = vad_model.to(audio.device)
     return vad_get_speech_timestamps(audio, vad_model, 0.25, min_speech_duration_ms=100, min_silence_duration_ms=50) # TODO(YM): play with this idk
 
