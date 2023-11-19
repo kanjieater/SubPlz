@@ -48,7 +48,7 @@ class DirectedDecoder(TokenDecoder):
 
         # print(self.tokenizer.decode_with_timestamps(tokens[0].tolist()))
 
-        mout, tout = logits.argmax(dim=-1), torch.tensor([self.token_segments[self.cseg][self.cpos]])
+        mout, tout = logits.argmax(dim=-1), torch.tensor([self.token_segments[self.cseg][self.cpos]], device=logits.device)
         next_tokens = mout if mout >= self.tokenizer.eot or self.end else tout
         if next_tokens == tout:
             self.cpos += 1
@@ -69,9 +69,9 @@ class DirectedDecoder(TokenDecoder):
                 # print(self.tokenizer.decode_with_timestamps([start, end]))
             # print(self.tiktok)
             if mout < start and (not self.tiktok or self.ntimestamps == 0):
-                mout = torch.tensor([start])
+                mout = torch.tensor([start], device=logits.device)
             elif mout < start and self.tiktok:
-                mout = torch.tensor([self.to_ts(self.timestamps[self.ntimestamps-1])])
+                mout = torch.tensor([self.to_ts(self.timestamps[self.ntimestamps-1])], device=logits.device)
 
             self.tiktok = not self.tiktok
 
