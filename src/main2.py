@@ -367,6 +367,7 @@ def transcribe(
             break
         n = len(i)
         while n > current and e < len(x):
+            print(n, current, x[e]['word'])
             print(f"words{s}", ''.join([i['word'] for i in x[s:e]]))
             current += len(x[e]['word'])
             e += 1
