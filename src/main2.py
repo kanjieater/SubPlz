@@ -349,7 +349,7 @@ def transcribe(
             mel = mel[:, seek_shift:]
 
 
-    with open(text_path) as x:
+    with open(text_path, encoding='utf-8') as x:
         text = segment_text(x.read(), language)
 
     # for x in all_segments:
