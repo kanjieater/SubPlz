@@ -120,7 +120,7 @@ def transcribe(
     language: str = decode_options["language"]
     task: str = "transcribe"
     tokenizer = get_tokenizer(model.is_multilingual, language=language, task=task)
-    with open(text_path) as x:
+    with open(text_path, encoding="utf-8") as x:
         text = segment_text(x.read(), language)
 
     seek = 0
