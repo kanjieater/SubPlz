@@ -362,12 +362,14 @@ def transcribe(
     # print(x)
     s, e, current = 0, 0, 0
     for i in text:
+        print(i)
         if e == len(x):
             break
         n = len(i)
         while n > current and e < len(x):
             current += len(x[e]['word'])
             e += 1
+        print(''.join([i['word'] for i in x[s:e]]))
         # print(i, ''.join([i['word'] for i in x[s:e]]))
         new.append({
             "start": x[s]['start'],
