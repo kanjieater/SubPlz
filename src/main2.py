@@ -359,6 +359,7 @@ def transcribe(
 
     new = []
     x = [w for x in all_segments for w in x['words']]
+    print(x)
     # print(x)
     s, e, current = 0, 0, 0
     for i in text:
