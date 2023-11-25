@@ -365,7 +365,7 @@ def transcribe(
         print("text", i)
         if e == len(x):
             break
-        n = len(i.strip())
+        n = len(i[:-1])
         while n > current and e < len(x):
             print(n, current, x[e]['word'])
             print(f"words{s}", ''.join([i['word'] for i in x[s:e+1]]))
