@@ -69,10 +69,7 @@ def segment_text(file, language, progress=True, spaces=False, whatever=False, wh
                         sentences.extend(f)
                 else:
                     sentences.append(i)
-    if language == 'en':
-        return [i + ' ' for i in sentences[1:]]
-    else:
-        return sentences[1:]
+    return [i + '\n' for i in sentences[1:]]
 
 def transcribe(
     model: "Whisper",
