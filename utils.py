@@ -65,7 +65,7 @@ def read_vtt(file):
 
 
 def write_sub(output_file_path, subs):
-    with open(output_file_path, "w") as outfile:
+    with open(output_file_path, "w", encoding='utf-8') as outfile:
         outfile.write('WEBVTT\n\n')
         for n, sub in enumerate(subs):
             # outfile.write('%d\n' % (n + 1))
