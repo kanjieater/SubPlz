@@ -70,6 +70,9 @@ The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/
 
 `python run.py -d "<full folder path>"` eg `python run.py -d "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"` or `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter The Sequel/"`
 
+# Generate subs for a folder of video or audio file
+`python gen.py -d "/mnt/u/Videos/J-Shows/MAG Net/"`
+
 # Merge split files into a single m4b
 `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
 

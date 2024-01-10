@@ -16,23 +16,30 @@ import align
 SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
 
-def run_stable_whisper(audio_file, full_timings_path):
-    global model
-    if not model:
-        model = stable_whisper.load_model("tiny")
-    result = model.transcribe(
-        audio_file,
-        language="ja",
-        suppress_silence=True,
-        vad=True,
-        regroup=True,
-        word_timestamps=True,
-    )
-    result.to_ass(full_timings_path)
+def run_stable_whisper(audio_file, full_timings_path, sub_format='ass', model_type='tiny', **kwargs):
+    model = stable_whisper.load_model(model_type)
+
+    # Define your defaults
+    default_args = {
+        'language': 'ja',
+        'suppress_silence': True,
+        'vad': True,
+        'regroup': True,
+        'word_timestamps': True,
+    }
+
+    default_args.update(kwargs)
+
+    result = model.transcribe(audio_file, **default_args)
+    if sub_format == 'ass':
+        result.to_ass(full_timings_path)
+    else:
+        result.to_srt_vtt(full_timings_path, word_level=False)
 
 
-def generate_transcript_from_audio(audio_file, full_timings_path):
-    run_stable_whisper(audio_file, full_timings_path)
+
+def generate_transcript_from_audio(audio_file, full_timings_path, sub_format='ass', model_type='tiny', **kwargs):
+    run_stable_whisper(audio_file, full_timings_path,  sub_format, model_type, **kwargs)
 
 
 def convert_sub_format(full_original_path, full_sub_path):
@@ -270,8 +277,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     working_folders = get_working_folders(args.dirs)
-    global model
-    model = False  # global model preserved between files
+    # global model
+    # model = False  # global model preserved between files
     successes = []
     failures = []
     for working_folder in working_folders:
