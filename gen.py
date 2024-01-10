@@ -13,7 +13,7 @@ from tqdm import tqdm
 from pprint import pprint
 from utils import read_vtt, write_sub, grab_files
 # from split_sentences import split_sentences
-from run import get_working_folders, generate_transcript_from_audio
+from run import get_working_folders, generate_transcript_from_audio, get_model
 
 
 # SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
@@ -25,12 +25,12 @@ video_formats = ['3g2', '3gp', 'avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg',
 
 SUPPORTED_FORMATS = ['*.' + extension for extension in video_formats + audio_formats]
 
-def generate_subs(files):
+def generate_subs(files, model):
     for file in files:
         try:
             ext = 'srt'
             sub_path = str(Path(file).with_suffix(''))
-            generate_transcript_from_audio(file, sub_path, ext, 'large-v2')
+            generate_transcript_from_audio(file, sub_path, model, ext)
         except Exception as err:
             tb = traceback.format_exc()
             pprint(tb)
@@ -82,13 +82,14 @@ if __name__ == "__main__":
     working_folders = get_working_folders(args.dirs)
     global model
     model = False  # global model preserved between files
+    model = get_model('large-v2')
     successes = []
     failures = []
     for working_folder in working_folders:
         # try:
         print(working_folder)
         audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
-        failures.extend(generate_subs(audio_files))
+        failures.extend(generate_subs(audio_files, model))
         successes.append(working_folder)
         # except Exception as err:
         #     pprint(err)

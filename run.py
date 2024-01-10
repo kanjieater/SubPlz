@@ -15,11 +15,10 @@ import align
 
 SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
+def get_model(model_type='tiny'):
+    return stable_whisper.load_model(model_type)
 
-def run_stable_whisper(audio_file, full_timings_path, sub_format='ass', model_type='tiny', **kwargs):
-    model = stable_whisper.load_model(model_type)
-
-    # Define your defaults
+def generate_transcript_from_audio(audio_file, full_timings_path, model, sub_format='ass', **kwargs):
     default_args = {
         'language': 'ja',
         'suppress_silence': True,
@@ -35,11 +34,6 @@ def run_stable_whisper(audio_file, full_timings_path, sub_format='ass', model_ty
         result.to_ass(full_timings_path)
     else:
         result.to_srt_vtt(full_timings_path, word_level=False)
-
-
-
-def generate_transcript_from_audio(audio_file, full_timings_path, sub_format='ass', model_type='tiny', **kwargs):
-    run_stable_whisper(audio_file, full_timings_path,  sub_format, model_type, **kwargs)
 
 
 def convert_sub_format(full_original_path, full_sub_path):
@@ -163,7 +157,7 @@ def remove_files(files):
             print("Error: %s - %s." % (e.filename, e.strerror))
 
 
-def generate_transcript_from_audio_wrapper(audio_path_dict):
+def generate_transcript_from_audio_wrapper(audio_path_dict, model):
     audio_file = audio_path_dict["audio_file"]
     working_folder = audio_path_dict["working_folder"]
     file_name = path.splitext(audio_file)[0]
@@ -171,7 +165,7 @@ def generate_transcript_from_audio_wrapper(audio_path_dict):
     full_vtt_path = f"{path.splitext(full_timings_path)[0]}.vtt".replace(
         ".filtered", ""
     )
-    generate_transcript_from_audio(audio_file, full_timings_path)
+    generate_transcript_from_audio(audio_file, full_timings_path, model)
     convert_sub_format(full_timings_path, full_vtt_path)
 
 
@@ -222,7 +216,7 @@ def cleanup():
     remove_files(temp_files)
 
 
-def run(working_folder, use_transcript_cache, use_filtered_cache):
+def run(working_folder, use_transcript_cache, use_filtered_cache, model):
     print(f"Working on {working_folder}")
     split_txt(working_folder)
 
@@ -232,7 +226,7 @@ def run(working_folder, use_transcript_cache, use_filtered_cache):
             {"working_folder": working_folder, "audio_file": af} for af in prepped_audio
         ]
         for audio_path_dict in tqdm(audio_path_dicts):
-            generate_transcript_from_audio_wrapper(audio_path_dict)
+            generate_transcript_from_audio_wrapper(audio_path_dict, model)
 
     if not use_filtered_cache:
         cleanup()
@@ -277,13 +271,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     working_folders = get_working_folders(args.dirs)
-    # global model
-    # model = False  # global model preserved between files
+    model = get_model()
     successes = []
     failures = []
     for working_folder in working_folders:
         try:
-            run(working_folder, args.use_transcript_cache, args.use_filtered_cache)
+            run(working_folder, args.use_transcript_cache, args.use_filtered_cache, model)
             align_transcript(working_folder, get_content_name(working_folder))
             successes.append(working_folder)
         except Exception as err:
