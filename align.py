@@ -217,10 +217,10 @@ def recursively_find_match(script, subs, result, first_script, last_script, firs
     # t.refresh()
 
 def run(split_script, subs_file, out, mode=2):
-    with open(split_script) as s:
+    with open(split_script, encoding='utf-8') as s:
         script = [ScriptLine(line.strip()) for line in read_script(s)]
     print(subs_file)
-    with open(subs_file) as vtt:
+    with open(subs_file, encoding='utf-8') as vtt:
         subs = read_vtt(vtt)
     new_subs = []
 

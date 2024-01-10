@@ -85,7 +85,7 @@ def combine_vtt(vtt_files, offsets, output_file_path):
     subs = []
 
     for n, vtt_file in enumerate(vtt_files):
-        with open(vtt_file) as vtt:
+        with open(vtt_file, encoding='utf-8') as vtt:
             latest_subs = read_vtt(vtt)
             last_offset = offsets[n]
             subs += adjust_timings(latest_subs, last_offset)
