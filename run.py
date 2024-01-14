@@ -45,7 +45,11 @@ def align_text(model, working_folder, script_file, final):
                          language="ja",
                          original_split=True,
                          prepend_punctuations='''「"'“¿([{-)''',
-                         append_punctuations='''.。,，!！?？:：”)]}、)」''')
+                         append_punctuations='''.。,，!！?？:：”)]}、)」''',
+                         max_word_dur=6.0,
+                         word_dur_factor=4.0,
+
+                         )
     result.to_srt_vtt(final, word_level=False)
     return result
 
@@ -253,7 +257,7 @@ def align_transcript(working_folder, content_name):
     align_text(model, working_folder, split_script[0], final)
 
     # convert_sub_format(out, final)
-    # remove_files(split_script + subs_file + [out])
+    remove_files(split_script)
 
 
 if __name__ == "__main__":
