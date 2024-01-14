@@ -2,6 +2,9 @@
   "version": "0.2.0",
   "configurations": [
 
+
+
+
     {
       "name": "Python: align vtt",
       "type": "python",
@@ -27,13 +30,21 @@
       "host": "127.0.0.1"
     },
     {
-      "name": "Python:Split run",
+      "name": "Python:run",
       "type": "python",
       "request": "launch",
-      "program": "split_run.py",
-      // "args": ["/mnt/d/Editing/Audiobooks/a7/script.txt.split.txt", "/mnt/d/Editing/Audiobooks/a7/captions.vtt", "/mnt/d/Editing/Audiobooks/a7/done.vtt"],
-      // "args": ["/mnt/d/Editing/Audiobooks/かがみの孤城/"],
-      "args": ["/mnt/d/sync/アルスラーン戦記7 王都奪還/"],
+      "program": "run.py",
+      "args": ["-d", "/mnt/d/sync/変な家"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "host": "127.0.0.1"
+    },
+    {
+      "name": "Python:sub",
+      "type": "python",
+      "request": "launch",
+      "program": "sub.py",
+      "args": [],
       "console": "integratedTerminal",
       "justMyCode": true,
       "host": "127.0.0.1"

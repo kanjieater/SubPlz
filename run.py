@@ -4,6 +4,7 @@ import stable_whisper
 import ffmpeg
 import multiprocessing
 from os import path
+from pathlib import Path
 from datetime import datetime, timedelta
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
@@ -11,12 +12,14 @@ from pprint import pprint
 from utils import read_vtt, write_sub, grab_files
 from split_sentences import split_sentences
 import align
+import traceback
 
 
 SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
-def get_model(model_type='tiny'):
+def get_model(model_type='large-v2'):
     return stable_whisper.load_model(model_type)
+    # return stable_whisper.load_faster_whisper(model_type)
 
 def generate_transcript_from_audio(audio_file, full_timings_path, model, sub_format='ass', **kwargs):
     default_args = {
@@ -34,6 +37,17 @@ def generate_transcript_from_audio(audio_file, full_timings_path, model, sub_for
         result.to_ass(full_timings_path)
     else:
         result.to_srt_vtt(full_timings_path, word_level=False)
+
+def align_text(model, working_folder, script_file, final):
+    file_content = Path(script_file).read_text()
+    audio_file = prep_audio(working_folder)
+    result = model.align(audio_file, file_content,
+                         language="ja",
+                         original_split=True,
+                         prepend_punctuations='''「"'“¿([{-)''',
+                         append_punctuations='''.。,，!！?？:：”)]}、)」''')
+    result.to_srt_vtt(final, word_level=False)
+    return result
 
 
 def convert_sub_format(full_original_path, full_sub_path):
@@ -121,32 +135,33 @@ def prep_audio(working_folder, use_cache=False):
 
     audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
 
-    filtered_formats = [
-        format.replace("*", "*.filtered") for format in SUPPORTED_FORMATS
-    ]
-    cached = grab_files(
-        working_folder,
-        filtered_formats,
-    )
+    # filtered_formats = [
+    #     format.replace("*", "*.filtered") for format in SUPPORTED_FORMATS
+    # ]
+    # cached = grab_files(
+    #     working_folder,
+    #     filtered_formats,
+    # )
     file_paths = audio_files
-    if use_cache and len(cached) != 0:
-        file_paths = cached
+    # if use_cache and len(cached) != 0:
+    #     file_paths = cached
 
     if len(file_paths) == 0:
         raise Exception(f"No audio files found at {working_folder}")
     if len(file_paths) > 1:
         raise Exception(f"Multiple audio files found at {working_folder}. Make sure there is only one, and try again.")
-    pprint(f"{len(file_paths)} file will be processed:")
-    pprint(file_paths)
+    return audio_files[0]
+    # pprint(f"{len(file_paths)} file will be processed:")
+    # pprint(file_paths)
 
 
-    if not use_cache:
-        process_map(filter_audio, file_paths, max_workers=multiprocessing.cpu_count())
+    # if not use_cache:
+    #     process_map(filter_audio, file_paths, max_workers=multiprocessing.cpu_count())
 
-    return grab_files(
-        working_folder,
-        filtered_formats,
-    )
+    # return grab_files(
+    #     working_folder,
+    #     filtered_formats,
+    # )
 
 
 def remove_files(files):
@@ -217,9 +232,6 @@ def cleanup():
 
 
 def run(working_folder, use_transcript_cache, use_filtered_cache, model):
-    print(f"Working on {working_folder}")
-    split_txt(working_folder)
-
     if not use_transcript_cache:
         prepped_audio = prep_audio(working_folder, use_filtered_cache)
         audio_path_dicts = [
@@ -234,14 +246,14 @@ def run(working_folder, use_transcript_cache, use_filtered_cache, model):
 
 def align_transcript(working_folder, content_name):
     split_script = grab_files(working_folder, ["*.split.txt"])
-    print(f"{content_name}.vtt")
     subs_file = grab_files(working_folder, [f"{content_name}.vtt"])
-    out = path.join(working_folder, "matched.vtt")
-    align.run(split_script[0], subs_file[0], out)
-
+    # out = path.join(working_folder, "matched.vtt")
+    # align.run(split_script[0], subs_file[0], out)
     final = path.join(working_folder, f"{content_name}.srt")
-    convert_sub_format(out, final)
-    remove_files(split_script + subs_file + [out])
+    align_text(model, working_folder, split_script[0], final)
+
+    # convert_sub_format(out, final)
+    # remove_files(split_script + subs_file + [out])
 
 
 if __name__ == "__main__":
@@ -276,11 +288,14 @@ if __name__ == "__main__":
     failures = []
     for working_folder in working_folders:
         try:
-            run(working_folder, args.use_transcript_cache, args.use_filtered_cache, model)
+            print(f"Working on {working_folder}")
+            split_txt(working_folder)
+            # run(working_folder, args.use_transcript_cache, args.use_filtered_cache, model)
             align_transcript(working_folder, get_content_name(working_folder))
             successes.append(working_folder)
         except Exception as err:
-            pprint(err)
+            tb = traceback.format_exc()
+            pprint(tb)
             failures.append({"working_folder": working_folder, "err": err})
 
     if len(successes) > 0:

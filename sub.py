@@ -3,7 +3,6 @@ import sys, os
 import stable_whisper
 import ffmpeg
 import multiprocessing
-# from subsai import SubsAI
 import traceback
 from os import path
 from pathlib import Path
@@ -11,17 +10,15 @@ from datetime import datetime, timedelta
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 from pprint import pprint
-from utils import read_vtt, write_sub, grab_files
-# from split_sentences import split_sentences
+from utils import read_vtt, write_sub, grab_files, audio_formats, video_formats, subtitle_formats, get_mapping
 from run import get_working_folders, generate_transcript_from_audio, get_model
 
-audio_formats = ['aac', 'ac3', 'alac', 'ape', 'flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'm4b']
-video_formats = ['3g2', '3gp', 'avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'webm']
-subtitle_formats = ['ass', 'srt', 'vtt']
+
+
 
 SUPPORTED_FORMATS = ['*.' + extension for extension in video_formats + audio_formats]
 
-def generate_subs(files, model):
+def match_subs(files, model):
     for file in files:
         try:
             ext = 'srt'
@@ -35,52 +32,41 @@ def generate_subs(files, model):
     return failures
 
 
+def get_mapping_config():
+    script_path = Path(__file__).resolve().parent
+    json_file_name = "sub.json"
+    json_file_path = script_path / json_file_name
+    return get_mapping(str(json_file_path))
+
+
+def get_matching_dirs(config):
+    content_dirs = config['content_dirs']
+    sub_dir = config['sub_dir']
+    blacklist_dirs = config['blacklist_dirs']
+
+    sub_entries = [entry.name for entry in Path(sub_dir).iterdir() if entry.is_dir()]
+    matching_dirs = []
+
+    for content_dir in content_dirs:
+        content_path = Path(content_dir)
+        content_entries = [entry.name for entry in content_path.iterdir() if entry.is_dir()]
+        for content_entry in content_entries:
+            if content_entry in sub_entries and content_entry not in blacklist_dirs:
+                matching_dirs.append(content_entry)
+
+    return matching_dirs
+
+def get_folders_with_matching_subs(content_names):
+    for name in content_names:
+        pass
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate audio for files")
-    parser.add_argument(
-        "-d",
-        "--dirs",
-        dest="dirs",
-        default=None,
-        required=True,
-        type=str,
-        nargs="+",
-        help="List of folders to run generate subs for",
-    )
 
-    parser.add_argument(
-        "--use-filtered-cache",
-        help="Uses cached filtered files and skips cleanup. Skips making the filtered audio files.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--use-transcript-cache",
-        help="Uses cached transcript files and skips cleanup. Skips the whisper step.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--align",
-        help="Align existing subs",
-        action="store_true",
-        default=False,
-    )
+    # args = parser.parse_args()
+    config = get_mapping_config()
+    content_names = get_matching_dirs(config)
+    valid_content_folders = get_folders_with_matching_subs(content_names, config.content_dirs, config.sub_dir)
 
-    parser.add_argument(
-        "-sd",
-        "--subs_dir",
-        dest="subs_dir",
-        default=None,
-        required=False,
-        type=str,
-        nargs="+",
-        help="List of folders that have subs, in the same order as dirs",
-    )
-
-    args = parser.parse_args()
-    working_folders = get_working_folders(args.dirs)
     global model
     model = False  # global model preserved between files
     model = get_model('large-v2')
@@ -90,7 +76,7 @@ if __name__ == "__main__":
         # try:
         print(working_folder)
         audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
-        failures.extend(generate_subs(audio_files, model))
+        failures.extend(match_subs(audio_files, model))
         successes.append(working_folder)
         # except Exception as err:
         #     pprint(err)

@@ -1,13 +1,10 @@
 fuzzywuzzy==0.18.0
 pysbd==0.3.4
 python-Levenshtein==0.12.2
-git+https://github.com/jianfch/stable-ts.git@b336735ff784bb59690eec8f9f706b0151dda74c
+git+https://github.com/jianfch/stable-ts.git@f9ca03b
 natsort==8.2.0
+faster-whisper==0.10.0
 
 #Anki support
 requests==2.26.0
-# subs2cia==0.4.2
 git+https://github.com/kanjieater/subs2cia@2391f40#egg=subs2cia
-
-# Subtitle Generation
-# git+https://github.com/abdeladim-s/subsai

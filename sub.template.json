@@ -1,0 +1,12 @@
+{
+  "content_dirs": ["/mnt/v/Videos/J-Anime Shows/", "/mnt/v/Videos/J-Shows/"],
+  "sub_dir": "/mnt/z/subs/sub_repo/",
+  "blacklist_names": [
+    "OP",
+    "ED"
+  ],
+  "blacklist_dirs": [
+    "新しいフォルダー",
+    "New folder"
+  ]
+}

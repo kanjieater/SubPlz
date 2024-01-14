@@ -1,3 +1,4 @@
 .env
 __pycache__/
 mapping.json
+sub.json

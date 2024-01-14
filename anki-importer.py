@@ -8,7 +8,7 @@ import shutil
 import multiprocessing
 from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
-from utils import grab_files
+from utils import grab_files, get_mapping
 
 
 ANKI_CONNECT_URL = ""
@@ -207,11 +207,7 @@ def send_to_anki_connect(csv_path, note_template, field_mappings):
         )
 
 
-def get_mapping(mapping_path):
-    with open(mapping_path) as f:
-        mapping = json.load(f)
-        print(f"Reading mapping: {mapping}")
-    return mapping
+
 
 
 def parse_mapping(mapping):

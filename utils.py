@@ -1,6 +1,11 @@
 import re
 from natsort import os_sorted
 from glob import glob, escape
+import json
+
+audio_formats = ['aac', 'ac3', 'alac', 'ape', 'flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'm4b']
+video_formats = ['3g2', '3gp', 'avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'webm']
+subtitle_formats = ['ass', 'srt', 'vtt']
 
 
 class Subtitle:
@@ -81,3 +86,9 @@ def grab_files(folder, types, sort=True):
     if sort:
         return os_sorted(files)
     return files
+
+def get_mapping(mapping_path):
+    with open(mapping_path) as f:
+        mapping = json.load(f)
+        print(f"Reading mapping: {mapping}")
+    return mapping
