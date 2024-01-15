@@ -5,6 +5,9 @@
 
 
 
+
+
+
     {
       "name": "Python: align vtt",
       "type": "python",
@@ -34,7 +37,7 @@
       "type": "python",
       "request": "launch",
       "program": "run.py",
-      "args": ["-d", "/mnt/d/sync/変な家"],
+      "args": ["-d", "/mnt/d/sync/かがみの孤城/"],
       "console": "integratedTerminal",
       "justMyCode": true,
       "host": "127.0.0.1"

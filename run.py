@@ -25,18 +25,22 @@ def generate_transcript_from_audio(audio_file, full_timings_path, model, sub_for
     default_args = {
         'language': 'ja',
         'suppress_silence': True,
-        'vad': True,
+        # 'vad': True,
         'regroup': True,
         'word_timestamps': True,
+        'use_word_position': True,
+        # 'only_voice_freq': True,
+        'prepend_punctuations': '''「"'“¿([{-)''',
+        'append_punctuations': '''.。,，!！?？:：”)]}、)」''',
     }
 
     default_args.update(kwargs)
 
     result = model.transcribe(audio_file, **default_args)
-    if sub_format == 'ass':
-        result.to_ass(full_timings_path)
-    else:
-        result.to_srt_vtt(full_timings_path, word_level=False)
+    # if sub_format == 'ass':
+    #     result.to_ass(full_timings_path)
+    # else:
+    result.to_srt_vtt(full_timings_path, word_level=False)
 
 def align_text(model, working_folder, script_file, final):
     file_content = Path(script_file).read_text()
@@ -46,10 +50,14 @@ def align_text(model, working_folder, script_file, final):
                          original_split=True,
                          prepend_punctuations='''「"'“¿([{-)''',
                          append_punctuations='''.。,，!！?？:：”)]}、)」''',
-                         max_word_dur=6.0,
-                         word_dur_factor=4.0,
+                        #  use_word_position=True,
+                        #  max_word_dur=60.0,
+                        #  word_dur_factor=40.0,
+                        # vad=True,
 
                          )
+    # result = model.refine(audio_file, result, word_level=False)
+
     result.to_srt_vtt(final, word_level=False)
     return result
 
@@ -180,12 +188,13 @@ def generate_transcript_from_audio_wrapper(audio_path_dict, model):
     audio_file = audio_path_dict["audio_file"]
     working_folder = audio_path_dict["working_folder"]
     file_name = path.splitext(audio_file)[0]
-    full_timings_path = path.join(working_folder, f"{file_name}.ass")
+    full_timings_path = path.join(working_folder, f"{file_name}")
     full_vtt_path = f"{path.splitext(full_timings_path)[0]}.vtt".replace(
         ".filtered", ""
     )
-    generate_transcript_from_audio(audio_file, full_timings_path, model)
-    convert_sub_format(full_timings_path, full_vtt_path)
+    generate_transcript_from_audio(audio_file, full_vtt_path, model)
+    # convert_sub_format(full_timings_path, full_vtt_path)
+    # remove_files([full_timings_path])
 
 
 def split_txt(working_folder):
@@ -238,26 +247,30 @@ def cleanup():
 def run(working_folder, use_transcript_cache, use_filtered_cache, model):
     if not use_transcript_cache:
         prepped_audio = prep_audio(working_folder, use_filtered_cache)
-        audio_path_dicts = [
-            {"working_folder": working_folder, "audio_file": af} for af in prepped_audio
-        ]
-        for audio_path_dict in tqdm(audio_path_dicts):
-            generate_transcript_from_audio_wrapper(audio_path_dict, model)
+        # audio_path_dicts = [
+        audio_path_dict = {"working_folder": working_folder, "audio_file": prepped_audio} # for af in prepped_audio
+        # ]
+        # for audio_path_dict in tqdm(audio_path_dicts):
+        generate_transcript_from_audio_wrapper(audio_path_dict, model)
 
     if not use_filtered_cache:
         cleanup()
 
 
+def align_stable_transcript(working_folder, content_name):
+    split_script = grab_files(working_folder, ["*.split.txt"])
+    final = path.join(working_folder, f"{content_name}.srt")
+    align_text(model, working_folder, split_script[0], final)
+    remove_files(split_script)
+
 def align_transcript(working_folder, content_name):
     split_script = grab_files(working_folder, ["*.split.txt"])
     subs_file = grab_files(working_folder, [f"{content_name}.vtt"])
-    # out = path.join(working_folder, "matched.vtt")
-    # align.run(split_script[0], subs_file[0], out)
+    out = path.join(working_folder, "matched.vtt")
+    align.run(split_script[0], subs_file[0], out)
     final = path.join(working_folder, f"{content_name}.srt")
-    align_text(model, working_folder, split_script[0], final)
-
-    # convert_sub_format(out, final)
-    remove_files(split_script)
+    convert_sub_format(out, final)
+    remove_files(split_script + subs_file + [out])
 
 
 if __name__ == "__main__":
@@ -285,17 +298,29 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--use-stable-ts-align",
+        help="Uses experimental alignment. Twice as fast, but sometimes misses on accuracy for long works",
+        action="store_true",
+        default=False,
+    )
     args = parser.parse_args()
     working_folders = get_working_folders(args.dirs)
-    model = get_model()
+    if args.use_stable_ts_align:
+        model = get_model('large-v2')
+    else:
+        model = get_model('tiny')
     successes = []
     failures = []
     for working_folder in working_folders:
         try:
             print(f"Working on {working_folder}")
             split_txt(working_folder)
-            # run(working_folder, args.use_transcript_cache, args.use_filtered_cache, model)
-            align_transcript(working_folder, get_content_name(working_folder))
+            if args.use_stable_ts_align:
+                align_stable_transcript(working_folder, get_content_name(working_folder))
+            else:
+                run(working_folder, args.use_transcript_cache, args.use_filtered_cache, model)
+                align_transcript(working_folder, get_content_name(working_folder))
             successes.append(working_folder)
         except Exception as err:
             tb = traceback.format_exc()
