@@ -105,8 +105,8 @@ def lcs(f, s):
 def transcribe(self, data, **kwargs):
     language = kwargs['language']
     tokenizer = get_tokenizer(self.is_multilingual, language=kwargs['language'] if 'language' in kwargs else 'en')
-    batches = 2
-    kv_cache, hooks = self.install_kv_cache_hooks()
+    batches = 3
+    beams = 1
     segments = []
     overlap = 7
     left = 30 - overlap
@@ -123,47 +123,77 @@ def transcribe(self, data, **kwargs):
             if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
+
         print(mels.shape)
-        initial = [*tokenizer.sot_sequence, tokenizer.no_timestamps]
-        tokens = torch.tensor(initial).repeat(mels.shape[0], 1)
-        next_tokens = tokens
-        audio_features = self.encoder(mels)
-        x = tokenizer.encode('(')[0]
-        y = tokenizer.encode(')')[0]
-        while not (tokens[:, -1] == tokenizer.eot).all() and tokens.shape[-1] < 700:
+        initial = [*tokenizer.sot_sequence]
+        tokens = torch.tensor(initial).repeat(mels.shape[0]*beams, 1)
+        audio_features = self.encoder(mels).repeat_interleave(beams, dim=0)
+
+        if beams > 1:
+            inference = whisper.decoding.PyTorchInference(self, len(initial))
+            decoder = whisper.decoding.BeamSearchDecoder(beams, tokenizer.eot, inference)
+            completed = False
+            sum_logprobs = torch.zeros(tokens.shape[0], device=audio_features.device)
+            # while not completed:
+            for k in range(self.dims.n_text_ctx // 2):
+                logits = inference.logits(tokens, audio_features)
+                logits = logits[:, -1]
+                tokens, completed = decoder.update(tokens, logits, sum_logprobs)
+
+                if completed or tokens.shape[-1] > self.dims.n_text_ctx:
+                    break
+            inference.cleanup_caching()
+            tokens = tokens.reshape(audio_features.shape[0]//beams, beams, -1)
+            sum_logprobs = sum_logprobs.reshape(audio_features.shape[0]//beams, beams)
+            tokens, sum_logprobs = decoder.finalize(tokens, sum_logprobs)
+            tokens = [
+                [t[len(initial) : (t == tokenizer.eot).nonzero()[0, 0]] for t in s]
+                for s in tokens
+            ]
+            for z in range(audio_features.shape[0]//beams):
+                for j in range(beams):
+                    print(tokenizer.decode_with_timestamps(tokens[z][j].tolist()), sum_logprobs[z][j])
+                print()
+            # texts = [tokenizer.decode(t.tolist()).strip() for t in tokens]
+            # for s, t in zip(sum_logprobs, texts): print(s, t)
+            # print('\n'.join(texts))
+            # pprint(sum_logprobs)
+            ranker = whisper.decoding.MaximumLikelihoodRanker(None)#options.length_penalty)
+            selected = ranker.rank(tokens, sum_logprobs)
+            tokens = [t[k].tolist() for k, t in zip(selected, tokens)]
+            texts = [tokenizer.decode_with_timestamps(t).strip() for t in tokens]
+            sum_logprobs = [lp[k] for k, lp in zip(selected, sum_logprobs)]
+            avg_logprobs = [lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
+        else:
+            next_tokens = tokens
+            kv_cache, hooks = self.install_kv_cache_hooks()
+            while not (tokens[:, -1] == tokenizer.eot).all() and tokens.shape[-1] < 200:
+                for t in tokens.tolist():
+                    print(tokenizer.decode_with_timestamps(t))
+                logits = self.decoder(next_tokens, audio_features, kv_cache=kv_cache)
+                print(logits.shape)
+                logits[:, :, tokenizer.timestamp_begin+1 : tokenizer.timestamp_begin + int(28 // 0.02)] = -np.inf
+                # next_tokens = Categorical(logits=logits/0.2).sample()[:, -1:]
+                next_tokens = logits.argmax(-1)[:, -1:]
+                next_tokens[tokens[:, -1] == tokenizer.eot] = tokenizer.eot
+                tokens = torch.concat([tokens, next_tokens], dim=-1)
+            # tokens = tokens[:, len(initial): (t == tokenizer.eot).nonzero()[0, 0]]
+            tokens = tokens.tolist()
+            tokens = [t[len(initial):t.index(tokenizer.eot) if tokenizer.eot in t else len(t)]for t in tokens]
+
             for t in tokens.tolist():
-                print(tokenizer.decode(t))
+                print(tokenizer.decode_with_timestamps(t))
+            # for t in tokens.tolist(): print(tokenizer.decode_with_timestamps(t))
+            # kv_cache.clear()
+            for h in hooks: h.remove()
 
-            logits = self.decoder(next_tokens, audio_features, kv_cache=kv_cache)
-            # logits[:, :, x] -= 3
-            # logits[:, :, y] -= 3
-            # logits[:, :, tokenizer.eot] -= 2
-            # print(torch.topk(logits[:, -1, :], 3, -1))
-
-            # print(logits[:, -1, tokenizer.eot])
-            next_tokens = Categorical(logits=logits/0.2).sample()[:, -1:]
-            # next_tokens = next_tokens[:, -1:]
-            # logits[:, :, tokenizer.eot] = logits[:, :, tokenizer.eot]/1.2
-            # next_tokens = logits.argmax(-1)[:, -1:]
-            next_tokens[tokens[:, -1] == tokenizer.eot] = tokenizer.eot
-            tokens = torch.concat([tokens, next_tokens], dim=-1)
 
 
         offset = i / 16000
         print(offset)
-        for n, t in enumerate(tokens.tolist()):
-            eot = t.index(tokenizer.eot) if tokenizer.eot in t else -1
-            t = t[len(initial):]
-            text = tokenizer.decode(t)
-            segments.append(Segment(text=text, start=offset + n*left, end=offset + n*left + 30))
-
-        for t in tokens.tolist():
-            print(tokenizer.decode_with_timestamps(t))
-        kv_cache.clear()
-
-
-    for h in hooks:
-        h.remove()
+        for n, t in enumerate(tokens):
+            print(offset, n*left)
+            segments.append(Segment(text=tokenizer.decode_with_timestamps(t), start=offset + n*left, end=offset + n*left + 30))
 
     file = open("/tmp/out.vtt", "w")
     file.write("WEBVTT\n\n")
