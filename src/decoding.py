@@ -37,10 +37,7 @@ class DirectedDecoder(TokenDecoder):
 
     def to_ts(self, timestamp):
         t = int(((timestamp - self.seek) / N_FRAMES * 30) // 0.02)
-        if t > (30 // 0.02):
-            t = 1500
-        if t < 0:
-            t = 0
+        t = min(30 // 0.02, max(0, t))
         return self.tokenizer.timestamp_begin + t
 
     def update(self, tokens: Tensor, logits: Tensor, sum_logprobs: Tensor):
@@ -77,8 +74,6 @@ class DirectedDecoder(TokenDecoder):
 
             next_tokens = mout
         # print(next_tokens)
-
-#             next_tokens = torch.tensor([int(self.tokenizer.timestamp_begin + self.to_ts(self.timestamps[0]) // 0.02)])
 
         current_logprobs = F.log_softmax(logits.float(), dim=-1)[torch.arange(tokens.shape[0]), next_tokens]
         sum_logprobs += current_logprobs * (tokens[:, -1] != self.tokenizer.eot)

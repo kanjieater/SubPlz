@@ -11,8 +11,9 @@ from pathlib import Path
 import ffmpeg
 import argparse
 import whisper
-import stable_whisper
-from stable_whisper import text_output
+# import stable_whisper
+# from stable_whisper import text_output
+import whisper
 import multiprocessing
 import os
 import numpy as np
@@ -24,10 +25,10 @@ from sentence_transformers import SentenceTransformer, util
 transmodel = SentenceTransformer('all-mpnet-base-v2')
 
 import sudachipy
-from sudachipy import dictionary
+# from sudachipy import dictionary
 
-# CACHEDIR = "/tmp/AudiobookTextSyncCache/"
-CACHEDIR = "/home/ym/fun/AudiobookTextSync/AudiobookTextSyncCache/"
+CACHEDIR = "/tmp/AudiobookTextSyncCache/"
+# CACHEDIR = "/home/ym/fun/AudiobookTextSync/AudiobookTextSyncCache/"
 
 def secs_to_hhmmss(secs):
     mm, ss = divmod(secs, 60)
@@ -50,44 +51,44 @@ class Segment:
     def vtt(self):
         return f"{secs_to_hhmmss(self.start)} --> {secs_to_hhmmss(self.end)}\n{self.text}"
 
-def align(scripts, subs, subi, subj, scripti, scriptj):
-    script = scripts[scriptj]
-    script_clean = re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s]+", "", script)
-    starts, ends = subj, subj+1
-    sub_clean = re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s]+", "", subs[subj].text)
+#def align(scripts, subs, subi, subj, scripti, scriptj):
+#    script = scripts[scriptj]
+#    script_clean = re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s]+", "", script)
+#    starts, ends = subj, subj+1
+#    sub_clean = re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s]+", "", subs[subj].text)
 
-    # r = (alignment := pyalign.local_alignment(sub_clean, script_clean))
-                                       #T          S
-    alignment = pyalign.local_alignment(sub_clean, script_clean)
-    mapping = alignment.t_to_s
-    prev_mapping = np.array([])
-    while np.max(mapping) < len(script_clean) - 2 and np.min(mapping) >= 1:
-    # while  ((mapping == -1).sum() >= len(script_clean)//4 and (mapping == -1).sum() != (prev_mapping == -1).sum()) or (len(sub_clean) < len(script_clean)):
-        print(mapping.tolist())
-        print(np.max(mapping), len(script_clean))
-        print(alignment.s_to_t.tolist())
-        print("sub2  ", sub_clean)#''.join(["ー" if k == -1 else sub_clean[k] for k in alignment.t_to_s]))
-        print("script", ''.join(["ー" if k == -1 else script_clean[k] for k in alignment.s_to_t]))#script_clean)
-        if mapping[-1] == -1:
-            ends +=1
-        # if (mapping[:len(mapping)//2] == -1).sum() > (mapping[len(mapping)//2:] == -1).sum():
-        if mapping[0] == -1:
-            starts -= 1
-        if mapping[0] != -1 and mapping[-1] != -1:
-            starts -= 1
-            ends += 1
-        sub_clean = re.sub(r"[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s]+", "", ''.join(i.text for i in subs[starts: ends]))
-        alignment = pyalign.local_alignment(sub_clean, script_clean)
-        prev_mapping = mapping
-        mapping = alignment.t_to_s
+#    # r = (alignment := pyalign.local_alignment(sub_clean, script_clean))
+#                                       #T          S
+#    alignment = pyalign.local_alignment(sub_clean, script_clean)
+#    mapping = alignment.t_to_s
+#    prev_mapping = np.array([])
+#    while np.max(mapping) < len(script_clean) - 2 and np.min(mapping) >= 1:
+#    # while  ((mapping == -1).sum() >= len(script_clean)//4 and (mapping == -1).sum() != (prev_mapping == -1).sum()) or (len(sub_clean) < len(script_clean)):
+#        print(mapping.tolist())
+#        print(np.max(mapping), len(script_clean))
+#        print(alignment.s_to_t.tolist())
+#        print("sub2  ", sub_clean)#''.join(["ー" if k == -1 else sub_clean[k] for k in alignment.t_to_s]))
+#        print("script", ''.join(["ー" if k == -1 else script_clean[k] for k in alignment.s_to_t]))#script_clean)
+#        if mapping[-1] == -1:
+#            ends +=1
+#        # if (mapping[:len(mapping)//2] == -1).sum() > (mapping[len(mapping)//2:] == -1).sum():
+#        if mapping[0] == -1:
+#            starts -= 1
+#        if mapping[0] != -1 and mapping[-1] != -1:
+#            starts -= 1
+#            ends += 1
+#        sub_clean = re.sub(r"[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s]+", "", ''.join(i.text for i in subs[starts: ends]))
+#        alignment = pyalign.local_alignment(sub_clean, script_clean)
+#        prev_mapping = mapping
+#        mapping = alignment.t_to_s
 
-    alignment = pyalign.global_alignment(sub_clean, script_clean)
-    print("-"*80)
-    print(alignment.s_to_t.tolist())
-    print("sub2  ", sub_clean)#''.join(["ー" if k == -1 else sub_clean[k] for k in alignment.t_to_s]))
-    print("script", ''.join(["ー" if k == -1 else script_clean[k] for k in alignment.s_to_t]))#script_clean)
-    # print("sub2", sub_clean)
-    # print("script2", script_clean)
+#    alignment = pyalign.global_alignment(sub_clean, script_clean)
+#    print("-"*80)
+#    print(alignment.s_to_t.tolist())
+#    print("sub2  ", sub_clean)#''.join(["ー" if k == -1 else sub_clean[k] for k in alignment.t_to_s]))
+#    print("script", ''.join(["ー" if k == -1 else script_clean[k] for k in alignment.s_to_t]))#script_clean)
+#    # print("sub2", sub_clean)
+#    # print("script2", script_clean)
 
     # print()
     # for i in count(0):
@@ -109,38 +110,38 @@ def align(scripts, subs, subi, subj, scripti, scriptj):
     #     print()
     # pass
 
-def find_matches(script, subs):
-    segs = []
-    # script = script[:100]
-    # escript = util.normalize_embeddings(transmodel.encode(script, convert_to_tensor=True))
+# def find_matches(script, subs):
+#     segs = []
+#     # script = script[:100]
+#     # escript = util.normalize_embeddings(transmodel.encode(script, convert_to_tensor=True))
 
-    # torch.save(escript, "/tmp/tensor.pt")
-    escript = torch.load("/tmp/tensor.pt")
-    # print("loaded escript")
-    # equery = util.normalize_embeddings(transmodel.encode([i.text for i in subs], convert_to_tensor=True))
-    equery = torch.load("/tmp/query.pt")
-    # torch.save(equery, "/tmp/query.pt")
-    print("loaded equery")
-    # subs = subs[:100]
-    n = 0
-    last = 0
-    lastl = 0
-    for l in  range(0, len(subs), 1):# itertools.batched(subs, 3):
-        if len(subs[l].text) < 5:
-            continue
-        # query = util.normalize_embeddings(transmodel.encode([''.join(i.text for i in subs[l:l+1])], convert_to_tensor=True))
-        r = util.semantic_search(equery[l], escript[last:last+50], score_function=util.dot_score)
-        # if r[0][0]['corpus_id'] < 100 and r[0][0]['score'] > 0.85:
-        if r[0][0]['score'] > 0.85 and len(script[last + r[0][0]['corpus_id']]) > 5:
-            print("subs: ", ''.join(i.text for i in subs[l:l+1]))
-            print("script", script[last + r[0][0]['corpus_id']], last + r[0][0]['corpus_id'], r[0][0]['score'])
-            align(script, subs, lastl, l, last, last + r[0][0]['corpus_id'])
-            last += r[0][0]['corpus_id'] + 1
-            lastl = l
-            n += 1
-            print()
-    print(n)
-    return segs
+#     # torch.save(escript, "/tmp/tensor.pt")
+#     escript = torch.load("/tmp/tensor.pt")
+#     # print("loaded escript")
+#     # equery = util.normalize_embeddings(transmodel.encode([i.text for i in subs], convert_to_tensor=True))
+#     equery = torch.load("/tmp/query.pt")
+#     # torch.save(equery, "/tmp/query.pt")
+#     print("loaded equery")
+#     # subs = subs[:100]
+#     n = 0
+#     last = 0
+#     lastl = 0
+#     for l in  range(0, len(subs), 1):# itertools.batched(subs, 3):
+#         if len(subs[l].text) < 5:
+#             continue
+#         # query = util.normalize_embeddings(transmodel.encode([''.join(i.text for i in subs[l:l+1])], convert_to_tensor=True))
+#         r = util.semantic_search(equery[l], escript[last:last+50], score_function=util.dot_score)
+#         # if r[0][0]['corpus_id'] < 100 and r[0][0]['score'] > 0.85:
+#         if r[0][0]['score'] > 0.85 and len(script[last + r[0][0]['corpus_id']]) > 5:
+#             print("subs: ", ''.join(i.text for i in subs[l:l+1]))
+#             print("script", script[last + r[0][0]['corpus_id']], last + r[0][0]['corpus_id'], r[0][0]['score'])
+#             align(script, subs, lastl, l, last, last + r[0][0]['corpus_id'])
+#             last += r[0][0]['corpus_id'] + 1
+#             lastl = l
+#             n += 1
+#             print()
+#     print(n)
+#     return segs
 
 
 
@@ -293,6 +294,90 @@ def find_matches(script, subs):
 #     return results
 
 
+ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
+ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
+kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
+kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('零'), '０')])
+allt = kata_hira | kansuu_to_ascii | ascii_to_wide
+
+
+# from suffix_trees import STree
+# def maximum_matching_substring(a, b):
+#     # Concatenate the strings with a unique separator character
+#     concatenated = [a, b]
+
+#     # Build the suffix tree using Ukkonen's algorithm
+#     stree = STree.STree(concatenated)
+
+#     # Find the longest common substring using the lcs method
+#     lcs_result = stree.lcs()
+
+#     # Extract the maximum matching substring
+#     matching_substring = lcs_result[-1]
+#     return matching_substring
+
+def clean(x):
+    clean = [re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s|ー]+", "", i) for i in x]
+    # origin = [i for i in range(len(clean)) for _ in range(len(clean[i]))]
+    text = ''.join(clean).translate(allt)
+    # return origin, text
+    return None, text
+
+from Bio import Align
+def find_matches(script, subs):
+    subs_origin, subs_whole = clean([i.text for i in subs])
+    script_origin, script_whole = clean(script)
+    # print(maximum_matching_substring(subs_whole, script_whole))
+
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
+    alignment = aligner.align(script_whole, subs_whole)[0]
+    print(alignment.score)
+    print(len(alignment.coordinates[0]))
+    for i
+
+    # s, e = 60000, 60150
+    # print(alignments[0][0, s:e].__str__().replace("-", "ー"))
+    # print(alignments[0][1, s:e].__str__().replace("-", "ー"))
+
+#     import gc
+#     gc.collect()
+#     import time
+#     import edlib
+#     s = time.time()
+#     edlib.align(subs_whole[:200], script_whole[:200])
+#     print(time.time() - s)
+
+#     limit = 200
+#     script_whole = script_whole2
+#     i = 0
+#     while i < len(subs_whole):
+#         print(script_whole[:1000])
+#     # for i in range(0, len(subs_whole), limit):
+#         subs_text = subs_whole[i:i+limit]
+#         print(subs_text)
+#         print(i//limit, len(subs_text), len(script_whole))
+#         # if not len(subs_text): break
+
+#         alignment = pyalign.local_alignment(script_whole, subs_text)
+#         s, e = 0, 150
+#         al = alignment.t_to_s
+#         f = len(al)-1
+#         while al[f] == -1:
+#             f -= 1
+#         end = al[f]
+#         print(end, f, all(i == -1 for i in al))
+#         print(al[s:e])
+#         print(subs_text[s:e])
+#         print(''.join(["ー" if k == -1 else script_whole[k] for k in al[s:e]]))
+
+#         s, e = limit-150, limit
+#         print(al[s:e])
+#         print(subs_text[s:e])
+#         print(''.join(["ー" if k == -1 else script_whole[k] for k in al[s:e]]))
+#         print()
+#         script_whole = script_whole[end+1:]
+#         i += f
+
 def segment(file, language, progress=True, spaces=True, whatever=False, whitespace=False):
     import pysbd
     seg = pysbd.Segmenter(language=language, clean=False)
@@ -333,30 +418,31 @@ def process_audio(model, model_name, language, files, split_mode=sudachipy.Token
         return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
 
 
-    jptokenizer = dictionary.Dictionary(dict_type="full").create()
-    def split_tokens(tokens, tokenizer):
-        words, word_tokens = stable_whisper.timing._split_tokens(tokens, tokenizer)
+    # jptokenizer = dictionary.Dictionary(dict_type="full").create()
+    # jptokenizer = None
+    # def split_tokens(tokens, tokenizer):
+    #     words, word_tokens = stable_whisper.timing._split_tokens(tokens, tokenizer)
 
-        if tokenizer.language == 'ja':
-            jp_words, jp_tokens = [], []
-            tokenized = list(jptokenizer.tokenize(''.join(words), split_mode))
-            tstart, wstart = 0,  0
-            while tstart < len(tokenized) or wstart < len(words):
-                tend, wend = tstart+1, wstart+1
-                x, y = tokenized[tstart].surface(), words[wstart]
-                while len(x) != len(y):
-                    if len(x) < len(y):
-                        x += tokenized[tend].surface()
-                        tend += 1
-                    else:
-                        y += words[wend]
-                        wend += 1
-                jp_words.append(x)
-                jp_tokens.append(list(chain.from_iterable(word_tokens[wstart:wend])))
-                tstart, wstart = tend, wend
-            words, word_tokens = jp_words, jp_tokens
-        print(words)
-        return words, word_tokens
+    #     if tokenizer.language == 'ja':
+    #         jp_words, jp_tokens = [], []
+    #         tokenized = list(jptokenizer.tokenize(''.join(words), split_mode))
+    #         tstart, wstart = 0,  0
+    #         while tstart < len(tokenized) or wstart < len(words):
+    #             tend, wend = tstart+1, wstart+1
+    #             x, y = tokenized[tstart].surface(), words[wstart]
+    #             while len(x) != len(y):
+    #                 if len(x) < len(y):
+    #                     x += tokenized[tend].surface()
+    #                     tend += 1
+    #                 else:
+    #                     y += words[wend]
+    #                     wend += 1
+    #             jp_words.append(x)
+    #             jp_tokens.append(list(chain.from_iterable(word_tokens[wstart:wend])))
+    #             tstart, wstart = tend, wend
+    #         words, word_tokens = jp_words, jp_tokens
+    #     # print(words)
+    #     return words, word_tokens
 
     def process(data):
         return model.transcribe_stable(data, language=language, vad=True, regroup=True, verbose=None, word_timestamps=True, input_sr=16000)
@@ -412,6 +498,13 @@ def process_audio(model, model_name, language, files, split_mode=sudachipy.Token
                 q = Path(CACHEDIR) / (os.path.basename(info["format"]["filename"]) + '.' + str(ch["id"]) +  '.' + model_name + ".subs")
                 if q.exists() and use_cache:
                     seg_ts = eval(q.read_bytes().decode('utf-8'))
+                    # pprint(seg_ts)
+                    print()
+                    print()
+                    # print(''.join([i['text'] for i in seg_ts['segments']]))
+                    print(len(''.join([i['text'] for i in seg_ts['segments']])))
+                    print()
+                    print()
                 else:
                     seg_ts = process(load(file, s, e)).to_dict()
                     q.write_bytes(repr(seg_ts).encode('utf-8'))
@@ -449,6 +542,7 @@ def process_audio(model, model_name, language, files, split_mode=sudachipy.Token
                 transcript.extend(words)
                 offset += e - s
                 h.append(offset)
+    # print(transcript)
     # Debugging stuff
     # print()
     # pprint(len(transcript))
@@ -491,7 +585,8 @@ if __name__ == "__main__":
         sentences = segment(f.read(), args.language, whatever=False, spaces=True)
 
     # model = stable_whisper.load_model(args.model)
-    model = stable_whisper.load_faster_whisper(args.model)
+    # model = stable_whisper.load_faster_whisper(args.model)
+    model = None
     transcripts, h = process_audio(model, args.model, args.language, args.audio_files, split_mode=sudachipy.Tokenizer.SplitMode.__getattribute__(args.split_mode), use_cache=args.use_cache)
     results = find_matches(sentences, transcripts)
 
@@ -510,8 +605,8 @@ if __name__ == "__main__":
     # #     segment = Segment(text=i[0], start=i[1].start-h[0], end=i[1].end-h[0])
     # #     file.write(segment.vtt() + "\n\n")
 
-    with open(args.output_file, "w") as out:
-        out.write("WEBVTT\n\n")
-        # for i in results:
-        subs = "\n\n".join(Segment(text=t, start=s.start, end=s.end).vtt() for t, s in results)
-        out.write(subs)
+#     with open(args.output_file, "w") as out:
+#         out.write("WEBVTT\n\n")
+#         # for i in results:
+#         subs = "\n\n".join(Segment(text=t, start=s.start, end=s.end).vtt() for t, s in results)
+#         out.write(subs)

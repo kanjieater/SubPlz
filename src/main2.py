@@ -365,7 +365,7 @@ def transcribe(
         print("text", i)
         if e == len(x):
             break
-        n = len(i[:-1])
+        n = len(i.strip())
         while n > current and e < len(x):
             print(n, current, x[e]['word'])
             print(f"words{s}", ''.join([i['word'] for i in x[s:e+1]]))
@@ -442,12 +442,12 @@ def cli():
     if (threads := args.pop("threads")) > 0:
         torch.set_num_threads(threads)
 
-    Whisper.decode = decoding.decode
+    setattr(Whisper, 'decode', decoding.decode)
     model = whisper.load_model(model_name, device=device, download_root=model_dir)
     dynamic_quantization = args.pop("dynamic_quantization")
     if dynamic_quantization and device == "cpu":
         ptdq_linear(model)
-    # model.decode = decoding.decode
+    # model.decode = decoding.decod    e
 
     writer = get_writer(output_format, output_dir)
     word_options = ["highlight_words", "max_line_count", "max_line_width"]
