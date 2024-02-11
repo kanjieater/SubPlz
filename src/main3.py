@@ -105,26 +105,22 @@ def lcs(f, s):
 def transcribe(self, data, **kwargs):
     language = kwargs['language']
     tokenizer = get_tokenizer(self.is_multilingual, language=kwargs['language'] if 'language' in kwargs else 'en')
-    batches = 3
+    batches = 2
     beams = 1
     segments = []
-    overlap = 7
+    overlap = 20
     left = 30 - overlap
     for i in range(0, data.shape[0], left * 16000 * batches):
         x = data[i:i+left * 16000 * batches + overlap * 16000]
-        print(x.shape)
         mel = audio.log_mel_spectrogram(x)
-        print(mel.shape)
         mels = []
         for k in range(batches):
-            print(k * left*100, k * left*100 + 3000)
             chunk = mel[:, k * left*100: k * left*100 + 3000]
             if chunk.shape[-1] == 0: break
             if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
 
-        print(mels.shape)
         initial = [*tokenizer.sot_sequence]
         tokens = torch.tensor(initial).repeat(mels.shape[0]*beams, 1)
         audio_features = self.encoder(mels).repeat_interleave(beams, dim=0)
@@ -134,7 +130,6 @@ def transcribe(self, data, **kwargs):
             decoder = whisper.decoding.BeamSearchDecoder(beams, tokenizer.eot, inference)
             completed = False
             sum_logprobs = torch.zeros(tokens.shape[0], device=audio_features.device)
-            # while not completed:
             for k in range(self.dims.n_text_ctx // 2):
                 logits = inference.logits(tokens, audio_features)
                 logits = logits[:, -1]
@@ -166,23 +161,38 @@ def transcribe(self, data, **kwargs):
             avg_logprobs = [lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
         else:
             next_tokens = tokens
+            logitsc = torch.tensor([])
             kv_cache, hooks = self.install_kv_cache_hooks()
-            while not (tokens[:, -1] == tokenizer.eot).all() and tokens.shape[-1] < 200:
+            while not (tokens[:, -1] == tokenizer.eot).all() and tokens.shape[-1] < 60:
                 for t in tokens.tolist():
                     print(tokenizer.decode_with_timestamps(t))
-                logits = self.decoder(next_tokens, audio_features, kv_cache=kv_cache)
-                print(logits.shape)
-                logits[:, :, tokenizer.timestamp_begin+1 : tokenizer.timestamp_begin + int(28 // 0.02)] = -np.inf
-                # next_tokens = Categorical(logits=logits/0.2).sample()[:, -1:]
-                next_tokens = logits.argmax(-1)[:, -1:]
+                logits = self.decoder(next_tokens, audio_features, kv_cache=kv_cache)[:, -1:, ]
+                logitsc = torch.concat([logitsc, logits[:, :, :tokenizer.timestamp_begin-1]], dim=-2)
+                logits[:, :, tokenizer.timestamp_begin+1: tokenizer.timestamp_begin + int(28 // 0.02)] = -np.inf
+                next_tokens = logits.argmax(-1)
                 next_tokens[tokens[:, -1] == tokenizer.eot] = tokenizer.eot
                 tokens = torch.concat([tokens, next_tokens], dim=-1)
-            # tokens = tokens[:, len(initial): (t == tokenizer.eot).nonzero()[0, 0]]
+            print(tokens.shape, logitsc.shape)
+            s = [batches-1, tokens.shape[-1]-len(initial), tokens.shape[-1]-len(initial), tokenizer.timestamp_begin-1]
+            logitsc, logitscs = logitsc[:-1].unsqueeze(-2).expand(*s), logitsc[1:].unsqueeze(-3).expand(*s)
+            print(logitscs.shape, logitsc.shape)
+            similarity = (logitsc.softmax(-1) * logitscs).sum(-1)
+            _, indicies = torch.max(similarity.reshape(batches-1, -1), -1)
+            x, y = indicies % (tokens.shape[-1]-len(initial)), indicies // (tokens.shape[-1]-len(initial))
+            print(y, x)
             tokens = tokens.tolist()
+            print("UUUUU")
+            print(tokenizer.decode(tokens[0][y:]))
+            print(tokenizer.decode(tokens[1][x:]))
+            print("UUUUU")
+            # print(indicies)
+            # print(similarity)
+            # print(similarity.shape)#, similarity)
+            # tokens = tokens[:, len(initial): (t == tokenizer.eot).nonzero()[0, 0]]
+            for t in tokens:
+                print(tokenizer.decode_with_timestamps(t))
             tokens = [t[len(initial):t.index(tokenizer.eot) if tokenizer.eot in t else len(t)]for t in tokens]
 
-            for t in tokens.tolist():
-                print(tokenizer.decode_with_timestamps(t))
             # for t in tokens.tolist(): print(tokenizer.decode_with_timestamps(t))
             # kv_cache.clear()
             for h in hooks: h.remove()
@@ -190,9 +200,9 @@ def transcribe(self, data, **kwargs):
 
 
         offset = i / 16000
-        print(offset)
+        # print(offset)
         for n, t in enumerate(tokens):
-            print(offset, n*left)
+            # print(offset, n*left)
             segments.append(Segment(text=tokenizer.decode_with_timestamps(t), start=offset + n*left, end=offset + n*left + 30))
 
     file = open("/tmp/out.vtt", "w")
