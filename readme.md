@@ -19,7 +19,7 @@ Support for any tool by KanjiEater can be found [on KanjiEater's Discord](https:
 
 # Install
 
-Currently supports unix based OS's like Ubuntu 20.04 on WSL2.
+Currently supports Windows or unix based OS's like Ubuntu 20.04 on WSL2. Currently only support Japanese without code modification.
 
 1. Install `ffmpeg` and make it available on the path
 
