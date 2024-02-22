@@ -79,9 +79,9 @@ class AudioStream:
         data, _ = self.stream.output('-', format='s16le', acodec='pcm_s16le', ac=1, ar='16k').run(quiet=True, input='')
         return np.frombuffer(data, np.int16).astype(np.float32) / 32768.0
 
-    def transcribe(self, model, cache, language):
+    def transcribe(self, model, cache, **kwargs):
         if r := cache.get(os.path.basename(self.path), self.cid): return r
-        r = model.transcribe(self.audio(), language=language)
+        r = model.transcribe(self.audio(), **kwargs)
         return cache.put(os.path.basename(self.path), self.cid, r)
 
     @classmethod
@@ -207,7 +207,6 @@ def align(sm: np.ndarray, gap=-1):
     # return t, m/t.shape[1]
 
 import gc
-# gc.set_debug(gc.DEBUG_LEAK  | gc.DEBUG_STATS)
 def transcribe(model, data, **kwargs):
     data = torch.tensor(data).to(model.device)
     tokenizer = get_tokenizer(model.is_multilingual)
@@ -227,7 +226,7 @@ def transcribe(model, data, **kwargs):
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
         audio_features = model.encoder(mels)
-        result, logits = model.decode(audio_features, DecodingOptions(fp16=False, language=kwargs.get('language', None), length_penalty=None, beam_size=None)) # TODO: options
+        result, logits = model.decode(audio_features, DecodingOptions(fp16=kwargs['fp16'], language=kwargs.get('language', None), length_penalty=None, beam_size=None)) # TODO: options
         del audio_features
         gc.collect()
         for i in result:
@@ -270,7 +269,8 @@ if __name__ == "__main__":
     parser.add_argument("--overwrite-cache", default=False, action=argparse.BooleanOptionalAction, help="Always overwrite the cache")
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
     parser.add_argument("--device", default="cpu", help="device to do inference on")
-    parser.add_argument("--dynamic-quantizaiton", "-dq", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--dynamic-quantizaiton", "--dq", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--fp16", default=False, help="whether to perform inference in fp16", action=argparse.BooleanOptionalAction)
     # TODO
     # parser.add_argument("--output-file", default=None, help="name of the output subtitle file")
     # parser.add_argument("--split-script", default="", help=r"the regex to split the script with. for monogatari it is something like ^\s[\uFF10-\uFF19]*\s$")
@@ -308,4 +308,4 @@ if __name__ == "__main__":
     ats = {(v[0], v[1]): k for k, v in sta.items()}
 
     for i in streams:
-        i[1][0].transcribe(model, cache, args.language)
+        i[1][0].transcribe(model, cache, language=args.language, fp16=args.fp16)
