@@ -209,7 +209,7 @@ def align(sm: np.ndarray, gap=-1):
 import gc
 # gc.set_debug(gc.DEBUG_LEAK  | gc.DEBUG_STATS)
 def transcribe(model, data, **kwargs):
-    data = torc.tensor(data).to(model.device)
+    data = torch.tensor(data).to(model.device)
     tokenizer = get_tokenizer(model.is_multilingual)
     batches = 4 # This is the max on my pc with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
     overlap = 10
