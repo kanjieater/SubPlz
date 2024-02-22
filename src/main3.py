@@ -210,7 +210,7 @@ import gc
 def transcribe(model, data, **kwargs):
     data = torch.tensor(data).to(model.device)
     tokenizer = get_tokenizer(model.is_multilingual)
-    batches = 4 # This is the max on my pc with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
+    batches = 3 # This is the max on my pc with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
     overlap = 10
     left = 30 - overlap
     last = torch.zeros((1, 0, model.dims.n_vocab))
@@ -224,7 +224,8 @@ def transcribe(model, data, **kwargs):
             if chunk.shape[-1] == 0: break
             if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
             mels.append(chunk.unsqueeze(0))
-        mels = torch.concat(mels, dim=0).half()
+        mels = torch.concat(mels, dim=0)
+        mels = mels.half() if kwargs['fp16'] else mels
         audio_features = model.encoder(mels)
         result, logits = model.decode(audio_features, DecodingOptions(fp16=kwargs['fp16'], language=kwargs.get('language', None), length_penalty=None, beam_size=None)) # TODO: options
         del audio_features
