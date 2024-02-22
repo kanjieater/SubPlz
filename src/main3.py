@@ -142,7 +142,7 @@ def similarity(l1, l2):
 
 
 @numba.jit(nopython=True)
-def traceback(cost, mi, mj):
+def traceback_old(cost, mi, mj):
     result = []
     d = [(-1, -1), (-1, 0), (0, -1)]
     while mi > 0 and mj > 0:
@@ -158,6 +158,35 @@ def traceback(cost, mi, mj):
         mi, mj = mi + di, mj + dj
     result = np.array(result)
     return result[::-1, :].T
+
+def traceback(c, mi, mj, fl, fs, sl, ss):
+    ot = []
+    t1, t2 = [], []
+    def score(x):
+        # return sum(x)/((5 + len(x))/6)
+        return -np.inf if len(x) == 0 else sum(x)/len(x)
+    while mi > 0 and mj > 0:
+        f = c[[mi-1, mi, mi-1], [mj-1, mj-1, mj]]
+        m = f.argmax()
+        if f[m] == 0: break
+        if m == 0:
+            if len(t1) and len(t2):
+                s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
+                ot.extend(t1 if score(s1) > score(s2) else t2)
+                t1, t2 = [], []
+            t1.append(fs[mi-1])
+            t2.append(ss[mj-1])
+            mi, mj = mi-1, mj-1
+        elif m == 1:
+            t2.append(ss[mj-1])
+            mj = mj-1
+        else:
+            t1.append(fs[mi-1])
+            mi = mi-1
+    if len(t1) and len(t2):
+        s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
+        ot.extend(t1 if score(s1) > score(s2) else t2)
+    return ot[::-1], mi, mj
 
 @numba.jit(nopython=True, parallel=True)
 def align(sm: np.ndarray, gap=-1):
@@ -181,7 +210,7 @@ import gc
 # gc.set_debug(gc.DEBUG_LEAK  | gc.DEBUG_STATS)
 def transcribe(model, data, **kwargs):
     tokenizer = get_tokenizer(model.is_multilingual)
-    batches = 4 # This is the max on my computer with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
+    batches = 4 # This is the max on my pc with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
     overlap = 10
     left = 30 - overlap
     last = torch.zeros((1, 0, model.dims.n_vocab))
@@ -196,14 +225,8 @@ def transcribe(model, data, **kwargs):
             if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
-        del mel
         audio_features = model.encoder(mels)
-        del mels
-        gc.collect()
-
-        result, logits = model.decode(audio_features, DecodingOptions(fp16=False, language=kwargs.get('language', None) ,length_penalty=None, beam_size=1)) # TODO: options
-        for i in audio_features:
-            del i
+        result, logits = model.decode(audio_features, DecodingOptions(fp16=False, language=kwargs.get('language', None), length_penalty=None, beam_size=None)) # TODO: options
         del audio_features
         gc.collect()
         for i in result:
@@ -225,38 +248,10 @@ def transcribe(model, data, **kwargs):
             sl[ss >= tokenizer.timestamp_begin, tokenizer.timestamp_begin:int(tokenizer.timestamp_begin + overlap // 0.02+1)]  = -np.inf#sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
             sm = similarity(fl.unsqueeze(0).exp(), sl.unsqueeze(0).exp())[0].numpy()
 
-            # r, score = (np.array([]), 0) if sm.shape[0] == 0 else align(sm)
-
-            ot = []
             c, mi, mj = align(sm)
-            t1, t2 = [], []
-            while mi > 0 and mj > 0:
-                f = c[[mi-1, mi, mi-1], [mj-1, mj-1, mj]]
-                m = f.argmax()
-                if f[m] == 0: break
-                if m == 0:
-                    if len(t1) and len(t2):
-                        def score(x):
-                            # return sum(x)/((5 + len(x))/6)
-                            return -np.inf if len(x) == 0 else sum(x)/len(x)
-                        s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
-                        ot.extend(t1 if score(s1) > score(s2) else t2)
-                        t1, t2 = [], []
-                    t1.append(fs[mi-1])
-                    t2.append(ss[mj-1])
-                    mi, mj = mi-1, mj-1
-                elif m == 1:
-                    t2.append(ss[mj-1])
-                    mj = mj-1
-                else:
-                    t1.append(fs[mi-1])
-                    mi = mi-1
-            if len(t1) and len(t2):
-                s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
-                s1, s2 = sum(s1)/len(s1), sum(s2)/len(s2)
-                ot.extend(t1 if s1 > s2 else t2)
-                t1, t2 = [], []
-            print(tokenizer.decode_with_timestamps(ot[::-1]))
+            shared, ni, nj = traceback(c, mi, mj, fl, fs, sl, ss)
+
+            print(tokenizer.decode_with_timestamps(shared))
         last = logits[-1]
         last_tokens = result[-1]
         print("End alignment")
@@ -288,7 +283,7 @@ if __name__ == "__main__":
 
     setattr(whisper.model.Whisper, 'decode', decode)
     setattr(whisper.model.Whisper, 'transcribe', transcribe)
-    model = whisper.load_model(args.model)
+    model = whisper.load_model(args.model).to(args.device)
     if args.device == "cpu" and args.dynamic_quantizaiton:
         ptdq_linear(model)
 
