@@ -1,6 +1,14 @@
 import whisper
+from whisper.decoding import DecodingOptions, DecodingResult
+from decoding import DecodingTask
+
+import matplotlib.pyplot as plt
+
 import os
+import numba
 import numpy as np
+from dataclasses import dataclass, field, replace
+from time import time
 from tqdm import tqdm
 from whisper.tokenizer import get_tokenizer
 from whisper import audio
@@ -15,6 +23,9 @@ from itertools import chain
 from functools import partialmethod
 from dataclasses import dataclass
 from pathlib import Path
+import torch.nn.functional as F
+import align
+import math
 
 def sexagesimal(secs):
     mm, ss = divmod(secs, 60)
@@ -102,14 +113,79 @@ def lcs(f, s):
                 l[j] = 0
     return fidx, sidx
 
-def transcribe(self, data, **kwargs):
-    language = kwargs['language']
-    tokenizer = get_tokenizer(self.is_multilingual, language=kwargs['language'] if 'language' in kwargs else 'en')
-    batches = 2
-    beams = 1
-    segments = []
-    overlap = 20
+
+@torch.no_grad()
+def decode(model, mel, options, **kwargs):
+    if single := mel.ndim == 2:
+        mel = mel.unsqueeze(0)
+
+    if kwargs:
+        options = replace(options, **kwargs)
+
+    result, logits = DecodingTask(model, options).run(mel)
+    return result[0] if single else result, logits
+
+
+def similarity(l1, l2):
+    sm = torch.zeros([*l1.shape[:-2], l1.shape[-2], l2.shape[-2]])
+    for i in range(l1.shape[-2]): # sm = (l1 * l2).sum(-1) # The dream
+        m = l1[:, [i]] * l2
+        sm[..., i, :] = -2 * (1 - m.sqrt().sum(-1)).sqrt() + 1
+    return sm
+    # Some tests with cross entropy
+    # k = sm.log()
+    # return k
+    # absmins = abs(k.reshape(k.shape[0], -1).min(1).values)
+    # maxes = k.reshape(k.shape[0], -1).max(1).values
+    # return (k / torch.where(absmins > maxes, absmins, maxes).reshape(-1, 1, 1).expand(*k.shape))
+    # return (sm / sm.max() - 0.5) * 2
+
+
+@numba.jit(nopython=True)
+def traceback(cost, mi, mj):
+    result = []
+    d = [(-1, -1), (-1, 0), (0, -1)]
+    while mi > 0 and mj > 0:
+        result.append((mi-1, mj-1))
+        c0 = cost[mi - 1, mj - 1]
+        c1 = cost[mi - 1, mj]
+        c2 = cost[mi, mj - 1]
+        n = np.array([c0, c1, c2])
+        h = n.argmax()
+        if n[h] == 0:
+            break
+        di, dj = d[h]
+        mi, mj = mi + di, mj + dj
+    result = np.array(result)
+    return result[::-1, :].T
+
+@numba.jit(nopython=True, parallel=True)
+def align(sm: np.ndarray, gap=-1):
+    N, M = sm.shape[-2:]
+    cost = np.zeros((N+1, M+1), dtype=np.float32)
+    m, mi, mj = 0, 0, 0
+    for i in range(1, N+1):
+        for j in range(1, M+1):
+            c0 = cost[i - 1, j - 1] + sm[i-1, j-1]
+            c1 = cost[i - 1, j] + gap
+            c2 = cost[i, j - 1] + gap
+            c = max(c1, c2, c0.item(), 0.0)
+            cost[i, j] = c
+            if c > m:
+                m, mi, mj = c, i, j
+    return cost, mi, mj
+    # t = traceback(cost, mi, mj)
+    # return t, m/t.shape[1]
+
+import gc
+# gc.set_debug(gc.DEBUG_LEAK  | gc.DEBUG_STATS)
+def transcribe(model, data, **kwargs):
+    tokenizer = get_tokenizer(model.is_multilingual)
+    batches = 4 # This is the max on my computer with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
+    overlap = 10
     left = 30 - overlap
+    last = torch.zeros((1, 0, model.dims.n_vocab))
+    last_tokens = DecodingResult(audio_features=None, language=kwargs['language'])
     for i in range(0, data.shape[0], left * 16000 * batches):
         x = data[i:i+left * 16000 * batches + overlap * 16000]
         mel = audio.log_mel_spectrogram(x)
@@ -120,97 +196,187 @@ def transcribe(self, data, **kwargs):
             if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
+        del mel
+        audio_features = model.encoder(mels)
+        del mels
+        gc.collect()
 
-        initial = [*tokenizer.sot_sequence]
-        tokens = torch.tensor(initial).repeat(mels.shape[0]*beams, 1)
-        audio_features = self.encoder(mels).repeat_interleave(beams, dim=0)
+        result, logits = model.decode(audio_features, DecodingOptions(fp16=False, language=kwargs.get('language', None) ,length_penalty=None, beam_size=1)) # TODO: options
+        for i in audio_features:
+            del i
+        del audio_features
+        gc.collect()
+        for i in result:
+            print(tokenizer.decode_with_timestamps(i.tokens))
 
-        if beams > 1:
-            inference = whisper.decoding.PyTorchInference(self, len(initial))
-            decoder = whisper.decoding.BeamSearchDecoder(beams, tokenizer.eot, inference)
-            completed = False
-            sum_logprobs = torch.zeros(tokens.shape[0], device=audio_features.device)
-            for k in range(self.dims.n_text_ctx // 2):
-                logits = inference.logits(tokens, audio_features)
-                logits = logits[:, -1]
-                tokens, completed = decoder.update(tokens, logits, sum_logprobs)
+        print("Started aligning")
+        ls = logits.shape[1]
+        for i in range(logits.shape[0]):
+            if i == 0:
+                fl, fs = last, np.array(last_tokens.tokens)
+            else:
+                fl, fs = logits[i-1], np.array(result[i-1].tokens)
+            sl, ss = logits[i].clone(), np.array(result[i].tokens)
+            fl, sl = fl[3: 3+len(fs)].log_softmax(-1), sl[3: 3+len(ss)].log_softmax(-1)
+            if len(ss) > sl.shape[0]: # What? Feels like a bug
+                ss = ss[:sl.shape[0]-len(ss)]
+            x = sl[ss >= tokenizer.timestamp_begin,  tokenizer.timestamp_begin:int(tokenizer.timestamp_begin + overlap // 0.02+1)]
+            sl[ss >= tokenizer.timestamp_begin, int(tokenizer.timestamp_begin + left // 0.02+1): int(tokenizer.timestamp_begin + 30//0.02+1)] = x
+            sl[ss >= tokenizer.timestamp_begin, tokenizer.timestamp_begin:int(tokenizer.timestamp_begin + overlap // 0.02+1)]  = -np.inf#sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
+            sm = similarity(fl.unsqueeze(0).exp(), sl.unsqueeze(0).exp())[0].numpy()
 
-                if completed or tokens.shape[-1] > self.dims.n_text_ctx:
-                    break
-            inference.cleanup_caching()
-            tokens = tokens.reshape(audio_features.shape[0]//beams, beams, -1)
-            sum_logprobs = sum_logprobs.reshape(audio_features.shape[0]//beams, beams)
-            tokens, sum_logprobs = decoder.finalize(tokens, sum_logprobs)
-            tokens = [
-                [t[len(initial) : (t == tokenizer.eot).nonzero()[0, 0]] for t in s]
-                for s in tokens
-            ]
-            for z in range(audio_features.shape[0]//beams):
-                for j in range(beams):
-                    print(tokenizer.decode_with_timestamps(tokens[z][j].tolist()), sum_logprobs[z][j])
-                print()
-            # texts = [tokenizer.decode(t.tolist()).strip() for t in tokens]
-            # for s, t in zip(sum_logprobs, texts): print(s, t)
-            # print('\n'.join(texts))
-            # pprint(sum_logprobs)
-            ranker = whisper.decoding.MaximumLikelihoodRanker(None)#options.length_penalty)
-            selected = ranker.rank(tokens, sum_logprobs)
-            tokens = [t[k].tolist() for k, t in zip(selected, tokens)]
-            texts = [tokenizer.decode_with_timestamps(t).strip() for t in tokens]
-            sum_logprobs = [lp[k] for k, lp in zip(selected, sum_logprobs)]
-            avg_logprobs = [lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
-        else:
-            next_tokens = tokens
-            logitsc = torch.tensor([])
-            kv_cache, hooks = self.install_kv_cache_hooks()
-            while not (tokens[:, -1] == tokenizer.eot).all() and tokens.shape[-1] < 60:
-                for t in tokens.tolist():
-                    print(tokenizer.decode_with_timestamps(t))
-                logits = self.decoder(next_tokens, audio_features, kv_cache=kv_cache)[:, -1:, ]
-                logitsc = torch.concat([logitsc, logits[:, :, :tokenizer.timestamp_begin-1]], dim=-2)
-                logits[:, :, tokenizer.timestamp_begin+1: tokenizer.timestamp_begin + int(28 // 0.02)] = -np.inf
-                next_tokens = logits.argmax(-1)
-                next_tokens[tokens[:, -1] == tokenizer.eot] = tokenizer.eot
-                tokens = torch.concat([tokens, next_tokens], dim=-1)
-            print(tokens.shape, logitsc.shape)
-            s = [batches-1, tokens.shape[-1]-len(initial), tokens.shape[-1]-len(initial), tokenizer.timestamp_begin-1]
-            logitsc, logitscs = logitsc[:-1].unsqueeze(-2).expand(*s), logitsc[1:].unsqueeze(-3).expand(*s)
-            print(logitscs.shape, logitsc.shape)
-            similarity = (logitsc.softmax(-1) * logitscs).sum(-1)
-            _, indicies = torch.max(similarity.reshape(batches-1, -1), -1)
-            x, y = indicies % (tokens.shape[-1]-len(initial)), indicies // (tokens.shape[-1]-len(initial))
-            print(y, x)
-            tokens = tokens.tolist()
-            print("UUUUU")
-            print(tokenizer.decode(tokens[0][y:]))
-            print(tokenizer.decode(tokens[1][x:]))
-            print("UUUUU")
-            # print(indicies)
-            # print(similarity)
-            # print(similarity.shape)#, similarity)
-            # tokens = tokens[:, len(initial): (t == tokenizer.eot).nonzero()[0, 0]]
-            for t in tokens:
-                print(tokenizer.decode_with_timestamps(t))
-            tokens = [t[len(initial):t.index(tokenizer.eot) if tokenizer.eot in t else len(t)]for t in tokens]
+            # r, score = (np.array([]), 0) if sm.shape[0] == 0 else align(sm)
 
-            # for t in tokens.tolist(): print(tokenizer.decode_with_timestamps(t))
-            # kv_cache.clear()
-            for h in hooks: h.remove()
+            ot = []
+            c, mi, mj = align(sm)
+            t1, t2 = [], []
+            while mi > 0 and mj > 0:
+                f = c[[mi-1, mi, mi-1], [mj-1, mj-1, mj]]
+                m = f.argmax()
+                if f[m] == 0: break
+                if m == 0:
+                    if len(t1) and len(t2):
+                        def score(x):
+                            # return sum(x)/((5 + len(x))/6)
+                            return -np.inf if len(x) == 0 else sum(x)/len(x)
+                        s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
+                        ot.extend(t1 if score(s1) > score(s2) else t2)
+                        t1, t2 = [], []
+                    t1.append(fs[mi-1])
+                    t2.append(ss[mj-1])
+                    mi, mj = mi-1, mj-1
+                elif m == 1:
+                    t2.append(ss[mj-1])
+                    mj = mj-1
+                else:
+                    t1.append(fs[mi-1])
+                    mi = mi-1
+            if len(t1) and len(t2):
+                s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
+                s1, s2 = sum(s1)/len(s1), sum(s2)/len(s2)
+                ot.extend(t1 if s1 > s2 else t2)
+                t1, t2 = [], []
+            print(tokenizer.decode_with_timestamps(ot[::-1]))
+            # print("Score", score)
+            # if len(r) != 2:
+            #     print("Can't align")
+            #     continue
+            # fst, sst = r
+            # ot = []
+            # # This should be in the traceback code
+            # for i in reversed(range(len(fst)-1)):
+            #     f, s = fst[i], sst[i]
+            #     pf, ps = fst[i+1], sst[i+1]
+            #     if pf == f:
+            #         ot.append(ss[ps])
+            #     elif ps == s:
+            #         ot.append(fs[pf])
+            #     else:
+            #         ft, st = fs[pf], ss[ps]
+            #         ot.append(ft if fl[pf].softmax(-1)[ft]  > sl[ps].softmax(-1)[st] else st)
+
+            # f, s = fst[0], sst[0]
+            # ft, st  = fs[f], ss[s]
+            # ot.append(ft if fl[f].softmax(-1)[ft]  > sl[s].softmax(-1)[st] else st)
+
+            # print(tokenizer.decode_with_timestamps(ot[::-1]))
+            # # print(fs)
+            # # print(ss)
+            # # print(fst)
+            # # print(sst)
+            # # print((fs[fst,] >= tokenizer.timestamp_begin).nonzero())
+            # # print((ss[sst,] >= tokenizer.timestamp_begin).nonzero())
+            # # x = np.intersect1d((ss[sst,] >= tokenizer.timestamp_begin).nonzero(), (fs[fst,] >= tokenizer.timestamp_begin).nonzero())
+            # # print(x)
+            # # print(tokenizer.decode_with_timestamps(fs[fst,][x]))
+            # # print(tokenizer.decode_with_timestamps(ss[sst,][x]))
+            # print(fs[fst,])
+            # print(ss[sst,])
+            # print(tokenizer.decode_with_timestamps(fs[fst,].tolist()))
+            # print(tokenizer.decode_with_timestamps(ss[sst,].tolist()))
+            # # fs[fs >= tokenizer.timestamp_begin] = 12
+            # # ss[ss >= tokenizer.timestamp_begin] = 12
+            # # print(tokenizer.decode_with_timestamps(fs[fst,].tolist()))
+            # # print(tokenizer.decode_with_timestamps(ss[sst,].tolist()))
+            # fs[fs >= tokenizer.timestamp_begin] = 3384
+            # ss[ss >= tokenizer.timestamp_begin] = 3384
+            # print(tokenizer.decode_with_timestamps(fs[fst,].tolist()).replace(" ", "　"))
+            # print(tokenizer.decode_with_timestamps(ss[sst,].tolist()).replace(" ", "　"))
+            # print()
+        last = logits[-1]
+        last_tokens = result[-1]
+        print("End alignment")
 
 
 
-        offset = i / 16000
-        # print(offset)
-        for n, t in enumerate(tokens):
-            # print(offset, n*left)
-            segments.append(Segment(text=tokenizer.decode_with_timestamps(t), start=offset + n*left, end=offset + n*left + 30))
+#         initial = [*tokenizer.sot_sequence]
+#         tokens = torch.tensor(initial).repeat(mels.shape[0]*beams, 1)
+#         audio_features = self.encoder(mels).repeat_interleave(beams, dim=0)
 
-    file = open("/tmp/out.vtt", "w")
-    file.write("WEBVTT\n\n")
-    for s in segments:
-        file.write(s.vtt() + "\n\n")
-    file.flush()
-    file.close()
+#         if beams > 1:
+#             inference = whisper.decoding.PyTorchInference(self, len(initial))
+#             decoder = whisper.decoding.BeamSearchDecoder(beams, tokenizer.eot, inference)
+#             completed = False
+#             sum_logprobs = torch.zeros(tokens.shape[0], device=audio_features.device)
+#             for k in range(self.dims.n_text_ctx // 2):
+#                 logits = inference.logits(tokens, audio_features)
+#                 logits = logits[:, -1]
+#                 tokens, completed = decoder.update(tokens, logits, sum_logprobs)
+
+#                 if completed or tokens.shape[-1] > self.dims.n_text_ctx:
+#                     break
+#             inference.cleanup_caching()
+#             tokens = tokens.reshape(audio_features.shape[0]//beams, beams, -1)
+#             sum_logprobs = sum_logprobs.reshape(audio_features.shape[0]//beams, beams)
+#             tokens, sum_logprobs = decoder.finalize(tokens, sum_logprobs)
+#             tokens = [
+#                 [t[len(initial) : (t == tokenizer.eot).nonzero()[0, 0]] for t in s]
+#                 for s in tokens
+#             ]
+#             ranker = whisper.decoding.MaximumLikelihoodRanker(None)#options.length_penalty)
+#             selected = ranker.rank(tokens, sum_logprobs)
+#             tokens = [t[k].tolist() for k, t in zip(selected, tokens)]
+#             texts = [tokenizer.decode_with_timestamps(t).strip() for t in tokens]
+#             sum_logprobs = [lp[k] for k, lp in zip(selected, sum_logprobs)]
+#             avg_logprobs = [lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
+#         else:
+#             next_tokens = tokens
+#             logitsc = torch.tensor([])
+#             kv_cache, hooks = self.install_kv_cache_hooks()
+#             while not (tokens[:, -1] == tokenizer.eot).all() and tokens.shape[-1] < 60:
+#                 for t in tokens.tolist():
+#                     print(tokenizer.decode_with_timestamps(t))
+#                 logits = self.decoder(next_tokens, audio_features, kv_cache=kv_cache)[:, -1:, ]
+#                 logitsc = torch.concat([logitsc, logits[:, :, :tokenizer.timestamp_begin-1]], dim=-2)
+#                 logits[:, :, tokenizer.timestamp_begin+1: tokenizer.timestamp_begin + int(28 // 0.02)] = -np.inf
+#                 next_tokens = logits.argmax(-1)
+#                 next_tokens[tokens[:, -1] == tokenizer.eot] = tokenizer.eot
+#                 tokens = torch.concat([tokens, next_tokens], dim=-1)
+#             print(tokens.shape, logitsc.shape)
+#             s = [batches-1, tokens.shape[-1]-len(initial), tokens.shape[-1]-len(initial), tokenizer.timestamp_begin-1]
+#             tokens = tokens.tolist()
+#             for t in tokens:
+#                 print(tokenizer.decode_with_timestamps(t))
+#             tokens = [t[len(initial):t.index(tokenizer.eot) if tokenizer.eot in t else len(t)]for t in tokens]
+
+#             # for t in tokens.tolist(): print(tokenizer.decode_with_timestamps(t))
+#             kv_cache.clear()
+#             for h in hooks: h.remove()
+
+
+
+#         offset = i / 16000
+#         # print(offset)
+#         for n, t in enumerate(tokens):
+#             # print(offset, n*left)
+#             segments.append(Segment(text=tokenizer.decode_with_timestamps(t), start=offset + n*left, end=offset + n*left + 30))
+
+#     file = open("/tmp/out.vtt", "w")
+#     file.write("WEBVTT\n\n")
+#     for s in segments:
+#         file.write(s.vtt() + "\n\n")
+#     file.flush()
+#     file.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -224,24 +390,23 @@ if __name__ == "__main__":
     parser.add_argument("--overwrite-cache", default=False, action=argparse.BooleanOptionalAction, help="Always overwrite the cache")
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
     parser.add_argument("--device", default="cpu", help="device to do inference on")
-    parser.add_argument("--dynamic-quantizaiton", "-dq", default=True, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--dynamic-quantizaiton", "-dq", default=False, action=argparse.BooleanOptionalAction)
     # TODO
     # parser.add_argument("--output-file", default=None, help="name of the output subtitle file")
     # parser.add_argument("--split-script", default="", help=r"the regex to split the script with. for monogatari it is something like ^\s[\uFF10-\uFF19]*\s$")
     args = parser.parse_args()
 
-    print(args.threads)
     if args.threads > 0:
         torch.set_num_threads(args.threads)
     # if args.output_file is None:
     #     args.output_file = os.path.splitext(args.audio_files[0])[0] + ".vtt"
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.progress)
 
+    setattr(whisper.model.Whisper, 'decode', decode)
     setattr(whisper.model.Whisper, 'transcribe', transcribe)
     model = whisper.load_model(args.model)
     if args.device == "cpu" and args.dynamic_quantizaiton:
-        # ptdq_linear(model)
-        pass
+        ptdq_linear(model)
 
     cache = Cache(model_name=args.model, enabled=args.use_cache, cache_dir=args.cache_dir, ask=not args.overwrite_cache, overwrite=args.overwrite_cache)
     streams = [(os.path.basename(f), AudioStream.from_file(f)) for f in args.audio_files]
