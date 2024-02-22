@@ -172,8 +172,9 @@ def traceback(c, mi, mj, fl, fs, sl, ss, tokenizer):
         if f[m] == 0: break
         if m == 0:
             if len(t1) and len(t2):
-                print(t1, tokenizer.decode_with_timestamps(t1))
-                print(t2, tokenizer.decode_with_timestamps(t2))
+                print("1", t1, tokenizer.decode_with_timestamps(t1))
+                print("2", t2, tokenizer.decode_with_timestamps(t2))
+                print()
                 s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
                 ot.extend(t1 if score(s1) > score(s2) else t2)
                 t1, t2 = [], []
