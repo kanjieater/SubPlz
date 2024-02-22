@@ -24,7 +24,7 @@ from functools import partialmethod
 from dataclasses import dataclass
 from pathlib import Path
 import torch.nn.functional as F
-import align
+# import align
 import math
 
 def sexagesimal(secs):
