@@ -224,7 +224,7 @@ def transcribe(model, data, **kwargs):
             if chunk.shape[-1] == 0: break
             if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
             mels.append(chunk.unsqueeze(0))
-        mels = torch.concat(mels, dim=0)
+        mels = torch.concat(mels, dim=0).half()
         audio_features = model.encoder(mels)
         result, logits = model.decode(audio_features, DecodingOptions(fp16=kwargs['fp16'], language=kwargs.get('language', None), length_penalty=None, beam_size=None)) # TODO: options
         del audio_features
