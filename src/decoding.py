@@ -8,7 +8,7 @@ class DecodingTask(decoding.DecodingTask):
         n_batch = tokens.shape[0]
         sum_logprobs: Tensor = torch.zeros(n_batch, device=audio_features.device)
         no_speech_probs = [np.nan] * n_batch
-        prev_logits = torch.tensor([])
+        prev_logits = torch.tensor([], device=audio_features.device)
 
         try:
             for i in range(self.sample_len):
