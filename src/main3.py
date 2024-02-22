@@ -159,7 +159,7 @@ def traceback_old(cost, mi, mj):
     result = np.array(result)
     return result[::-1, :].T
 
-def traceback(c, mi, mj, fl, fs, sl, ss):
+def traceback(c, mi, mj, fl, fs, sl, ss, tokenizer):
     ot = []
     t1, t2 = [], []
     def score(x):
@@ -172,6 +172,8 @@ def traceback(c, mi, mj, fl, fs, sl, ss):
         if f[m] == 0: break
         if m == 0:
             if len(t1) and len(t2):
+                print(t1, tokenizer.decode_with_timestamps(t1))
+                print(t2, tokenizer.decode_with_timestamps(t2))
                 s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
                 ot.extend(t1 if score(s1) > score(s2) else t2)
                 t1, t2 = [], []
@@ -251,7 +253,7 @@ def transcribe(model, data, **kwargs):
             sm = similarity(fl.unsqueeze(0).exp(), sl.unsqueeze(0).exp())[0].numpy()
 
             c, mi, mj = align(sm)
-            shared, ni, nj = traceback(c, mi, mj, fl, fs, sl, ss)
+            shared, ni, nj = traceback(c, mi, mj, fl, fs, sl, ss, tokenizer)
 
             print(tokenizer.decode_with_timestamps(shared))
         last = logits[-1]
