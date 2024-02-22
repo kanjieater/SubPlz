@@ -163,7 +163,7 @@ def traceback(c, mi, mj, fl, fs, sl, ss):
     ot = []
     t1, t2 = [], []
     def score(x):
-        return len(x)
+        # return len(x)
         return sum(x)/((5 + len(x))/6)
         # return -np.inf if len(x) == 0 else sum(x)/len(x)
     while mi > 0 and mj > 0:
