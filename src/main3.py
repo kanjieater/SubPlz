@@ -210,7 +210,7 @@ import gc
 def transcribe(model, data, **kwargs):
     data = torch.tensor(data).to(model.device)
     tokenizer = get_tokenizer(model.is_multilingual)
-    batches = 3 # This is the max on my pc with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
+    batches = 2 # This is the max on my pc with small, TODO investigate why? the small model is 4x bigger yeah but this is too much
     overlap = 10
     left = 30 - overlap
     last = torch.zeros((1, 0, model.dims.n_vocab))
