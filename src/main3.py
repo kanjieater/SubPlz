@@ -113,7 +113,6 @@ class Epub:
     start: int
     end: int
 
-    # lol
     @functools.lru_cache(maxsize=None)
     def xml(item):
         return ET.fromstring(item.get_content().decode('utf8'))
@@ -147,6 +146,7 @@ class Epub:
                 a.extend(list(map(lambda x: (idx, x), append2)))
                 add(o, v.tail, idx)
 
+            # o.extend(list(zip([idx]*len(prepend), prepend))) # Exactly the same number of chars lol
             o.extend(list(map(lambda x: (idx, x), prepend)))
             o.extend(a)
             o.extend(list(map(lambda x: (idx, x), append)))
@@ -175,11 +175,17 @@ class Epub:
         file = epub.read_epub(path)
         toc = [file.get_item_with_href(x.href.split("#")[0]) for x in file.toc]
         idx, c = [], 0
-        for i, v in enumerate(file.spine):
-            if v[0] == toc[c].id:
-                idx.append(i)
-                c += 1
-                if c == len(toc): break
+        # Uhh?? See 小説29巻】本好きの下剋上～司書になるためには手段を選んでいられません～第五部「女神の化身VIII」.epub
+        while len(toc) > c:
+            for i in range(idx[-1]+1 if len(idx) else 0, len(file.spine)):
+                v = file.spine[i]
+                if v[0] == toc[c].id:
+                    idx.append(i)
+                    pc = c
+                    c += 1
+                    if c == len(toc): break
+            idx.append(idx[-1])
+            c+=1
         idx.append(len(file.spine))
         return [cls(epub=file, title=file.toc[i].title, start=idx[i], end=idx[i+1]) for i in range(len(toc))]
 
@@ -271,8 +277,7 @@ if __name__ == "__main__":
     chapters = [z  for i in scripts for z in Epub.from_file(i)]
     for i, v in enumerate(chapters):
         pprint(v.text(ignore={'rt'}))
-        if i == 3:
-            exit(0)
+        # if i == 3: exit(0)
     sta, ats = match(streams, scripts)
 
     temperature = args.pop("temperature")
