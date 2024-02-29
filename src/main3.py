@@ -96,12 +96,12 @@ class AudioStream:
     @classmethod
     def from_file(cls, path):
         info = ffmpeg.probe(path, show_chapters=None)
+        title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
         if 'chapters' not in info or len(info['chapters']) < 1:
-            return [cls(stream=ffmpeg.input(path),
-                        path=path, cn=os.path.basename(path), cid=0)]
-        return [cls(stream=ffmepg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
+            return title, [cls(stream=ffmpeg.input(path), path=path, cn=title, cid=0)]
+        return title, [cls(stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
                     path=path,
-                    cn='' if 'tags' not in chapter or 'title' not in chapter['tags'] else chapter['tags']['title'],
+                    cn=chapter.get('tags', {}).get('title', ''),
                     cid=chapter['id'])
                 for chapter in info['chapters']]
 
@@ -157,7 +157,7 @@ class Epub:
                 idx = [i for i, _ in self.epub.spine].index(item.id)
                 path, element = Epub.find_with_path(Epub.xml(item), tid)
                 skip.add((idx,) + path) # Not sure if this is correct, it only works if 1. the href is in the same file, 2. the content comes *after* the href
-                return o, to_text((idx,) + path, element, parent, skip={})[0]
+                return o, to_text((idx,) + path, element, parent)[0]
             return o, []
 
         r = []
@@ -175,37 +175,57 @@ class Epub:
         file = epub.read_epub(path)
         toc = [file.get_item_with_href(x.href.split("#")[0]) for x in file.toc]
         idx, c = [], 0
-        # Uhh?? See 小説29巻】本好きの下剋上～司書になるためには手段を選んでいられません～第五部「女神の化身VIII」.epub
+        # Uhh?? See 【小説29巻】本好きの下剋上～司書になるためには手段を選んでいられません～第五部「女神の化身VIII」.epub
+        # TODO: check the audiobook when it gets released
+        # for i in range(len(file.spine)):
+        #     v = file.spine[i]
+        #     if v[0] == toc[c].id:
+        #         idx.append(i)
+        #         c+=1
+        #         if c == len(toc): break
+
+        k = 0
         while len(toc) > c:
             for i in range(idx[-1]+1 if len(idx) else 0, len(file.spine)):
                 v = file.spine[i]
                 if v[0] == toc[c].id:
                     idx.append(i)
-                    pc = c
                     c += 1
                     if c == len(toc): break
             idx.append(idx[-1])
-            c+=1
-        idx.append(len(file.spine))
+            c += 1
+            k += 1
+        if k > 1: print(file.title, "has a broken toc")
+        idx[-1] = len(file.spine)
         return [cls(epub=file, title=file.toc[i].title, start=idx[i], end=idx[i+1]) for i in range(len(toc))]
 
 def match(audio, text):
-    sta = {}
-    for i in range(len(scripts)):
-        script, best = scripts[i], (-1, -1, 0)
-        for j in range(len(streams)):
-            if (r := fuzz.ratio(script, streams[j][0])) > best[-1]:
-                best = (j, -1, r)
-            for k in range(len(streams[j][1])):
-                if (r := fuzz.ratio(script, streams[j][1][k].cn)) > best[-1]:
-                    best = (j, k, r)
-        if best == (-1, -1, 0):
-            print("Couldn't find a script match based on filename")
-            # TODO(ym): Match based on content? based on the remaining indicies?
-            # If I matched based on content then using anything to help decoding doesn't sound viable?
-        sta[i] = best
-    ats = {(v[0], v[1]): k for k, v in sta.items()}
-    return sta, ats
+    ats = {}
+    for ai in range(len(audio)):
+        afn, at, ac = audio[ai]
+        for ti in range(len(text)):
+            tfn, tc = text[ti]
+            main = fuzz.ratio(tfn, afn)
+            if type(tc[0]) != str:
+                main = max(main, fuzz.ratio(tfn + tc[0].epub.title, afn + at))
+                for aci in range(len(ac)):
+                    best = ats.get((ai, aci), (-1, -1, 0))
+                    for tci in range(len(tc)):
+                        score = fuzz.ratio(afn + at + ac[aci].cn, tfn + tc[tci].epub.title + tc[tci].title)
+                        if score > best[-1] and score > main:
+                            best = (ti, tci, score)
+                    if best != (-1, -1, 0): ats[(ai, aci)] = best
+            if main > ats.get((ai, -1), (-1, -1, 0))[-1]:
+                ats[(ai, -1)] = (ti, -1, main)
+
+    pprint(ats)
+    for k, v in ats.items():
+        if k[-1] != -1:
+            # print(v)
+            print(audio[k[0]][2][k[1]].cn, text[v[0]][1][v[1]].title)
+        else:
+            print(audio[k[0]][1], text[v[0]][1][0].epub.title)
+    pprint(ats)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -268,17 +288,21 @@ if __name__ == "__main__":
         ptdq_linear(model)
 
     if args.pop("fast_decoder"):
-        model = modify_model(model)
+        modify_model(model)
     overlap = args.pop("fast_decoder_overlap")
     batches = args.pop("fast_decoder_batches")
 
-    streams = [(os.path.basename(f), AudioStream.from_file(f)) for f in args.pop('audio')]
-    scripts = args.pop('text')
-    chapters = [z  for i in scripts for z in Epub.from_file(i)]
-    for i, v in enumerate(chapters):
-        pprint(v.text(ignore={'rt'}))
-        # if i == 3: exit(0)
-    sta, ats = match(streams, scripts)
+    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
+    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [Path(i).read_text()])
+                for i in args.pop('text')]
+    pprint(streams)
+    # pprint(chapters)
+    # pprint(list((i.epub.title, i.start, i.end, i.title) for i in chapters))
+    # for i, v in enumerate(chapters):
+    #     pprint(v.text(ignore={'rt'}))
+    #     if i == 0: exit(0)
+    sta, ats = match(streams, chapters)
+    exit(0)
 
     temperature = args.pop("temperature")
     if (increment := args.pop("temperature_increment_on_fallback")) is not None:
