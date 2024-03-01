@@ -30,7 +30,9 @@ from functools import partialmethod
 from dataclasses import dataclass
 from pathlib import Path
 import torch.nn.functional as F
-# import align
+
+from Bio import Align
+import regex as re
 import math
 
 def sexagesimal(secs):
@@ -59,7 +61,7 @@ class Cache:
 
     def get(self, filename, chid):
         if not self.enabled: return
-        fn = (filename + '.' + str(chid) +  '.' + self.model_name + ".subs") # Include hash of the model settings?
+        fn = (filename + '.' + str(chid) +  '.' + self.model_name + ".subs") # Include the hash of the model settings?
         if (q := Path(self.cache_dir) / fn).exists():
             return eval(q.read_bytes().decode("utf-8"))
 
@@ -126,7 +128,7 @@ class Epub:
             elif (k := Epub.find_with_path(c, tid)) is not None:
                 return ((i,) + k[0], k[1])
 
-    def text(self, ignore=set()):
+    def text(self, prefix, ignore=set()):
         def add(o, z, idx):
             if z and (k := ' '.join(i.strip() for i in z.strip().split('\n'))):
                 o.append((idx, k))
@@ -160,12 +162,13 @@ class Epub:
                 return o, to_text((idx,) + path, element, parent)[0]
             return o, []
 
-        r = []
+        # TODO Youjo senki has quotes on its images, use ocr? add another options to replace the images with some text?
+        r = [((self.start,), self.title)] if prefix else []
         for i in range(self.start, self.end):
             id, is_linear = self.epub.spine[i]
             item = self.epub.get_item_with_id(id)
             if is_linear and item.media_type == "application/xhtml+xml":
-                x, l = to_text((i,), Epub.xml(item), ''.join(item.file_name.split("/")[:-1]))
+                x, l = to_text((i,), Epub.xml(item), '/'.join(item.file_name.split("/")[:-1]))
                 r.extend(x)
                 # r.extend(l)
         return r
@@ -218,14 +221,92 @@ def match(audio, text):
             if main > ats.get((ai, -1), (-1, -1, 0))[-1]:
                 ats[(ai, -1)] = (ti, -1, main)
 
-    pprint(ats)
-    for k, v in ats.items():
-        if k[-1] != -1:
-            # print(v)
-            print(audio[k[0]][2][k[1]].cn, text[v[0]][1][v[1]].title)
-        else:
-            print(audio[k[0]][1], text[v[0]][1][0].epub.title)
-    pprint(ats)
+    # for k, v in ats.items():
+    #     if k[-1] != -1:
+    #         print(audio[k[0]][2][k[1]].cn, text[v[0]][1][v[1]].title)
+    #     else:
+    #         print(audio[k[0]][1], text[v[0]][1][0].epub.title)
+    return {k: v[:-1] for k,v in ats.items()}#, {v[:-1]: k for k,v in ats.items()}
+
+def clean(x):
+    ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
+    ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
+    kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
+    kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('零'), '０'), (ord('十'), '１')])
+    allt = kata_hira | kansuu_to_ascii | ascii_to_wide
+    return [re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s|ー]+", "", i).translate(allt) for i in x]
+
+def align(model, transcript, text):
+    transcript_str = [i['text'] for i in transcript['segments']]
+    text_str = [i[1] for i in text]
+    transcript_str_clean, text_str_clean = clean(transcript_str), clean(text_str)
+    for i in range(10):
+        print(text_str[i])
+
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
+    alignment = aligner.align(''.join(text_str_clean), ''.join(transcript_str_clean))[0]
+    s, e = 0, 140
+    print(alignment[0, s:e].__str__().replace("-", "ー"))
+    print(alignment[1, s:e].__str__().replace("-", "ー"))
+
+    coords = alignment.coordinates#.T#[:50]
+    ps, pe = 0, 0
+    ss, se = 0, 0
+    pidx, cidx = 0, 0
+    ppos, cpos = 0, 0
+    pposr, cposr = 0, 0
+    while pe < len(text_str) and se < len(transcript_str):
+        if ppos == cpos:
+            print(''.join(text_str[ps:pe]))
+            print(''.join(transcript_str[ss:se]))
+            print(ps, pe)
+            print(ss, se)
+            print()
+            ps = pe
+            ss = se
+            cposr += len(transcript_str_clean[se])
+            cpos += len(transcript_str_clean[se])
+            while cposr > coords[1][cidx]:
+                cidx += 1
+                if coords[1][cidx] == coords[1][cidx-1]: cpos += coords[0][cidx] - coords[0][cidx-1]
+            se += 1
+            pposr += len(text_str_clean[pe])
+            ppos += len(text_str_clean[pe])
+            while pposr > coords[0][pidx]:
+                pidx += 1
+                if coords[0][pidx] == coords[0][pidx-1]: ppos += coords[1][pidx] - coords[1][pidx-1]
+            pe += 1
+        elif ppos > cpos:
+            cposr += len(transcript_str_clean[se])
+            cpos += len(transcript_str_clean[se])
+            while cposr > coords[1][cidx]:
+                cidx += 1
+                if coords[1][cidx] == coords[1][cidx-1]: cpos += coords[0][cidx] - coords[0][cidx-1]
+            se += 1
+        elif cpos > ppos:
+            pposr += len(text_str_clean[pe])
+            ppos += len(text_str_clean[pe])
+            while pposr > coords[0][pidx]:
+                # print(coords[0][pidx])
+                pidx += 1
+                if coords[0][pidx] == coords[0][pidx-1]: ppos += coords[1][pidx] - coords[1][pidx-1]
+
+            # print(coords[0][pidx])
+            pe += 1
+    print(''.join(text_str[ps:pe]))
+    print(''.join(transcript_str[ss:se]))
+    print()
+
+
+
+    # print(coords)
+    # pprint(alignment.coordinates[:, :50])
+    # print(alignment[1, s:e])
+    # print(alignment[:, :100])
+
+#     pprint(transcript_str)
+#     pprint(text_str)
+    pass
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -244,6 +325,9 @@ if __name__ == "__main__":
     parser.add_argument("--fast-decoder", default=False,help="Use hugging face's decoding method, currenly incomplete", action=argparse.BooleanOptionalAction)
     parser.add_argument("--fast-decoder-overlap", type=int, default=10,help="Overlap between each batch")
     parser.add_argument("--fast-decoder-batches", type=int, default=1, help="Number of batches to operate on")
+
+    parser.add_argument("--ignore-tags", default=['rt'], nargs='+', help="Tags to ignore during the epub to text conversion, useful for removing furigana")
+    parser.add_argument("--prefix-chapter-name", default=True, help="Whether to prefix the text of each chapter with its name")
 
     parser.add_argument("--fp16", default=False, help="whether to perform inference in fp16", action=argparse.BooleanOptionalAction)
     parser.add_argument("--beam_size", type=int, default=None, help="number of beams in beam search, only applicable when temperature is zero")
@@ -287,22 +371,16 @@ if __name__ == "__main__":
     if device == "cpu" and args.pop('dynamic_quantization'):
         ptdq_linear(model)
 
+    overlap, batches = args.pop("fast_decoder_overlap"), args.pop("fast_decoder_batches")
     if args.pop("fast_decoder"):
+        args["overlap"] = overlap
+        args["batches"] = batches
         modify_model(model)
-    overlap = args.pop("fast_decoder_overlap")
-    batches = args.pop("fast_decoder_batches")
 
     streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
     chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [Path(i).read_text()])
                 for i in args.pop('text')]
-    pprint(streams)
-    # pprint(chapters)
-    # pprint(list((i.epub.title, i.start, i.end, i.title) for i in chapters))
-    # for i, v in enumerate(chapters):
-    #     pprint(v.text(ignore={'rt'}))
-    #     if i == 0: exit(0)
-    sta, ats = match(streams, chapters)
-    exit(0)
+    ats = match(streams, chapters)
 
     temperature = args.pop("temperature")
     if (increment := args.pop("temperature_increment_on_fallback")) is not None:
@@ -326,9 +404,17 @@ if __name__ == "__main__":
     if args["max_words_per_line"] and args["max_line_width"]:
         warnings.warn("--max_words_per_line has no effect with --max_line_width")
     writer_args = {arg: args.pop(arg) for arg in word_options}
+    word_timestamps = args.pop("word_timestamps")
 
-    for i in streams:
-        if hasattr(model, 'huggingface'):
-            i[1][0].transcribe(model, cache, batches=batches, overlap=overlap, temperature=temperature, **args)
-        else:
-            i[1][0].transcribe(model, cache, temperature=temperature, **args)
+    ignore_tags = set(args.pop('ignore_tags'))
+    prefix_chapter_name = args.pop('prefix_chapter_name')
+    for i, v in enumerate(streams):
+        for j, v in enumerate(v[2]):
+            if (i, j) in ats:
+                ci, cj = ats[(i, j)]
+                text = chapters[ci][1][cj].text(prefix_chapter_name, ignore=ignore_tags)
+                transcript = v.transcribe(model, cache, temperature=temperature, **args)
+                align(model, transcript, text)
+                # pprint(transcript['segments'])
+                # pprint(text)
+                # exit(0)
