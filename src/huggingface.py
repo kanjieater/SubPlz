@@ -1,5 +1,5 @@
 import whisper
-from whisper.audio import load_audio, log_mel_spectrogram, N_SAMPLES, N_FRAMES
+from whisper.audio import load_audio, log_mel_spectrogram, N_SAMPLES, N_FRAMES, pad_or_trim
 from whisper import decoding
 from whisper.decoding import DecodingOptions, DecodingResult
 from whisper.tokenizer import get_tokenizer
@@ -268,7 +268,7 @@ def transcribe(
         for k in range(batches):
             chunk = mel[:, k * left*100: k * left*100 + 3000]
             if chunk.shape[-1] == 0: break
-            if chunk.shape[-1] < 3000: chunk = audio.pad_or_trim(chunk, audio.N_FRAMES)
+            if chunk.shape[-1] < 3000: chunk = pad_or_trim(chunk, N_FRAMES)
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
         mels = mels.half() if decode_options['fp16'] else mels
@@ -307,4 +307,3 @@ def modify_model(model):
     model.decode = MethodType(decode, model)
     model.transcribe = MethodType(transcribe, model)
     model.huggingface = True
-    return model

@@ -143,23 +143,22 @@ class Epub:
             for i, v in enumerate(xml):
                 no, na = to_text(idx + (i,), v, parent, skip=skip)
                 o.extend(no)
-                a.extend(list(map(lambda x: (idx, x), prepend2)))
+                a.extend(list(map(lambda x: (idx + (-1,), x), prepend2)))
                 a.extend(na)
-                a.extend(list(map(lambda x: (idx, x), append2)))
+                a.extend(list(map(lambda x: (idx + (-1,), x), append2)))
                 add(o, v.tail, idx)
 
             # o.extend(list(zip([idx]*len(prepend), prepend))) # Exactly the same number of chars lol
             o.extend(list(map(lambda x: (idx, x), prepend)))
             o.extend(a)
             o.extend(list(map(lambda x: (idx, x), append)))
-
             if 'href' in xml.attrib and "#" in xml.attrib['href']: # Make sure it isn't an entire document
                 ref, tid = xml.attrib['href'].split("#")
                 item = self.epub.get_item_with_href(('' if '/' in ref else (parent + '/')) + ref) # idk check this again
                 idx = [i for i, _ in self.epub.spine].index(item.id)
                 path, element = Epub.find_with_path(Epub.xml(item), tid)
                 skip.add((idx,) + path) # Not sure if this is correct, it only works if 1. the href is in the same file, 2. the content comes *after* the href
-                return o, to_text((idx,) + path, element, parent)[0]
+                return o, to_text((idx,) + path, element, parent, skip=set())[0]
             return o, []
 
         # TODO Youjo senki has quotes on its images, use ocr? add another options to replace the images with some text?
@@ -230,7 +229,7 @@ def match(audio, text):
 
 def clean(x):
     ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
-    ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
+    # ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
     kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
     kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('零'), '０'), (ord('十'), '１')])
     allt = kata_hira | kansuu_to_ascii | ascii_to_wide
@@ -240,72 +239,97 @@ def align(model, transcript, text):
     transcript_str = [i['text'] for i in transcript['segments']]
     text_str = [i[1] for i in text]
     transcript_str_clean, text_str_clean = clean(transcript_str), clean(text_str)
-    for i in range(10):
-        print(text_str[i])
+    # for i in range(10):
+    #     print(text_str[i])
 
-    aligner = Align.PairwiseAligner(scoring=None, mode='global', open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
-    alignment = aligner.align(''.join(text_str_clean), ''.join(transcript_str_clean))[0]
-    s, e = 0, 140
+    text_str_joined = ''.join(text_str_clean)
+    transcript_str_joined = ''.join(transcript_str_clean)
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=2, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
+    alignment = aligner.align(text_str_joined, transcript_str_joined)[0]
+    s, e = 230, 310
     print(alignment[0, s:e].__str__().replace("-", "ー"))
     print(alignment[1, s:e].__str__().replace("-", "ー"))
 
-    coords = alignment.coordinates#.T#[:50]
+    coords = alignment.coordinates
     ps, pe = 0, 0
     ss, se = 0, 0
     pidx, cidx = 0, 0
     ppos, cpos = 0, 0
-    pposr, cposr = 0, 0
+    ppad, cpad = 0, 0
+
+    ppidx, pcidx = 0, 0
+    pppos, pcpos = 0, 0
+    pppad, pcpad = 0, 0
+
+
     while pe < len(text_str) and se < len(transcript_str):
-        if ppos == cpos:
-            print(''.join(text_str[ps:pe]))
-            print(''.join(transcript_str[ss:se]))
-            print(ps, pe)
-            print(ss, se)
-            print()
-            ps = pe
-            ss = se
-            cposr += len(transcript_str_clean[se])
-            cpos += len(transcript_str_clean[se])
-            while cposr > coords[1][cidx]:
-                cidx += 1
-                if coords[1][cidx] == coords[1][cidx-1]: cpos += coords[0][cidx] - coords[0][cidx-1]
-            se += 1
-            pposr += len(text_str_clean[pe])
+        opos, opad = ppos, ppad
+        if (cpos+cpad) >= (ppos+ppad):
             ppos += len(text_str_clean[pe])
-            while pposr > coords[0][pidx]:
+            while ppos > coords[0][pidx]:
                 pidx += 1
-                if coords[0][pidx] == coords[0][pidx-1]: ppos += coords[1][pidx] - coords[1][pidx-1]
+                if coords[0][pidx] == coords[0][pidx-1]: ppad += coords[1][pidx] - coords[1][pidx-1]
             pe += 1
-        elif ppos > cpos:
-            cposr += len(transcript_str_clean[se])
+        if (ppos+ppad) >= (cpos+cpad):
             cpos += len(transcript_str_clean[se])
-            while cposr > coords[1][cidx]:
+            while cpos > coords[1][cidx]:
                 cidx += 1
-                if coords[1][cidx] == coords[1][cidx-1]: cpos += coords[0][cidx] - coords[0][cidx-1]
+                if coords[1][cidx] == coords[1][cidx-1]: cpad += coords[0][cidx] - coords[0][cidx-1]
             se += 1
-        elif cpos > ppos:
-            pposr += len(text_str_clean[pe])
-            ppos += len(text_str_clean[pe])
-            while pposr > coords[0][pidx]:
-                # print(coords[0][pidx])
-                pidx += 1
-                if coords[0][pidx] == coords[0][pidx-1]: ppos += coords[1][pidx] - coords[1][pidx-1]
+        if (ppos+ppad) == (cpos+cpad):
+            while pe < len(text_str) and not len(text_str_clean[pe]): pe += 1
+            while se < len(transcript_str) and not len(transcript_str_clean[se]): se += 1
+            # print("MAIN")
+            # print(text_str[ps:pe])
+            # print(transcript_str[ss:se])
+            # print()
+            pk, sk = ps, ss
+            t = [(pppos, pcpos)]
+            f = text_str_clean[:]
+            j = transcript_str_clean[:]
+            # print("ALIGNMENT")
+            # print(alignment[0, pppos + pppad:ppos + ppad].__str__().replace("-", "ー"))
+            # print(alignment[1, pcpos+pcpad:cpos + cpad].__str__().replace("-", "ー"))
+            while pppos != ppos and pk < pe and sk < se:
+                pks = f[pk]
+                sks = j[sk]
+                # print("PKS, SKS")
+                # print(pks)
+                # print(sks)
+                # print()
+                smaller = min(len(pks), len(sks))
+                pgap, cgap = 0, 0
+                while (pppos + smaller) >= coords[0][ppidx]:
+                    ppidx += 1
+                    if coords[0][ppidx] == coords[0][ppidx-1]: pgap += coords[1][ppidx] - coords[1][ppidx-1]
+                while (pcpos + smaller) >= coords[1][pcidx]:
+                    pcidx += 1
+                    if coords[1][pcidx] == coords[1][pcidx-1]: cgap += coords[0][pcidx] - coords[0][pcidx-1]
+                if smaller == len(pks):
+                    cof = smaller + pgap - cgap
+                    pppos += smaller
+                    pcpos += cof
+                    j[sk] = j[sk][cof:]
+                    pk +=1
+                elif smaller == len(sks):
+                    pof = smaller + cgap - pgap
+                    # cof = smaller - pgap + cgap
+                    pppos += pof
+                    pcpos += smaller
+                    f[pk] = f[pk][pof:]
+                    sk +=1
+                z, k = t[-1]
+                t.append((pppos, pcpos))
+                print("RESULT")
+                print(text_str_joined[z:pppos])
+                print(transcript_str_joined[k:pcpos])
+                print()
+            pppos, pcpos = ppos, cpos
+            pppad, pcpad = ppad, cpad
+            ps, ss = pe, se
 
-            # print(coords[0][pidx])
-            pe += 1
-    print(''.join(text_str[ps:pe]))
-    print(''.join(transcript_str[ss:se]))
-    print()
+        pass
 
-
-
-    # print(coords)
-    # pprint(alignment.coordinates[:, :50])
-    # print(alignment[1, s:e])
-    # print(alignment[:, :100])
-
-#     pprint(transcript_str)
-#     pprint(text_str)
     pass
 
 if __name__ == "__main__":
@@ -411,10 +435,10 @@ if __name__ == "__main__":
     for i, v in enumerate(streams):
         for j, v in enumerate(v[2]):
             if (i, j) in ats:
+                print(i, j)
                 ci, cj = ats[(i, j)]
                 text = chapters[ci][1][cj].text(prefix_chapter_name, ignore=ignore_tags)
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
                 align(model, transcript, text)
                 # pprint(transcript['segments'])
-                # pprint(text)
-                # exit(0)
+                exit(0)
