@@ -1,5 +1,7 @@
 import whisper
 from whisper.decoding import DecodingOptions, DecodingResult
+# from future import fstrings
+# from decoding import DecodingTask
 
 import unicodedata
 import matplotlib.pyplot as plt
@@ -248,6 +250,23 @@ def clean(x, normalize=False):
     else:
         return [re.sub(r, "", i).translate(allt) for i in x]
 
+def align(model, transcript, text, prepend, append):
+    transcript_str = [i['text'] for i in transcript['segments']]
+    text_str = [i[1] for i in text]
+    transcript_str_clean, text_str_clean = clean(transcript_str), clean(text_str)
+
+    text_str_joined, transcript_str_joined  = ''.join(text_str_clean), ''.join(transcript_str_clean)
+    if not len(text_str_joined) or not len(transcript_str_joined): return
+
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=1, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
+    coords = aligner.align(text_str_joined, transcript_str_joined)[0].coordinates
+
+    pos, off = [0, 0], [0, 0]
+    el, idx = [0, 0], [0, 0]
+    segments = [[*el, *off]]
+    while el[0] < len(text_str) and el[1] < len(transcript_str):
+        pc, sc = text_str_clean[el[0]], transcript_str_clean[el[1]]
+        smaller = min(len(pc)-off[0], len(sc)-off[1])
         gap = [0, 0]
         for i in range(2):
             while (pos[i] + smaller) >= coords[i][idx[i]] and idx[i]+1 < coords.shape[1]:
@@ -451,11 +470,11 @@ if __name__ == "__main__":
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
                 alignment = align(model, transcript, text, args['prepend_punctuations'], args['append_punctuations'])
                 segments.extend(to_subs(text, transcript, alignment, offset, args['prepend_punctuations'], args['append_punctuations']))
-                # break
+                break
             offset += v.duration
         # with open(os.path.splitext(v[0])[0] + ".vtt", "w") as out:
         with open("/tmp/out.vtt", "w") as out:
             out.write("WEBVTT\n\n")
             out.write('\n\n'.join([s.vtt() for s in segments]))
-        # break
+        break
 
