@@ -1,7 +1,7 @@
 import whisper
 from whisper.decoding import DecodingOptions, DecodingResult
-# from decoding import DecodingTask
 
+import unicodedata
 import matplotlib.pyplot as plt
 from huggingface import modify_model
 
@@ -40,7 +40,7 @@ def sexagesimal(secs):
     hh, mm = divmod(mm, 60)
     return f'{hh:0>2.0f}:{mm:0>2.0f}:{ss:0>6.3f}'
 
-@dataclass(eq=True, frozen=True)
+@dataclass(eq=True)
 class Segment:
     text: str
     # words: Segment
@@ -83,6 +83,7 @@ class Cache:
 class AudioStream:
     stream: ffmpeg.Stream
     path: Path
+    duration: float
     cn: str
     cid: int
 
@@ -102,10 +103,11 @@ class AudioStream:
         if 'chapters' not in info or len(info['chapters']) < 1:
             return title, [cls(stream=ffmpeg.input(path), path=path, cn=title, cid=0)]
         return title, [cls(stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
-                    path=path,
-                    cn=chapter.get('tags', {}).get('title', ''),
-                    cid=chapter['id'])
-                for chapter in info['chapters']]
+                           duration=float(chapter['end_time']) - float(chapter['start_time']),
+                           path=path,
+                           cn=chapter.get('tags', {}).get('title', ''),
+                           cid=chapter['id'])
+                       for chapter in info['chapters']]
 
 
 @dataclass(eq=True, frozen=True)
@@ -133,7 +135,9 @@ class Epub:
             if z and (k := ' '.join(i.strip() for i in z.strip().split('\n'))):
                 o.append((idx, k))
 
-        def to_text(idx, xml, parent, append=[], append2=[], prepend=[], prepend2=[], skip=set()):
+        def to_text(idx, xml, parent, append=[], append2=[], prepend=[], prepend2=[], skip=None):
+            if skip == None:
+                skip = set()
             if idx in skip or xml.tag in ignore or ("}" in xml.tag and xml.tag.split("}")[1] in ignore):
                 return [], []
 
@@ -149,16 +153,16 @@ class Epub:
                 add(o, v.tail, idx)
 
             # o.extend(list(zip([idx]*len(prepend), prepend))) # Exactly the same number of chars lol
-            o.extend(list(map(lambda x: (idx, x), prepend)))
+            o.extend(list(map(lambda x: (idx + (-1,), x), prepend)))
             o.extend(a)
-            o.extend(list(map(lambda x: (idx, x), append)))
+            o.extend(list(map(lambda x: (idx + (-1,), x), append)))
             if 'href' in xml.attrib and "#" in xml.attrib['href']: # Make sure it isn't an entire document
                 ref, tid = xml.attrib['href'].split("#")
                 item = self.epub.get_item_with_href(('' if '/' in ref else (parent + '/')) + ref) # idk check this again
                 idx = [i for i, _ in self.epub.spine].index(item.id)
                 path, element = Epub.find_with_path(Epub.xml(item), tid)
                 skip.add((idx,) + path) # Not sure if this is correct, it only works if 1. the href is in the same file, 2. the content comes *after* the href
-                return o, to_text((idx,) + path, element, parent, skip=set())[0]
+                return o, to_text((idx,) + path, element, parent)[0]
             return o, []
 
         # TODO Youjo senki has quotes on its images, use ocr? add another options to replace the images with some text?
@@ -209,128 +213,130 @@ def match(audio, text):
             tfn, tc = text[ti]
             main = fuzz.ratio(tfn, afn)
             if type(tc[0]) != str:
-                main = max(main, fuzz.ratio(tfn + tc[0].epub.title, afn + at))
+                main = max(main, fuzz.ratio(clean([tfn + tc[0].epub.title], normalize=True)[0], clean([afn + at], normalize=True)[0]))
                 for aci in range(len(ac)):
                     best = ats.get((ai, aci), (-1, -1, 0))
                     for tci in range(len(tc)):
-                        score = fuzz.ratio(afn + at + ac[aci].cn, tfn + tc[tci].epub.title + tc[tci].title)
+                        an = clean([afn + at + ac[aci].cn], normalize=True)[0]
+                        # print(an)
+                        cn = clean([tfn + tc[tci].epub.title + tc[tci].title], normalize=True)[0]
+                        # print(cn)
+                        score = fuzz.ratio(an, cn)
                         if score > best[-1] and score > main:
                             best = (ti, tci, score)
                     if best != (-1, -1, 0): ats[(ai, aci)] = best
             if main > ats.get((ai, -1), (-1, -1, 0))[-1]:
                 ats[(ai, -1)] = (ti, -1, main)
 
-    # for k, v in ats.items():
-    #     if k[-1] != -1:
-    #         print(audio[k[0]][2][k[1]].cn, text[v[0]][1][v[1]].title)
-    #     else:
-    #         print(audio[k[0]][1], text[v[0]][1][0].epub.title)
+    for k, v in ats.items():
+        if k[-1] != -1:
+            print(audio[k[0]][2][k[1]].cn, text[v[0]][1][v[1]].title)
+        else:
+            print(audio[k[0]][1], text[v[0]][1][0].epub.title)
     return {k: v[:-1] for k,v in ats.items()}#, {v[:-1]: k for k,v in ats.items()}
 
-def clean(x):
-    ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
-    # ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
-    kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
-    kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('零'), '０'), (ord('十'), '１')])
-    allt = kata_hira | kansuu_to_ascii | ascii_to_wide
-    return [re.sub("[\p{C}|\p{M}|\p{P}|\p{S}|\p{Z}|\s|ー]+", "", i).translate(allt) for i in x]
+ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
+# ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
+kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
+kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('零'), '０'), (ord('十'), '１')])
+allt = kata_hira | kansuu_to_ascii | ascii_to_wide
+def clean(x, normalize=False):
+    # reg = r
+    r = r"[\p{C}\p{M}\p{P}\p{S}\p{Z}\sーぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+"
+    if normalize:
+        return [unicodedata.normalize("NFKD", re.sub(r, "", i).translate(allt)) for i in x]
+    else:
+        return [re.sub(r, "", i).translate(allt) for i in x]
 
-def align(model, transcript, text):
-    transcript_str = [i['text'] for i in transcript['segments']]
-    text_str = [i[1] for i in text]
-    transcript_str_clean, text_str_clean = clean(transcript_str), clean(text_str)
-    # for i in range(10):
-    #     print(text_str[i])
+        gap = [0, 0]
+        for i in range(2):
+            while (pos[i] + smaller) >= coords[i][idx[i]] and idx[i]+1 < coords.shape[1]:
+                idx[i] += 1
+                if coords[i, idx[i]] == coords[i, idx[i]-1]: gap[i] += coords[1-i, idx[i]] - coords[1-i, idx[i]-1]
+        i = 0 if smaller == (len(pc) - off[0]) else 1
+        off[i] = 0
+        off[1-i] += smaller + gap[i] - gap[1-i]
+        pos[i] += smaller
+        pos[1-i] += smaller + gap[i] - gap[1-i]
+        el[i] += 1
+        segments.append([*el, max(off[0], 0), max(off[1], 0)])
 
-    text_str_joined = ''.join(text_str_clean)
-    transcript_str_joined = ''.join(transcript_str_clean)
-    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=2, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
-    alignment = aligner.align(text_str_joined, transcript_str_joined)[0]
-    s, e = 230, 310
-    print(alignment[0, s:e].__str__().replace("-", "ー"))
-    print(alignment[1, s:e].__str__().replace("-", "ー"))
+    s, e = 0, 0
+    while e < len(segments):
+        if segments[s][0] != segments[e][0]:
+            orig, cl = text_str[segments[s][0]].translate(allt) , text_str_clean[segments[s][0]]
+            idx = [k[2] for k in segments[s:e]]
+            j, jj = 0, 0
+            i = 0
+            while i < len(orig) and j < len(cl) and jj < len(idx):
+                while jj < len(idx) and j == idx[jj]:
+                    idx[jj] = i
+                    jj += 1
+                if orig[i] == cl[j]:
+                    j += 1
+                i += 1
+            while jj < len(idx) and j == idx[jj]:
+                idx[jj] = i
+                jj += 1
+            for i in range(s, e):
+                segments[i][2] = idx[i-s]
+            s = e
+        e += 1
 
-    coords = alignment.coordinates
-    ps, pe = 0, 0
-    ss, se = 0, 0
-    pidx, cidx = 0, 0
-    ppos, cpos = 0, 0
-    ppad, cpad = 0, 0
+    # CURSED
+    for i in range(len(segments)):
+        k = segments[i]
+        if k[0] == len(text): break
+        text = text_str[k[0]]
+        while k[2] > 0 and k[2] < len(text) and text[k[2]] in prepend:
+            k[2] -= 1
+        while k[2] > 0 and k[2] < len(text) and text[k[2]] in append:
+            k[2] += 1
 
-    ppidx, pcidx = 0, 0
-    pppos, pcpos = 0, 0
-    pppad, pcpad = 0, 0
+    return segments
 
 
-    while pe < len(text_str) and se < len(transcript_str):
-        opos, opad = ppos, ppad
-        if (cpos+cpad) >= (ppos+ppad):
-            ppos += len(text_str_clean[pe])
-            while ppos > coords[0][pidx]:
-                pidx += 1
-                if coords[0][pidx] == coords[0][pidx-1]: ppad += coords[1][pidx] - coords[1][pidx-1]
-            pe += 1
-        if (ppos+ppad) >= (cpos+cpad):
-            cpos += len(transcript_str_clean[se])
-            while cpos > coords[1][cidx]:
-                cidx += 1
-                if coords[1][cidx] == coords[1][cidx-1]: cpad += coords[0][cidx] - coords[0][cidx-1]
-            se += 1
-        if (ppos+ppad) == (cpos+cpad):
-            while pe < len(text_str) and not len(text_str_clean[pe]): pe += 1
-            while se < len(transcript_str) and not len(transcript_str_clean[se]): se += 1
-            # print("MAIN")
-            # print(text_str[ps:pe])
-            # print(transcript_str[ss:se])
-            # print()
-            pk, sk = ps, ss
-            t = [(pppos, pcpos)]
-            f = text_str_clean[:]
-            j = transcript_str_clean[:]
-            # print("ALIGNMENT")
-            # print(alignment[0, pppos + pppad:ppos + ppad].__str__().replace("-", "ー"))
-            # print(alignment[1, pcpos+pcpad:cpos + cpad].__str__().replace("-", "ー"))
-            while pppos != ppos and pk < pe and sk < se:
-                pks = f[pk]
-                sks = j[sk]
-                # print("PKS, SKS")
-                # print(pks)
-                # print(sks)
-                # print()
-                smaller = min(len(pks), len(sks))
-                pgap, cgap = 0, 0
-                while (pppos + smaller) >= coords[0][ppidx]:
-                    ppidx += 1
-                    if coords[0][ppidx] == coords[0][ppidx-1]: pgap += coords[1][ppidx] - coords[1][ppidx-1]
-                while (pcpos + smaller) >= coords[1][pcidx]:
-                    pcidx += 1
-                    if coords[1][pcidx] == coords[1][pcidx-1]: cgap += coords[0][pcidx] - coords[0][pcidx-1]
-                if smaller == len(pks):
-                    cof = smaller + pgap - cgap
-                    pppos += smaller
-                    pcpos += cof
-                    j[sk] = j[sk][cof:]
-                    pk +=1
-                elif smaller == len(sks):
-                    pof = smaller + cgap - pgap
-                    # cof = smaller - pgap + cgap
-                    pppos += pof
-                    pcpos += smaller
-                    f[pk] = f[pk][pof:]
-                    sk +=1
-                z, k = t[-1]
-                t.append((pppos, pcpos))
-                print("RESULT")
-                print(text_str_joined[z:pppos])
-                print(transcript_str_joined[k:pcpos])
-                print()
-            pppos, pcpos = ppos, cpos
-            pppad, pcpad = ppad, cpad
-            ps, ss = pe, se
+def to_subs(text, transcript, alignment, offset, prepend, append):
+    s, e = 0, 0
+    segments = []
+    while e < len(alignment):
+        if alignment[s][1] != alignment[e][1]:
+            r = ''
+            for n, k in zip(alignment[s:e], alignment[s+1:e+1]):
+                p, o = n[0], n[2]
+                p2, o2 = k[0], k[2]
+                r += text[p][1][o:o2] if p == p2 else text[p][1][o:]
+            t = transcript['segments'][alignment[s][1]]
+            segments.append(Segment(text=r, start=t['start']+offset, end=t['end']+offset))
+            s = e
+        e += 1
 
-        pass
+    i = len(segments) - 2
+    j = len(segments) - 1
+    while i >= 0:
+        previous = segments[i]
+        following = segments[j]
+        while previous.text and previous.text[-1] in prepend:
+            following.text = previous.text[-1] + following.text
+            previous.text = previous.text[:-1]
+        if not previous.text:
+            print("EMPTY", previous.start, previous.end)
+        i -= 1
+        j -= 1
 
-    pass
+    i = 0
+    j = 1
+    while j < len(segments):
+        previous = segments[i]
+        following = segments[j]
+        while following.text and following.text[0] in append:
+            previous.text += following.text[0]
+            following.text = following.text[1:]
+        if not following.text:
+            print("EMPTY", following.start, following.end)
+        i += 1
+        j += 1
+    return segments
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -351,7 +357,7 @@ if __name__ == "__main__":
     parser.add_argument("--fast-decoder-batches", type=int, default=1, help="Number of batches to operate on")
 
     parser.add_argument("--ignore-tags", default=['rt'], nargs='+', help="Tags to ignore during the epub to text conversion, useful for removing furigana")
-    parser.add_argument("--prefix-chapter-name", default=True, help="Whether to prefix the text of each chapter with its name")
+    parser.add_argument("--prefix-chapter-name", default=True, help="Whether to prefix the text of each chapter with its name", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--fp16", default=False, help="whether to perform inference in fp16", action=argparse.BooleanOptionalAction)
     parser.add_argument("--beam_size", type=int, default=None, help="number of beams in beam search, only applicable when temperature is zero")
@@ -368,8 +374,8 @@ if __name__ == "__main__":
     parser.add_argument("--logprob_threshold", type=float, default=-1.0, help="if the average log probability is lower than this value, treat the decoding as failed")
     parser.add_argument("--no_speech_threshold", type=float, default=0.6, help="if the probability of the <|nospeech|> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence")
     parser.add_argument("--word_timestamps", default=False, help="(experimental) extract word-level timestamps and refine the results based on them", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--prepend_punctuations", type=str, default="\"\'“¿([{-", help="if word_timestamps is True, merge these punctuation symbols with the next word")
-    parser.add_argument("--append_punctuations", type=str, default="\"\'.。,，!！?？:：”)]}、", help="if word_timestamps is True, merge these punctuation symbols with the previous word")
+    parser.add_argument("--prepend_punctuations", type=str, default="\"\'“¿([{-『「（〈《〔【｛［‘“〝※", help="if word_timestamps is True, merge these punctuation symbols with the next word")
+    parser.add_argument("--append_punctuations", type=str, default="\"\'・.。,，!！?？:：”)]}、』」）〉》〕】｝］’〟／＼", help="if word_timestamps is True, merge these punctuation symbols with the previous word")
     parser.add_argument("--highlight_words", default=False, help="(requires --word_timestamps True) underline each word as it is spoken in srt and vtt", action=argparse.BooleanOptionalAction)
     parser.add_argument("--max_line_width", type=int, default=None, help="(requires --word_timestamps True) the maximum number of characters in a line before breaking the line")
     parser.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
@@ -433,12 +439,23 @@ if __name__ == "__main__":
     ignore_tags = set(args.pop('ignore_tags'))
     prefix_chapter_name = args.pop('prefix_chapter_name')
     for i, v in enumerate(streams):
+        offset = 0
+        segments = []
         for j, v in enumerate(v[2]):
             if (i, j) in ats:
                 print(i, j)
                 ci, cj = ats[(i, j)]
+                print(streams[i][-1][j].cn)
+                print(chapters[ci][1][cj].title)
                 text = chapters[ci][1][cj].text(prefix_chapter_name, ignore=ignore_tags)
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
-                align(model, transcript, text)
-                # pprint(transcript['segments'])
-                exit(0)
+                alignment = align(model, transcript, text, args['prepend_punctuations'], args['append_punctuations'])
+                segments.extend(to_subs(text, transcript, alignment, offset, args['prepend_punctuations'], args['append_punctuations']))
+                # break
+            offset += v.duration
+        # with open(os.path.splitext(v[0])[0] + ".vtt", "w") as out:
+        with open("/tmp/out.vtt", "w") as out:
+            out.write("WEBVTT\n\n")
+            out.write('\n\n'.join([s.vtt() for s in segments]))
+        # break
+
