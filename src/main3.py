@@ -132,7 +132,7 @@ class Epub:
             elif (k := Epub.find_with_path(c, tid)) is not None:
                 return ((i,) + k[0], k[1])
 
-    def text(self, prefix, ignore=set()):
+    def text(self, prefix, follow_links=True, ignore=set()):
         def add(o, z, idx):
             if z and (k := ' '.join(i.strip() for i in z.strip().split('\n'))):
                 o.append((idx, k))
@@ -143,6 +143,7 @@ class Epub:
             if idx in skip or xml.tag in ignore or ("}" in xml.tag and xml.tag.split("}")[1] in ignore):
                 return [], []
 
+            skip.add(idx)
             o, a = [], []
             add(o, xml.text, idx)
             # All of this just for 幼女戦記's audiobooks
@@ -154,17 +155,18 @@ class Epub:
                 a.extend(list(map(lambda x: (idx + (-1,), x), append2)))
                 add(o, v.tail, idx)
 
-            # o.extend(list(zip([idx]*len(prepend), prepend))) # Exactly the same number of chars lol
             o.extend(list(map(lambda x: (idx + (-1,), x), prepend)))
             o.extend(a)
             o.extend(list(map(lambda x: (idx + (-1,), x), append)))
-            if 'href' in xml.attrib and "#" in xml.attrib['href']: # Make sure it isn't an entire document
+            if follow_links and 'href' in xml.attrib and "#" in xml.attrib['href']: # Make sure it isn't an entire document
                 ref, tid = xml.attrib['href'].split("#")
                 item = self.epub.get_item_with_href(('' if '/' in ref else (parent + '/')) + ref) # idk check this again
                 idx = [i for i, _ in self.epub.spine].index(item.id)
                 path, element = Epub.find_with_path(Epub.xml(item), tid)
-                skip.add((idx,) + path) # Not sure if this is correct, it only works if 1. the href is in the same file, 2. the content comes *after* the href
-                return o, to_text((idx,) + path, element, parent)[0]
+                r = to_text((idx,) + path, element, parent, skip=skip)[0]
+                if [i[1] for i in r] == [i[1] for i in o]:
+                    return o, []
+                return o, r
             return o, []
 
         # TODO Youjo senki has quotes on its images, use ocr? add another options to replace the images with some text?
@@ -220,9 +222,7 @@ def match(audio, text):
                     best = ats.get((ai, aci), (-1, -1, 0))
                     for tci in range(len(tc)):
                         an = clean([afn + at + ac[aci].cn], normalize=True)[0]
-                        # print(an)
                         cn = clean([tfn + tc[tci].epub.title + tc[tci].title], normalize=True)[0]
-                        # print(cn)
                         score = fuzz.ratio(an, cn)
                         if score > best[-1] and score > main:
                             best = (ti, tci, score)
@@ -242,6 +242,7 @@ ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
 kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
 kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('零'), '０'), (ord('十'), '１')])
 allt = kata_hira | kansuu_to_ascii | ascii_to_wide
+# allt = kansuu_to_ascii | ascii_to_wide
 def clean(x, normalize=False):
     # reg = r
     r = r"[\p{C}\p{M}\p{P}\p{S}\p{Z}\sーぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+"
@@ -326,7 +327,7 @@ def to_subs(text, transcript, alignment, offset, prepend, append):
                 p2, o2 = k[0], k[2]
                 r += text[p][1][o:o2] if p == p2 else text[p][1][o:]
             t = transcript['segments'][alignment[s][1]]
-            segments.append(Segment(text=r, start=t['start']+offset, end=t['end']+offset))
+            segments.append(Segment(text=t['text']+'\n'+r, start=t['start']+offset, end=t['end']+offset))
             s = e
         e += 1
 
@@ -338,7 +339,7 @@ def to_subs(text, transcript, alignment, offset, prepend, append):
         while previous.text and previous.text[-1] in prepend:
             following.text = previous.text[-1] + following.text
             previous.text = previous.text[:-1]
-        if not previous.text:
+        if not previous.text.strip():
             print("EMPTY", previous.start, previous.end)
         i -= 1
         j -= 1
@@ -351,7 +352,7 @@ def to_subs(text, transcript, alignment, offset, prepend, append):
         while following.text and following.text[0] in append:
             previous.text += following.text[0]
             following.text = following.text[1:]
-        if not following.text:
+        if not following.text.strip():
             print("EMPTY", following.start, following.end)
         i += 1
         j += 1
@@ -377,6 +378,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--ignore-tags", default=['rt'], nargs='+', help="Tags to ignore during the epub to text conversion, useful for removing furigana")
     parser.add_argument("--prefix-chapter-name", default=True, help="Whether to prefix the text of each chapter with its name", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--follow-links", default=True, help="Whether to follow hrefs or not in the ebook", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--fp16", default=False, help="whether to perform inference in fp16", action=argparse.BooleanOptionalAction)
     parser.add_argument("--beam_size", type=int, default=None, help="number of beams in beam search, only applicable when temperature is zero")
@@ -457,6 +459,7 @@ if __name__ == "__main__":
 
     ignore_tags = set(args.pop('ignore_tags'))
     prefix_chapter_name = args.pop('prefix_chapter_name')
+    follow_links = args.pop('follow_links')
     for i, v in enumerate(streams):
         offset = 0
         segments = []
@@ -466,11 +469,10 @@ if __name__ == "__main__":
                 ci, cj = ats[(i, j)]
                 print(streams[i][-1][j].cn)
                 print(chapters[ci][1][cj].title)
-                text = chapters[ci][1][cj].text(prefix_chapter_name, ignore=ignore_tags)
+                text = chapters[ci][1][cj].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
                 alignment = align(model, transcript, text, args['prepend_punctuations'], args['append_punctuations'])
                 segments.extend(to_subs(text, transcript, alignment, offset, args['prepend_punctuations'], args['append_punctuations']))
-                break
             offset += v.duration
         # with open(os.path.splitext(v[0])[0] + ".vtt", "w") as out:
         with open("/tmp/out.vtt", "w") as out:
