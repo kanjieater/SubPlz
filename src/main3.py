@@ -283,7 +283,8 @@ def align(model, transcript, text, prepend, append):
 
     s, e = 0, 0
     while e < len(segments):
-        if segments[s][0] != segments[e][0]:
+        e += 1
+        if e == len(segments) or segments[s][0] != segments[e][0]:
             orig, cl = text_str[segments[s][0]].translate(allt) , text_str_clean[segments[s][0]]
             idx = [k[2] for k in segments[s:e]]
             j, jj = 0, 0
@@ -301,7 +302,6 @@ def align(model, transcript, text, prepend, append):
             for i in range(s, e):
                 segments[i][2] = idx[i-s]
             s = e
-        e += 1
 
     # CURSED
     for i in range(len(segments)):
@@ -320,16 +320,17 @@ def to_subs(text, transcript, alignment, offset, prepend, append):
     s, e = 0, 0
     segments = []
     while e < len(alignment):
-        if alignment[s][1] != alignment[e][1]:
+        e += 1
+        if e == len(alignment) or alignment[s][1] != alignment[e][1]:
             r = ''
-            for n, k in zip(alignment[s:e], alignment[s+1:e+1]):
+            for n, k in zip(alignment[s:e], alignment[s+1:e]):
                 p, o = n[0], n[2]
                 p2, o2 = k[0], k[2]
-                r += text[p][1][o:o2] if p == p2 else text[p][1][o:]
+                r += text[p][1][o:o2]
+            r += text[alignment[e-1][0]][1][alignment[e-1][2]:]
             t = transcript['segments'][alignment[s][1]]
             segments.append(Segment(text=t['text']+'\n'+r, start=t['start']+offset, end=t['end']+offset))
             s = e
-        e += 1
 
     i = len(segments) - 2
     j = len(segments) - 1
