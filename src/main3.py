@@ -132,12 +132,12 @@ class Epub:
             elif (k := Epub.find_with_path(c, tid)) is not None:
                 return ((i,) + k[0], k[1])
 
-    def text(self, prefix, follow_links=True, ignore=set()):
+    def text(self, prefix, follow_links=True, ignore=set(), append=[], append2=[], prepend=[], prepend2=[]):
         def add(o, z, idx):
             if z and (k := ' '.join(i.strip() for i in z.strip().split('\n'))):
                 o.append((idx, k))
 
-        def to_text(idx, xml, parent, append=[], append2=[], prepend=[], prepend2=[], skip=None):
+        def to_text(idx, xml, parent, skip=None):
             if skip == None:
                 skip = set()
             if idx in skip or xml.tag in ignore or ("}" in xml.tag and xml.tag.split("}")[1] in ignore):
@@ -171,11 +171,12 @@ class Epub:
 
         # TODO Youjo senki has quotes on its images, use ocr? add another options to replace the images with some text?
         r = [((self.start,), self.title)] if prefix else []
+        skip = set()
         for i in range(self.start, self.end):
             id, is_linear = self.epub.spine[i]
             item = self.epub.get_item_with_id(id)
             if is_linear and item.media_type == "application/xhtml+xml":
-                x, l = to_text((i,), Epub.xml(item), '/'.join(item.file_name.split("/")[:-1]))
+                x, l = to_text((i,), Epub.xml(item), '/'.join(item.file_name.split("/")[:-1]), skip=skip)
                 r.extend(x)
                 # r.extend(l)
         return r
@@ -264,22 +265,22 @@ def align(model, transcript, text, prepend, append):
 
     pos, off = [0, 0], [0, 0]
     el, idx = [0, 0], [0, 0]
-    segments = [[*el, *off]]
+    segments = []
     while el[0] < len(text_str) and el[1] < len(transcript_str):
+        segments.append([*el, max(off[0], 0), max(off[1], 0)])
         pc, sc = text_str_clean[el[0]], transcript_str_clean[el[1]]
         smaller = min(len(pc)-off[0], len(sc)-off[1])
         gap = [0, 0]
         for i in range(2):
-            while (pos[i] + smaller) >= coords[i][idx[i]] and idx[i]+1 < coords.shape[1]:
-                idx[i] += 1
+            while idx[i] < coords.shape[1] and (pos[i] + smaller) >= coords[i][idx[i]]:
                 if coords[i, idx[i]] == coords[i, idx[i]-1]: gap[i] += coords[1-i, idx[i]] - coords[1-i, idx[i]-1]
+                idx[i] += 1
         i = 0 if smaller == (len(pc) - off[0]) else 1
         off[i] = 0
         off[1-i] += smaller + gap[i] - gap[1-i]
         pos[i] += smaller
         pos[1-i] += smaller + gap[i] - gap[1-i]
         el[i] += 1
-        segments.append([*el, max(off[0], 0), max(off[1], 0)])
 
     s, e = 0, 0
     while e < len(segments):
@@ -287,8 +288,7 @@ def align(model, transcript, text, prepend, append):
         if e == len(segments) or segments[s][0] != segments[e][0]:
             orig, cl = text_str[segments[s][0]].translate(allt) , text_str_clean[segments[s][0]]
             idx = [k[2] for k in segments[s:e]]
-            j, jj = 0, 0
-            i = 0
+            i, j, jj = 0, 0, 0
             while i < len(orig) and j < len(cl) and jj < len(idx):
                 while jj < len(idx) and j == idx[jj]:
                     idx[jj] = i
@@ -303,15 +303,16 @@ def align(model, transcript, text, prepend, append):
                 segments[i][2] = idx[i-s]
             s = e
 
-    # CURSED
     for i in range(len(segments)):
         k = segments[i]
-        if k[0] == len(text): break
         text = text_str[k[0]]
-        while k[2] > 0 and k[2] < len(text) and text[k[2]] in prepend:
-            k[2] -= 1
-        while k[2] > 0 and k[2] < len(text) and text[k[2]] in append:
-            k[2] += 1
+        while k[2] > 0 and k[2] < len(text):
+            if text[k[2]-1] in prepend:
+                k[2] -= 1
+            elif text[k[2]] in append:
+                k[2] += 1
+            else:
+                break
 
     return segments
 
@@ -323,11 +324,11 @@ def to_subs(text, transcript, alignment, offset, prepend, append):
         e += 1
         if e == len(alignment) or alignment[s][1] != alignment[e][1]:
             r = ''
-            for n, k in zip(alignment[s:e], alignment[s+1:e]):
+            for n, k in zip(alignment[s:e], alignment[s+1:e+1]):
                 p, o = n[0], n[2]
                 p2, o2 = k[0], k[2]
-                r += text[p][1][o:o2]
-            r += text[alignment[e-1][0]][1][alignment[e-1][2]:]
+                r += text[p][1][o:o2] if p == p2 else text[p][1][o:]
+            r += text[alignment[-1][0]][1][alignment[-1][2]:] if e == len(alignment) else '' # is there a better solution for this?
             t = transcript['segments'][alignment[s][1]]
             segments.append(Segment(text=t['text']+'\n'+r, start=t['start']+offset, end=t['end']+offset))
             s = e
@@ -474,6 +475,7 @@ if __name__ == "__main__":
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
                 alignment = align(model, transcript, text, args['prepend_punctuations'], args['append_punctuations'])
                 segments.extend(to_subs(text, transcript, alignment, offset, args['prepend_punctuations'], args['append_punctuations']))
+                break
             offset += v.duration
         # with open(os.path.splitext(v[0])[0] + ".vtt", "w") as out:
         with open("/tmp/out.vtt", "w") as out:
