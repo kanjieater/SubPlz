@@ -142,50 +142,70 @@ def similarity(l1, l2):
         sm[..., i, :] = -2 * (1 - m.sqrt().sum(-1)).sqrt() + 1
     return sm
 
-def traceback(c, mi, mj, fl, fs, sl, ss):
+def traceback(c, traceback, mi, mj, fl, fs, sl, ss, tokenizer):
     ot = []
     t1, t2 = [], []
+    tt1, tt2 = [], []
     def score(x):
         return sum(x)/((5 + len(x))/6)
     def push():
         nonlocal t1, t2
+        print("t", tokenizer.decode_with_timestamps(t1[::-1]), tokenizer.decode_with_timestamps(t2[::-1]))
+        tt1.extend(t1)
+        tt2.extend(t2)
         if not len(t1) and not len(t2): return
         s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
         ot.extend(t1 if score(s1) > score(s2) else t2)
         t1, t2 = [], []
     while mi > 0 and mj > 0:
-        f = c[[mi-1, mi, mi-1], [mj-1, mj-1, mj]]
-        m = f.argmax()
-        if f[m] == 0: break
-        if m == 0:
+        # f = c[[mi-1, mi, mi-1], [mj-1, mj-1, mj]]
+        # m = f.argmax()
+        if c[mi, mj] == 0: break
+        m = traceback[mi, mj]
+        # idx = [(y-1,x-1), (y-1, x), (y, x-1)]
+        # if m == 0 or idx[f-1] in visited:
+        #     invalid = True
+        #     break
+        # if f[m] == 0: break
+        if m == 1:
             push()
             t1.append(fs[mi-1])
             t2.append(ss[mj-1])
             mi, mj = mi-1, mj-1
-        elif m == 1:
+        elif m == 3:
             t2.append(ss[mj-1])
             mj = mj-1
         else:
             t1.append(fs[mi-1])
             mi = mi-1
     push()
+    print("F1", tokenizer.decode_with_timestamps(tt1[::-1]))
+    print("F2", tokenizer.decode_with_timestamps(tt2[::-1]))
     return ot[::-1], mi, mj
 
 @numba.jit(nopython=True, parallel=True)
 def align(sm: np.ndarray, gap=-1):
     N, M = sm.shape[-2:]
     cost = np.zeros((N+1, M+1), dtype=np.float32)
+    traceback = np.zeros((N+1, M+1), dtype=np.int32)
     m, mi, mj = 0, 0, 0
     for i in range(1, N+1):
         for j in range(1, M+1):
-            c0 = cost[i - 1, j - 1] + sm[i-1, j-1]
-            c1 = cost[i - 1, j] + gap
-            c2 = cost[i, j - 1] + gap
-            c = max(c1, c2, c0.item(), 0.0)
+            c1 = cost[i - 1, j - 1] + sm[i-1, j-1]
+            c2 = cost[i - 1, j] + gap
+            c3 = cost[i, j - 1] + gap
+            c = max(c2, c3, c1.item(), 0.0)
             cost[i, j] = c
+            if c != 0:
+                if c1 > c2 and c1 > c3:
+                    traceback[i, j] = 1
+                elif c2 > c1 and c2 > c3:
+                    traceback[i, j] = 2
+                else:
+                    traceback[i, j] = 3
             if c > m:
                 m, mi, mj = c, i, j
-    return cost, mi, mj
+    return traceback, cost, mi, mj
 
 # Only half done
 def transcribe(
@@ -296,10 +316,11 @@ def transcribe(
             sl[timestamps, tokenizer.timestamp_begin:overlap_timestamps]  = -np.inf#sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
             sm = similarity(fl.unsqueeze(0).exp(), sl.unsqueeze(0).exp())[0].numpy()
 
-            c, mi, mj = align(sm)
-            shared, ni, nj = traceback(c, mi, mj, fl, fs, sl, ss)
+            tb, c, mi, mj = align(sm)
+            shared, ni, nj = traceback(c, tb, mi, mj, fl, fs, sl, ss, tokenizer)
 
             print("Shared:", tokenizer.decode_with_timestamps(shared))
+            print()
         last = logits[-1]
         last_tokens = result[-1]
 
