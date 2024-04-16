@@ -42,9 +42,9 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 
 1. `git clone https://github.com/kanjieater/AudiobookTextSync.git`
 1. Make sure you run any commands that start with `./` from the project root, eg after you clone you can run `cd ./AudiobookTextSync`
-1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`
+1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`.
 1. Get the book script as text from a digital copy. Put the script at: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
-1. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b,mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
+1. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b, mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
  eg `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`. The split files must be in `./<name>/<name>_merge/`. This will merge your file into a single file so it can be processed.
 6. If you have the `script.txt` and either `./<name>/<name>.m4b`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `python run.py -d "<full folder path>"` eg `python run.py -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file that can be watched with `MPV`, showing audio in time with the full book as a subtitle.
 7. From there, use a [texthooker](https://github.com/Renji-XD/texthooker-ui) with something like [mpv_websocket](https://github.com/kuroahna/mpv_websocket) and enjoy Immersion Reading.
@@ -58,7 +58,7 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 # Single File
 
 You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 8GB of RAM available.
-You need your`m4b`, `mp3`, or `mp4` audiobook file to be inside the folder: "<full folder path>", with a `txt` file in the same folder. The `txt` file can be named anything as long as it has a `txt` extension.
+You need your audio file to be inside a folder with the **same name as the audiofile**, in addition to a `txt` file in the same folder. The `txt` file can be named anything as long as it has a `txt` extension.
 The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter 2 The Spooky Sequel/"`
 ```bash
 /sync/
