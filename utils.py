@@ -14,9 +14,14 @@ class Subtitle:
         self.end = end
         self.line = line
 
-def check_workdir_content(workdir):
-    workdir_stripped = path.basename(path.normpath(workdir))    
-    files = glob(f"{workdir.rstrip('/')}/*{workdir_stripped}*")
+def check_workdir_content(workdir, formats):
+    workdir_stripped = path.basename(path.normpath(workdir))
+    
+    files = []
+    for format in formats:
+        result = glob(f"{workdir.rstrip('/')}/*{workdir_stripped}.{format}")
+        if len(result) > 0:
+            files.append(result)
 
     return len(files) > 0
 

@@ -317,7 +317,7 @@ if __name__ == "__main__":
             print(f"Working on {working_folder}")
             
             # Ensure audio file(s) have the same name as the working dir
-            check_verdict = check_workdir_content(working_folder)
+            check_verdict = check_workdir_content(working_folder, SUPPORTED_FORMATS)
             
             if not check_verdict:
                 expected_file_name_base = path.basename(path.normpath(working_folder))
