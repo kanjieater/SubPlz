@@ -73,6 +73,22 @@ class Cache:
                 self.ask = not (k == 'N' or k == 'Y')
                 self.overwrite = k == 'Y' or k == 'y'
             if not self.overwrite: return content
+
+        del content['text']
+        if 'ori_dict' in content:
+            del cache['ori_dict']
+
+        for i in content['segments']:
+            if 'words' in i:
+                del i['words']
+            del i['id']
+            del i['tokens']
+            del i['avg_logprob']
+            del i['temperature']
+            del i['seek']
+            del i['compression_ratio']
+            del i['no_speech_prob']
+
         q.write_bytes(repr(content).encode('utf-8'))
         return content
 
@@ -231,9 +247,11 @@ def match(audio, text):
                         best = (ti, j, score)
 
                 if best[:-1] in alldupes.union(dupes):
-                    key = sta.pop(best[:-1])
-                    ats.pop(key[:-1])
-                    alldupes.add(best[:-1])
+                    key = best[:-1]
+                    if key in sta:
+                        alldupes.add(key)
+                        key = sta.pop(key)[:-1]
+                        ats.pop(key)
                 elif best != (-1, -1, 0):
                     ats[(ai, i)] = best
                     sta[best[:-1]] = (ai, i, best[-1])
