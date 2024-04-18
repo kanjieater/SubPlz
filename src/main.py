@@ -76,7 +76,7 @@ class Cache:
 
         del content['text']
         if 'ori_dict' in content:
-            del cache['ori_dict']
+            del content['ori_dict']
 
         for i in content['segments']:
             if 'words' in i:
