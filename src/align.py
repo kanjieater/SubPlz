@@ -8,54 +8,74 @@ from pprint import pprint
 np.set_printoptions(linewidth=np.inf, threshold=sys.maxsize)
 
 ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
-# ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})  # space and minus
 kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
-kansuu_to_ascii = dict([(ord('一'), '１'), (ord('二'), '２'), (ord('三'), '３'), (ord('四'), '４'), (ord('五'), '５'), (ord('六'), '６'), (ord('七'), '７'), (ord('八'), '８'), (ord('九'), '９'), (ord('◯'), '０') ,(ord('零'), '０'), (ord('十'), '１')])
-allt = kata_hira | ascii_to_wide
-# allt = kansuu_to_ascii | ascii_to_wide
+
+kansuu = '一二三四五六七八九十〇零壱弐参肆伍陸漆捌玖拾'
+arabic = '１２３４５６７８９１００'
+kansuu_to_arabic = {ord(kansuu[i]): arabic[i%len(arabic)] for i in range(len(kansuu))}
+
+closingpunc =  set('・,，!！?？:：”)]}、』」）〉》〕】｝］')
+test =  {ord(i): '。' for i in closingpunc}
+test2 = {ord('は'): "わ"}
+
+allt = kata_hira | kansuu_to_arabic | ascii_to_wide | test | test2
+
 def clean(s, normalize=True):
-    # TODO(YM): check this doesn't catastrophically backtrack
-    # 、。？ are mostlly correctly guessed by whisper
-    # Idk which one is better, at least the ver that doesn't remove them can be adjusted a little more intelligently?
-    r = r"(?![、。？])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sーぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+"
-    # r = r"[\p{C}\p{M}\p{P}\p{S}\p{Z}\sーぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+"
-    s = re.sub(r, "", s.translate(kansuu_to_ascii).translate(allt))
+    r = r"(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sーぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+"
+    s = re.sub(r, "", s.translate(allt))
     return unicodedata.normalize("NFKD", s) if normalize else s
 
 def align_sub(coords, text, subs):
     current = [0, 0]
     pos, toff = np.array([0, 0]), 0
     p, gaps = np.array([0, 0]), np.array([0, 0])
-    segments = []
-    unused = []
+    gaps_text = []
+    segments, unused = [], []
+    off, s = 0, 0
+    count = 0
     for i in range(coords.shape[1]):
         c = coords[:, i]
         isgap = 0 in (c - p)
+
         while current[1] < len(subs) and (pos[1] + len(subs[current[1]])) <= c[1]:
             pos[1] += len(subs[current[1]])
-            if isgap: gaps += np.clip((pos - p)[::-1], 0, None)
+            if isgap: gaps += np.clip(pos - p, 0, None)[::-1]
 
             diff = len(subs[current[1]]) + gaps[1] - gaps[0]
-            print(subs[current[1]], pos[0], i, c, diff, gaps[1], gaps[0])#, coords[:, i+1])
+            if diff > len(subs[current[1]])//4:
+                segments.append([*current, toff, 0])
+                if toff + diff + off > len(text[current[0]]):
+                    print(toff, toff+diff+off, text[current[0]], len(text[current[0]]))
+                    count += 1
+                    # pass
 
-            if diff < len(subs[current[1]])//2:
+                pos[0] += diff + off
+                toff += diff + off
+                off = 0
+
+                f = toff >= len(text[current[0]])
+                while current[0] < len(text) and toff >= len(text[current[0]]):
+                    toff -= len(text[current[0]])
+                    current[0] += 1
+                    segments.append([*current, 0, 0])
+                # if f and toff != 0:
+                #     print("Not zero", toff)
+                segments.append([*current, toff, 0])
+                gaps = []
+            else:
                 unused.append(subs[current[1]])
+                if toff >= len(text[current[0]])//2:
+                    toff += diff
+                else:
+                    off += diff
 
-            segments.append([*current, toff, 0])
-            pos[0] += diff
-            toff += diff
-            print(len(text[current[0]]), toff)
-            while toff > len(text[current[0]]):
-                toff -= len(text[current[0]])
-                current[0] += 1
-                segments.append([*current, 0, 0])
-            segments.append([*current, toff, 0])
-
-            current[1], gaps[...], p[:] = current[1]+1, 0, pos[:]
+            current[1] += 1
+            s, gaps[...], p[:] = i, 0, np.maximum(pos, p)
 
         if isgap: gaps += (c - p)[::-1]
         p = c
 
+    print(count)
     pprint(unused)
     # pprint(segments)
     return segments
@@ -86,16 +106,17 @@ def align(model, transcript, text, prepend, append):
     transcript_str_clean = [clean(i, normalize=False) for i in transcript_str]
     transcript_str_joined = ''.join(transcript_str_clean)
 
-    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=1, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-0.7)
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=0.8, open_gap_score=-1.2, mismatch_score=-0.8, extend_gap_score=-0.5)
+    # aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=1, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
     def inner(text_str):
         text_str_clean = [clean(i, normalize=False) for i in text_str]
         text_str_joined = ''.join(text_str_clean)
 
         if not len(text_str_joined) or not len(transcript_str_joined): return []
         alignment = aligner.align(text_str_joined, transcript_str_joined)[0]
-        print(alignment.__str__().replace('-', "ー"))
+        # print(alignment.__str__().replace('-', "ー"))
         coords = alignment.coordinates
-        print(coords)
+        # print(coords)
 
         segments = align_sub(coords, text_str_clean, transcript_str_clean)
         fix(text_str, text_str_clean, segments)

@@ -51,9 +51,11 @@ class Cache:
     enabled: bool
     ask: bool
     overwrite: bool
+    memcache: dict
 
     def get(self, filename, chid):
         if not self.enabled: return
+        if filename in self.memcache: return self.memcache[filename]
         fn = (filename + '.' + str(chid) +  '.' + self.model_name + ".subs") # Include the hash of the model settings?
         fn2 = (filename + '.' + str(chid) +  '.' + 'small' + ".subs") # TODO(YM): DEBUG
         if (q := Path(self.cache_dir) / fn).exists():
@@ -74,10 +76,12 @@ class Cache:
                 self.overwrite = k == 'Y' or k == 'y'
             if not self.overwrite: return content
 
-        del content['text']
+        if 'text' in content:
+            del content['text']
         if 'ori_dict' in content:
             del content['ori_dict']
 
+        # Some of these may be useful but they just take so much space
         for i in content['segments']:
             if 'words' in i:
                 del i['words']
@@ -89,6 +93,7 @@ class Cache:
             del i['compression_ratio']
             del i['no_speech_prob']
 
+        self.memcache[filename] = content
         q.write_bytes(repr(content).encode('utf-8'))
         return content
 
@@ -99,21 +104,17 @@ class AudioStream:
     duration: float
     cn: str
     cid: int
-    transcription: any
 
     def audio(self):
         data, _ = self.stream.output('-', format='s16le', acodec='pcm_s16le', ac=1, ar='16k').run(quiet=True, input='')
         return np.frombuffer(data, np.int16).astype(np.float32) / 32768.0
 
     def transcribe(self, model, cache, **kwargs):
-        if hasattr(self, 'transcription') and self.transcription is not None:
-            return self.transcription
-        # print(self.path, self.cn)
-        if r := cache.get(os.path.basename(self.path), self.cid):
-            self.transcription = r
-            return r
-        self.transcription = model.transcribe(self.audio(), name=self.cn, **kwargs)
-        return cache.put(os.path.basename(self.path), self.cid, self.transcription)
+        transcription = cache.get(os.path.basename(self.path), self.cid)
+        if transcription is not None:
+            return transcription
+        transcription = model.transcribe(self.audio(), name=self.cn, **kwargs)
+        return cache.put(os.path.basename(self.path), self.cid, transcription)
 
     @classmethod
     def from_file(cls, path, whole=False):
@@ -125,8 +126,7 @@ class AudioStream:
                            duration=float(chapter['end_time']) - float(chapter['start_time']),
                            path=path,
                            cn=chapter.get('tags', {}).get('title', ''),
-                           cid=chapter['id'],
-                           transcription=None)
+                           cid=chapter['id'])
                        for chapter in info['chapters']]
 
 @dataclass(eq=True, frozen=True)
@@ -241,7 +241,7 @@ def match(audio, text):
                     tch = text_full_title + align.clean(tc[j].title)
 
                     score = fuzz.ratio(ach, tch)
-                    if score > best[-1] and score > main:
+                    if score > main and score > best[-1]:
                         if (ti, j) in sta:
                             dupes.add((ti, j))
                         best = (ti, j, score)
@@ -258,7 +258,7 @@ def match(audio, text):
 
     return ats, sta
 
-def content_match(audio, text, ats, sta):
+def content_match(audio, text, ats, sta, cache):
     k, o = set(), set()
     for ai in range(len(audio)):
         afn, at, ac = audio[ai]
@@ -272,7 +272,7 @@ def content_match(audio, text, ats, sta):
                 for j in range(len(tc)):
                     if (ti, j) not in o and (ti, j) in sta: continue
 
-                    transcript = align.clean(''.join(seg['text'] for seg in ac[i].transcription['segments']))
+                    transcript = align.clean(''.join(seg['text'] for seg in ac[i].transcribe(None, cache)['segments']))
                     reference = align.clean(''.join(p.text() for p in tc[j].text()))
                     if len(transcript.strip()) < 5 or len(reference.strip()) < 5:
                         continue
@@ -329,24 +329,28 @@ def to_subs(text, transcript, alignment, offset, references):
 
 
 def faster_transcribe(self, audio, **args):
+    name = args.pop('name')
+
     args.pop('fp16')
     args['log_prob_threshold'] = args.pop('logprob_threshold')
     args['beam_size'] = args['beam_size'] if args['beam_size'] else 1
     args['patience'] = args['patience'] if args['patience'] else 1
     args['length_penalty'] = args['length_penalty'] if args['length_penalty'] else 1
-    name = args.pop('name')
+
     segments, info = self.transcribe2(audio, best_of=1, **args)
-    x = {'segments': []}
+
+    result = []
     prev_end = 0
     with tqdm(total=info.duration, unit_scale=True, unit=" seconds") as pbar:
         pbar.set_description(f'{name}')
         for segment in segments:
-            x['segments'].append({'text': segment.text, 'start': segment.start, 'end': segment.end})
+            result.append(segment._asdict())
             pbar.update(segment.end - prev_end)
             prev_end = segment.end
         pbar.update(info.duration - prev_end)
         pbar.refresh()
-    return x
+
+    return {'segments': result}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -413,7 +417,8 @@ if __name__ == "__main__":
     model_load = args.pop('load')
     overwrite_cache = args.pop('overwrite_cache')
     cache = Cache(model_name=model, enabled=args.pop("use_cache"), cache_dir=args.pop("cache_dir"),
-                  ask=not overwrite_cache, overwrite=overwrite_cache)
+                  ask=not overwrite_cache, overwrite=overwrite_cache,
+                  memcache={})
     model = WhisperModel(model, device, local_files_only=True, compute_type='int8' if device == 'cpu' else 'float16', num_workers=threads) if model_load and faster_whisper else whisper.load_model(model).to(device) if model_load else None
     # model = None
 
@@ -462,11 +467,6 @@ if __name__ == "__main__":
     follow_links = args.pop('follow_links')
 
     ats, sta = match(streams, chapters)
-    # print("Audio -> Text")
-    # for k, v in ats.items():
-    #     ai, i = k
-    #     ti, tj, s = v
-    #     print(streams[ai][2][i].cn, "->", chapters[ti][1][tj].title, s)
 
     for i in range(len(streams)):
         for j in range(len(streams[i][2])):
@@ -482,7 +482,7 @@ if __name__ == "__main__":
     #     pprint(f)
     #     pprint(f[0].exception())
 
-    content_match(streams, chapters, ats, sta)
+    content_match(streams, chapters, ats, sta, cache)
 
     h = []
     prev = None
@@ -504,10 +504,11 @@ if __name__ == "__main__":
                 ci, cj, _ = ats[(i, j)]
                 print(i, j, streams[i][2][j].cn, chapters[ci][1][cj].title)
                 text = chapters[ci][1][cj].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
+                # pprint([i.text() for i in text])
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
                 alignment, references = align.align(model, transcript, text, args['prepend_punctuations'], args['append_punctuations'])
                 segments.extend(to_subs(text, transcript, alignment, offset, references))
-                break
+                # break
             offset += v.duration
         with open(f"/tmp/out{i}.vtt", "w") as out:
             out.write("WEBVTT\n\n")
