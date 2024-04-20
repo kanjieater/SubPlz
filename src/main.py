@@ -94,8 +94,6 @@ class Cache:
             del i['no_speech_prob']
 
         self.memcache[filename] = content
-        print("HERE")
-        print(q)
         q.write_bytes(repr(content).encode('utf-8'))
         return content
 
