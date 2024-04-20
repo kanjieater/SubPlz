@@ -94,6 +94,8 @@ class Cache:
             del i['no_speech_prob']
 
         self.memcache[filename] = content
+        print("HERE")
+        print(q)
         q.write_bytes(repr(content).encode('utf-8'))
         return content
 
@@ -250,8 +252,7 @@ def match(audio, text):
                     key = best[:-1]
                     if key in sta:
                         alldupes.add(key)
-                        key = sta.pop(key)[:-1]
-                        ats.pop(key)
+                        ats.pop(sta.pop(key)[:-1])
                 elif best != (-1, -1, 0):
                     ats[(ai, i)] = best
                     sta[best[:-1]] = (ai, i, best[-1])
@@ -266,7 +267,6 @@ def content_match(audio, text, ats, sta, cache):
             tfn, tc = text[ti]
             for i in range(len(ac)):
                 if (ai, i) not in k and (ai, i) in ats: continue
-                # if type(tc[0]) is not TextFile: continue
 
                 best = (-1, -1, 0)
                 for j in range(len(tc)):
@@ -281,11 +281,6 @@ def content_match(audio, text, ats, sta, cache):
                         best = (ti, j, score)
 
                 if best != (-1, -1, 0):
-                    # transcript = ''.join(seg['text'] for seg in ac[i].transcription['segments'])
-                    # reference = ''.join(paragraph.text() for paragraph in tc[best[1]].text())
-                    # print(transcript)
-                    # print(reference)
-                    # print()
                     k.add((ai, i))
                     o.add(best[:-1])
                     ats[(ai, i)] = best
@@ -294,39 +289,21 @@ def content_match(audio, text, ats, sta, cache):
 def to_epub():
     pass
 
-def to_subs(text, transcript, alignment, offset, references):
-    s, e = 0, 0
+def to_subs(text, subs, alignment, offset, references):
+    alignment = [t + [i] for i, a in enumerate(alignment[:-2]) for t in a]
+    start, end = 0, 0
     segments = []
-    while e < len(alignment):
-        e += 1
-        if e == len(alignment) or alignment[s][1] != alignment[e][1]:
-            r = ''
-            for n, k in zip(alignment[s:e], alignment[s+1:e+1]):
-                p, o = n[0], n[2]
-                p2, o2 = k[0], k[2]
-                if type(p) == str:
-                    f = references[p].text()[o:]
-                    if p == p2:
-                        f = f[:o2-o]
-                    if p != p2 and type(p2) == str:
-                        f += references[p2].text()[:o2]
-                    r += f
-                elif type(p2) == str:
-                    r += text[p].text()[o:]
-                else:
-                    if p < len(text):
-                        # print(p, p2, len(text))
-                        r += text[p].text()[o:o2] if p == p2 or (p2 >= len(text)) else (text[p].text()[o:] + text[p2].text()[:o2]) #text[p].text()[o:]
-            if e == len(alignment) and alignment[-1][0] < len(text): r += text[alignment[-1][0]].text()[alignment[-1][2]:]
-            if alignment[s][1] < len(transcript['segments']):
-                t = transcript['segments'][alignment[s][1]]
-            else:
-                s = e
-                continue
-            segments.append(Segment(text=t['text']+'\n'+r, start=t['start']+offset, end=t['end']+offset))
-            s = e
-    return segments
+    for si, s in enumerate(subs['segments']):
+        while end < len(alignment) and alignment[end][-2] == si:
+            end += 1
 
+        r = ''
+        for a in alignment[start:end]:
+            r += text[a[-1]].text()[a[0]:a[1]]
+
+        segments.append(Segment(text=s['text']+'\n'+r, start=s['start']+offset, end=s['end']+offset))
+        start = end
+    return segments
 
 def faster_transcribe(self, audio, **args):
     name = args.pop('name')
@@ -337,20 +314,19 @@ def faster_transcribe(self, audio, **args):
     args['patience'] = args['patience'] if args['patience'] else 1
     args['length_penalty'] = args['length_penalty'] if args['length_penalty'] else 1
 
-    segments, info = self.transcribe2(audio, best_of=1, **args)
+    gen, info = self.transcribe2(audio, best_of=1, **args)
 
-    result = []
-    prev_end = 0
+    segments, prev_end = [], 0
     with tqdm(total=info.duration, unit_scale=True, unit=" seconds") as pbar:
         pbar.set_description(f'{name}')
-        for segment in segments:
-            result.append(segment._asdict())
+        for segment in gen:
+            segments.append(segment._asdict())
             pbar.update(segment.end - prev_end)
             prev_end = segment.end
         pbar.update(info.duration - prev_end)
         pbar.refresh()
 
-    return {'segments': result}
+    return {'segments': segments, 'language': args['language'] if 'language' in args else info.language}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -391,9 +367,7 @@ if __name__ == "__main__":
     parser.add_argument("--no_speech_threshold", type=float, default=0.6, help="if the probability of the <|nospeech|> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence")
     parser.add_argument("--word_timestamps", default=False, help="(experimental) extract word-level timestamps and refine the results based on them", action=argparse.BooleanOptionalAction)
     parser.add_argument("--prepend_punctuations", type=str, default="\"\'“¿([{-『「（〈《〔【｛［‘“〝※", help="if word_timestamps is True, merge these punctuation symbols with the next word")
-    # sutegana = 'ぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ'
-    sutegana = ''
-    parser.add_argument("--append_punctuations", type=str, default="\"\'・.。,，!！?？:：”)]}、』」）〉》〕】｝］’〟／＼～〜~"+sutegana, help="if word_timestamps is True, merge these punctuation symbols with the previous word")
+    parser.add_argument("--append_punctuations", type=str, default="\"\'・.。,，!！?？:：”)]}、』」）〉》〕】｝］’〟／＼～〜~", help="if word_timestamps is True, merge these punctuation symbols with the previous word")
     parser.add_argument("--highlight_words", default=False, help="(requires --word_timestamps True) underline each word as it is spoken in srt and vtt", action=argparse.BooleanOptionalAction)
     parser.add_argument("--max_line_width", type=int, default=None, help="(requires --word_timestamps True) the maximum number of characters in a line before breaking the line")
     parser.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
@@ -496,6 +470,7 @@ if __name__ == "__main__":
 
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst'))
 
+    nopend = set('うぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ…\u3000\x20')
     for i, v in enumerate(streams):
         offset = 0
         segments = []
@@ -504,11 +479,12 @@ if __name__ == "__main__":
                 ci, cj, _ = ats[(i, j)]
                 print(i, j, streams[i][2][j].cn, chapters[ci][1][cj].title)
                 text = chapters[ci][1][cj].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
-                # pprint([i.text() for i in text])
                 transcript = v.transcribe(model, cache, temperature=temperature, **args)
-                alignment, references = align.align(model, transcript, text, args['prepend_punctuations'], args['append_punctuations'])
+                # pprint([i.text() for i in text])
+                # pprint([i['text'] for i in transcript['segments']])
+                alignment, references = align.align(model, transcript, text, set(args['prepend_punctuations']), set(args['append_punctuations']), nopend)
                 segments.extend(to_subs(text, transcript, alignment, offset, references))
-                # break
+                break
             offset += v.duration
         with open(f"/tmp/out{i}.vtt", "w") as out:
             out.write("WEBVTT\n\n")

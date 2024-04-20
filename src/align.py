@@ -16,21 +16,22 @@ kansuu_to_arabic = {ord(kansuu[i]): arabic[i%len(arabic)] for i in range(len(kan
 
 closingpunc =  set('・,，!！?？:：”)]}、』」）〉》〕】｝］')
 test =  {ord(i): '。' for i in closingpunc}
-test2 = {ord('は'): "わ"}
+test2 = {ord('は'): 'わ', ord('あ'): 'わ'}
 
 allt = kata_hira | kansuu_to_arabic | ascii_to_wide | test | test2
 
 def clean(s, normalize=True):
-    r = r"(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sーぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+"
-    s = re.sub(r, "", s.translate(allt))
+    r = r'(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+'
+    s = re.sub(r, '', s.translate(allt))
+    s = re.sub(r'(.)(?=\1+)', '', s) # aaa -> a, Doesn't feel that useful but w/e
     return unicodedata.normalize("NFKD", s) if normalize else s
 
-def align_sub(coords, text, subs):
+def align_sub(coords, text, subs, thing=2):
     current = [0, 0]
     pos, toff = np.array([0, 0]), 0
     p, gaps = np.array([0, 0]), np.array([0, 0])
-    gaps_text = []
-    segments, unused = [], []
+    unused = []
+    segments = [[]]
     off, s = 0, 0
     count = 0
     for i in range(coords.shape[1]):
@@ -43,28 +44,47 @@ def align_sub(coords, text, subs):
 
             diff = len(subs[current[1]]) + gaps[1] - gaps[0]
             if diff > len(subs[current[1]])//4:
-                segments.append([*current, toff, 0])
-                if toff + diff + off > len(text[current[0]]):
-                    print(toff, toff+diff+off, text[current[0]], len(text[current[0]]))
-                    count += 1
-                    # pass
-
-                pos[0] += diff + off
-                toff += diff + off
+                target = toff + diff + off
                 off = 0
+                c2 = 0
+                while current[0] < len(text) and target >= len(text[current[0]]):
+                    start, end = toff, len(text[current[0]])
 
-                f = toff >= len(text[current[0]])
-                while current[0] < len(text) and toff >= len(text[current[0]]):
-                    toff -= len(text[current[0]])
+                    # ips, ipe = pos[0], pos[0] + (end - start)
+                    # for  r, j in gaps_text: # TODO:
+                    #     if (r >= ips) and (ipe <= j):
+                    #         print(ips, ipe, r, j)
+
+                    if (end - start) != 0:
+                        region = text[current[0]][start:end]
+                        prev = segments[-1]
+                        if end - start < thing or len(set(region) - set('。')) < thing:
+                            if len(prev): # and start - prev[-1][1] < 5: # Check for gaps
+                                prev[-1][1] = end
+                            else:
+                                prev.append([start, end, current[1]])
+                                print("Hmm")
+                        else:
+                            # Two chunks stuck together, fix later
+                            if target > end:
+                                c2 += 1
+                            prev.append([start, end, current[1]])
+
+                    segments.append([])
+                    pos[0] += end - start
+                    target -= len(text[current[0]])
                     current[0] += 1
-                    segments.append([*current, 0, 0])
-                # if f and toff != 0:
-                #     print("Not zero", toff)
-                segments.append([*current, toff, 0])
-                gaps = []
+                    toff = 0
+                if c2:
+                    count += 1
+                pos[0] += target - toff
+                segments[-1].append([toff, target, current[1]])
+                toff = target
             else:
                 unused.append(subs[current[1]])
-                if toff >= len(text[current[0]])//2:
+                prev = segments[-1]
+                if toff >= len(text[current[0]])//2 and len(prev) and len(prev[-1]): # Check for gaps
+                    prev[-1][1] += diff
                     toff += diff
                 else:
                     off += diff
@@ -75,39 +95,76 @@ def align_sub(coords, text, subs):
         if isgap: gaps += (c - p)[::-1]
         p = c
 
-    print(count)
+
     pprint(unused)
     # pprint(segments)
-    return segments
+    print(len(text))
+    print(count)
+    # for l, s in enumerate(segments[:len(text)]):
+    #     if not l: continue
+    #     for ss, ee, sub in s:
+    #         print(text[l][ss:ee])
+    #         print(subs[sub])
+    #         print()
+        # print()
+    return segments[:len(text)]
+
+def fix_punc(text, segments, prepend, append, nopend):
+    for l, s in enumerate(segments):
+        if not s: continue
+        t = text[l]
+        for p, f in zip(s, s[1:] + [s[-1]]):
+            connected = f[0] == p[1]
+            while True:
+                if p[1] < len(t) and t[p[1]] in append:
+                    p[1] += 1
+                elif t[p[1]-1] in prepend:
+                    p[1] -= 1
+                elif (p[1] > 0 and t[p[1]-1] in nopend) or (p[1] < len(t) and t[p[1]] in nopend):
+                    start, end = p[1]-1, p[1]
+                    while start > 0 and t[start] in nopend:
+                        start -= 1
+                    while end < len(t)-1 and t[end] in nopend:
+                        end += 1
+
+                    if p[1] == start+1 or p[1] == end:
+                        break
+
+                    if t[start] in append:
+                        p[1] = start+1
+                    elif t[end] in prepend:
+                        p[1] = end
+                    else:
+                        break
+                    if t[end] in prepend and t[start] in append:
+                        print("wtf")
+                else:
+                    break
+            if connected: f[0] = p[1]
 
 def fix(original, edited, segments):
-    s, e = 0, 0
-    while e < len(segments):
-        e += 1
-        if e == len(segments) or segments[s][0] != segments[e][0]:
-            if segments[s][0] >= len(original):
-                break
-            orig, cl = original[segments[s][0]].translate(allt), edited[segments[s][0]]
-            i, j, jj = 0, 0, s
-            while i < len(orig) and j < len(cl) and jj < e:
-                while jj < e and j >= segments[jj][2]:
-                    segments[jj][2] = i
-                    jj += 1
-                if orig[i] == cl[j]:
-                    j += 1
-                i += 1
-            while jj < e:
-                segments[jj][2] = i
-                jj += 1
-            s = e
+    for l, s in enumerate(segments):
+        o, e = original[l].translate(allt), edited[l]
+        m = {}
+        oi, ei, ii = 0, 0, 0
+        for oi in range(len(o)):
+            if ei < len(e) and o[oi] == e[ei]:
+                m[ei] = oi
+                ei += 1
+            oi += 1
+        m[ei] = oi # Snap to end
+        m[0] = 0 # Snap to zero
 
-def align(model, transcript, text, prepend, append):
+        for k, f in enumerate(s):
+            f[0] = m[f[0]]
+            f[1] = m[f[1]]
+
+def align(model, transcript, text, prepend, append, nopend):
     transcript_str = [i['text'] for i in transcript['segments']]
     transcript_str_clean = [clean(i, normalize=False) for i in transcript_str]
     transcript_str_joined = ''.join(transcript_str_clean)
 
-    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=0.8, open_gap_score=-1.2, mismatch_score=-0.8, extend_gap_score=-0.5)
-    # aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=1, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=0.8, open_gap_score=-0.8, mismatch_score=-1, extend_gap_score=-0.5)
     def inner(text_str):
         text_str_clean = [clean(i, normalize=False) for i in text_str]
         text_str_joined = ''.join(text_str_clean)
@@ -120,7 +177,7 @@ def align(model, transcript, text, prepend, append):
 
         segments = align_sub(coords, text_str_clean, transcript_str_clean)
         fix(text_str, text_str_clean, segments)
-        # fix_punc(text_str, segments, prepend, append)
+        fix_punc(text_str, segments, prepend, append, nopend)
         return segments
 
     references = {k.element.attrs['id']:k for i in text for k in i.references} # Filter out dups
