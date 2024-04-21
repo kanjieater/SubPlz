@@ -331,7 +331,7 @@ if __name__ == "__main__":
     parser.add_argument( "--audio", nargs="+", required=True, help="list of audio files to process (in the correct order)")
     parser.add_argument("--text", nargs="+", required=True, help="path to the script file")
     parser.add_argument("--model", default="tiny", help="whisper model to use. can be one of tiny, small, large, huge")
-    parser.add_argument("--language", default="ja", help="language of the script and audio")
+    parser.add_argument("--language", default=None, help="language of the script and audio")
     parser.add_argument("--progress", default=True,  help="progress bar on/off", action=argparse.BooleanOptionalAction)
     parser.add_argument("--use-cache", default=True, help="whether to use the cache or not", action=argparse.BooleanOptionalAction)
     parser.add_argument("--cache-dir", default="AudiobookTextSyncCache", help="the cache directory")
