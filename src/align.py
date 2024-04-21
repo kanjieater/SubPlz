@@ -63,7 +63,7 @@ def align_sub(coords, text, subs, thing=2):
                                 prev[-1][1] = end
                             else:
                                 prev.append([start, end, current[1]])
-                                print("Hmm")
+                                # print("Hmm")
                         else:
                             # Two chunks stuck together, fix later
                             if target > end:
@@ -96,10 +96,10 @@ def align_sub(coords, text, subs, thing=2):
         p = c
 
 
-    pprint(unused)
+    # pprint(unused)
     # pprint(segments)
-    print(len(text))
-    print(count)
+    # print(len(text))
+    # print(count)
     # for l, s in enumerate(segments[:len(text)]):
     #     if not l: continue
     #     for ss, ee, sub in s:
