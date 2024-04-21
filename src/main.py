@@ -296,7 +296,11 @@ def to_subs(text, subs, alignment, offset, references):
         for a in alignment[start:end]:
             r += text[a[-1]].text()[a[0]:a[1]]
 
-        segments.append(Segment(text=s['text']+'\n'+r, start=s['start']+offset, end=s['end']+offset))
+        if r.strip():
+            segments.append(Segment(text=r, start=s['start']+offset, end=s['end']+offset))
+        else:
+            segments.append(Segment(text='＊'+s['text'], start=s['start']+offset, end=s['end']+offset))
+
         start = end
     return segments
 

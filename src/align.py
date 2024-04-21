@@ -127,12 +127,14 @@ def fix_punc(text, segments, prepend, append, nopend):
                     while end < len(t)-1 and t[end] in nopend:
                         end += 1
 
-                    if p[1] == start+1 or p[1] == end:
-                        break
 
                     if t[start] in append:
+                        if p[1] == start+1:
+                            break
                         p[1] = start+1
                     elif t[end] in prepend:
+                        if p[1] == end:
+                            break
                         p[1] = end
                     else:
                         break
