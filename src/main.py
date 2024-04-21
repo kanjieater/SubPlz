@@ -1,7 +1,7 @@
 import os
 import argparse
 from pprint import pprint
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from types import MethodType
 
 from functools import partialmethod
@@ -99,7 +99,7 @@ class Cache:
         q.write_bytes(repr(content).encode('utf-8'))
         return content
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class AudioStream:
     stream: ffmpeg.Stream
     path: Path
@@ -219,67 +219,72 @@ class Epub:
 
 def match(audio, text):
     ats, sta = {}, {}
-    alldupes = set()
+    picked = set()
     for ai in range(len(audio)):
         afn, at, ac = audio[ai]
-        for ti in range(len(text)):
-            tfn, tc = text[ti]
-            if type(tc[0]) is not Epub: continue
+        audio_full_title = align.clean(afn+at)
+        for i in range(len(ac)):
+            ach = audio_full_title + align.clean(ac[i].cn)
+            best = (-1, -1, 0)
+            for ti in range(len(text)):
+                tfn, tc = text[ti]
+                if type(tc[0]) is not Epub: continue
 
-            audio_full_title = align.clean(afn+at)
-            text_full_title = align.clean(tfn + tc[0].epub.title)
-            main = fuzz.ratio(audio_full_title, text_full_title)
+                text_full_title = align.clean(tfn + tc[0].epub.title)
+                main = fuzz.ratio(audio_full_title, text_full_title)
 
-            for i in range(len(ac)):
-                best = (-1, -1, 0)
-                dupes = set()
                 for j in range(len(tc)):
-                    ach = audio_full_title + align.clean(ac[i].cn)
                     tch = text_full_title + align.clean(tc[j].title)
-
                     score = fuzz.ratio(ach, tch)
                     if score > main and score > best[-1]:
-                        if (ti, j) in sta:
-                            dupes.add((ti, j))
                         best = (ti, j, score)
 
-                if best[:-1] in alldupes.union(dupes):
-                    key = best[:-1]
-                    if key in sta:
-                        alldupes.add(key)
-                        ats.pop(sta.pop(key)[:-1])
-                elif best != (-1, -1, 0):
-                    ats[(ai, i)] = best
-                    sta[best[:-1]] = (ai, i, best[-1])
+            if best[:-1] in picked:
+                key = best[:-1]
+                if key in sta:
+                    ats.pop(sta.pop(key)[:-1])
+            elif best != (-1, -1, 0):
+                ats[(ai, i)] = best
+                sta[best[:-1]] = (ai, i, best[-1])
+                picked.add(best[:-1])
 
     return ats, sta
 
+# THIS IS SUPER SLOW LOOOOL
 def content_match(audio, text, ats, sta, cache):
-    k, o = set(), set()
-    for ai in range(len(audio)):
+    picked = set()
+    textcache = {}
+    for ai in trange(len(audio), desc='Fuzzy matching the remaining chapters'):
         afn, at, ac = audio[ai]
-        for ti in range(len(text)):
-            tfn, tc = text[ti]
-            for i in range(len(ac)):
-                if (ai, i) not in k and (ai, i) in ats: continue
+        for i in trange(len(ac)):
+            if (ai, i) in ats: continue
 
-                best = (-1, -1, 0)
+            acontent = align.clean(''.join(seg['text'] for seg in ac[i].transcribe(None, cache)['segments']))
+            best = (-1, -1, 0)
+            for ti in range(len(text)):
+                tfn, tc = text[ti]
+
                 for j in range(len(tc)):
-                    if (ti, j) not in o and (ti, j) in sta: continue
+                    # if (ti, j) not in picked and (ti, j) in sta: continue # Allow dupes
+                    if (ti, j) in sta: continue
 
-                    transcript = align.clean(''.join(seg['text'] for seg in ac[i].transcribe(None, cache)['segments']))
-                    reference = align.clean(''.join(p.text() for p in tc[j].text()))
-                    if len(transcript.strip()) < 5 or len(reference.strip()) < 5:
+                    if (ti, j) not in textcache:
+                        textcache[(ti, j)] = align.clean(''.join(p.text() for p in tc[j].text()))
+                    tcontent = textcache[(ti, j)]
+
+                    if len(acontent) < 5 or len(tcontent) < 5:
                         continue
-                    score = fuzz.ratio(transcript, reference)
+
+                    score = fuzz.ratio(acontent, tcontent)
                     if score > 40 and score > best[-1]:
                         best = (ti, j, score)
 
-                if best != (-1, -1, 0):
-                    k.add((ai, i))
-                    o.add(best[:-1])
-                    ats[(ai, i)] = best
-                    sta[best[:-1]] = (ai, i, best[-1])
+            if best != (-1, -1, 0):
+                ats[(ai, i)] = best
+                sta[best[:-1]] = (ai, i, best[-1])
+                picked.add(best[:-1])
+
+    return ats, sta
 
 def to_epub():
     pass
