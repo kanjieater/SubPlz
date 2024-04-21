@@ -377,7 +377,7 @@ if __name__ == "__main__":
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.pop('progress'))
     if (threads := args.pop("threads")) > 0: torch.set_num_threads(threads)
 
-    output_dir = Path(k) if (k := args.pop('output_dir')) else Path(os.path.dirname(args['audio'][0]))
+    output_dir = Path(k) if (k := args.pop('output_dir')) else Path('.')#os.path.dirname(args['audio'][0]))
 
     model, device = args.pop("model"), args.pop('device')
 
