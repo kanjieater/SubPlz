@@ -28,6 +28,8 @@ from tabulate import tabulate, SEPARATING_LINE
 from bs4 import element
 from bs4 import BeautifulSoup
 
+from os.path import basename, splitext
+
 def sexagesimal(secs):
     mm, ss = divmod(secs, 60)
     hh, mm = divmod(mm, 60)
@@ -165,6 +167,7 @@ class Epub:
 
     def text(self, prefix=None, follow_links=True, ignore=set()):
         o = []
+        refids = set()
         for i in range(self.start, self.end):
             id, is_linear = self.epub.spine[i]
             item = self.epub.get_item_with_id(id)
@@ -174,6 +177,8 @@ class Epub:
                 paragraphs = soup.find("body").find_all(["p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"])
 
                 for p in paragraphs:
+                    if 'id' in p.attrs and p.attrs['id'] in refids:
+                        continue
                     references = []
                     for r in p.find_all(href=True):
                         if "#" not in r['href']: continue
@@ -182,11 +187,11 @@ class Epub:
                         if os.path.basename(path) != os.path.basename(item.file_name):
                             chapter = self.epub.get_item_with_href(path if '/' in path else (os.path.dirname(item.file_name) + '/' + path))
                             idx = [i for i, _ in self.epub.spine].index(chapter.id)
-                            # TODO: cache or whatever and get rid of this if
-                            ref = BeautifulSoup(chapter.get_content(), 'html.parser').find(id=tid)
+                            ref = BeautifulSoup(chapter.get_content(), 'html.parser').find(id=tid) # TODO: cache or whatever and get rid of this if
                         else:
                             idx = i
                             ref = soup.find(id=tid)
+                        refids.add(tid)
                         references.append(Paragraph(chapter=idx, element=ref, references=[]))
                     o.append(Paragraph(chapter=i, element=p, references=references))
         return o
@@ -195,17 +200,8 @@ class Epub:
     def from_file(cls, path):
         file = epub.read_epub(path, {"ignore_ncx": True})
         toc = [file.get_item_with_href(x.href.split("#")[0]) for x in file.toc]
-        idx, c = [], 0
-        # Uhh?? See 【小説29巻】本好きの下剋上～司書になるためには手段を選んでいられません～第五部「女神の化身VIII」.epub
-        # TODO: check the audiobook when it gets released
-        # for i in range(len(file.spine)):
-        #     v = file.spine[i]
-        #     if v[0] == toc[c].id:
-        #         idx.append(i)
-        #         c+=1
-        #         if c == len(toc): break
 
-        k = 0
+        idx, c, k = [], 0, 0
         while len(toc) > c:
             for i in range(idx[-1]+1 if len(idx) else 0, len(file.spine)):
                 v = file.spine[i]
@@ -217,6 +213,7 @@ class Epub:
             c += 1
             k += 1
         if k > 1: print(file.title, "has a broken toc")
+
         idx[-1] = len(file.spine)
         return [cls(epub=file, title=file.toc[i].title, start=idx[i], end=idx[i+1]) for i in range(len(toc))]
 
@@ -306,7 +303,6 @@ def to_subs(text, subs, alignment, offset, references):
 def faster_transcribe(self, audio, **args):
     name = args.pop('name')
 
-    args.pop('fp16')
     args['log_prob_threshold'] = args.pop('logprob_threshold')
     args['beam_size'] = args['beam_size'] if args['beam_size'] else 1
     args['patience'] = args['patience'] if args['patience'] else 1
@@ -349,7 +345,6 @@ if __name__ == "__main__":
     parser.add_argument("--prefix-chapter-name", default=True, help="Whether to prefix the text of each chapter with its name", action=argparse.BooleanOptionalAction)
     parser.add_argument("--follow-links", default=True, help="Whether to follow hrefs or not in the ebook", action=argparse.BooleanOptionalAction)
 
-    parser.add_argument("--fp16", default=False, help="whether to perform inference in fp16", action=argparse.BooleanOptionalAction)
     parser.add_argument("--beam_size", type=int, default=None, help="number of beams in beam search, only applicable when temperature is zero")
     parser.add_argument("--patience", type=float, default=None, help="optional patience value to use in beam decoding, as in https://arxiv.org/abs/2204.05424, the default (1.0) is equivalent to conventional beam search")
     parser.add_argument("--length_penalty", type=float, default=None, help="optional token length penalty coefficient (alpha) as in https://arxiv.org/abs/1609.08144, uses simple length normalization by default")
@@ -366,43 +361,40 @@ if __name__ == "__main__":
     parser.add_argument("--word_timestamps", default=False, help="(experimental) extract word-level timestamps and refine the results based on them", action=argparse.BooleanOptionalAction)
     parser.add_argument("--prepend_punctuations", type=str, default="\"\'“¿([{-『「（〈《〔【｛［‘“〝※", help="if word_timestamps is True, merge these punctuation symbols with the next word")
     parser.add_argument("--append_punctuations", type=str, default="\"\'・.。,，!！?？:：”)]}、』」）〉》〕】｝］’〟／＼～〜~", help="if word_timestamps is True, merge these punctuation symbols with the previous word")
+    parser.add_argument("--nopend_punctuations", type=str, default="うぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ…\u3000\x20", help="TODO")
     parser.add_argument("--highlight_words", default=False, help="(requires --word_timestamps True) underline each word as it is spoken in srt and vtt", action=argparse.BooleanOptionalAction)
     parser.add_argument("--max_line_width", type=int, default=None, help="(requires --word_timestamps True) the maximum number of characters in a line before breaking the line")
     parser.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
     parser.add_argument("--max_words_per_line", type=int, default=None, help="(requires --word_timestamps True, no effect with --max_line_width) the maximum number of words in a segment")
-    parser.add_argument("--load", default=True, help="(Debug) don't load the model", action=argparse.BooleanOptionalAction)
-    # TODO
-    # parser.add_argument("--output-file", default=None, help="name of the output subtitle file")
+    parser.add_argument("--output-dir", default=None, help="Ouput directory, default uses the directory for the first audio file")
     # parser.add_argument("--split-script", default="", help=r"the regex to split the script with. for monogatari it is something like ^\s[\uFF10-\uFF19]*\s$")
+
     args = parser.parse_args().__dict__
-
-    if (threads := args.pop("threads")) > 0:
-        torch.set_num_threads(threads)
-    # if args.output_file is None:
-    #     args.output_file = os.path.splitext(args.audio_files[0])[0] + ".vtt"
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.pop('progress'))
-    faster_whisper = args.pop('faster_whisper')
+    if (threads := args.pop("threads")) > 0: torch.set_num_threads(threads)
 
-    model = args.pop("model")
-    device = args.pop('device')
+    output_dir = Path(k) if (k := args.pop('output_dir')) else Path(os.path.dirname(args['audio'][0]))
 
-    model_load = args.pop('load')
+    model, device = args.pop("model"), args.pop('device')
+
     overwrite_cache = args.pop('overwrite_cache')
     cache = Cache(model_name=model, enabled=args.pop("use_cache"), cache_dir=args.pop("cache_dir"),
                   ask=not overwrite_cache, overwrite=overwrite_cache,
                   memcache={})
-    model = WhisperModel(model, device, local_files_only=True, compute_type='int8' if device == 'cpu' else 'float16', num_workers=threads) if model_load and faster_whisper else whisper.load_model(model).to(device) if model_load else None
-    # model = None
 
-    if model_load and faster_whisper:
+    faster_whisper = args.pop('faster_whisper')
+    if faster_whisper:
+        model = WhisperModel(model, device, local_files_only=True, compute_type='int8' if device == 'cpu' else 'float16', num_workers=threads)
         model.transcribe2 = model.transcribe
         model.transcribe = MethodType(faster_transcribe, model)
+    else:
+        model = whisper.load_model(model).to(device)
 
-    if model_load and args.pop('dynamic_quantization') and not faster_whisper and device == "cpu":
+    if args.pop('dynamic_quantization') and device == "cpu" and not faster_whisper:
         ptdq_linear(model)
 
     overlap, batches = args.pop("fast_decoder_overlap"), args.pop("fast_decoder_batches")
-    if model_load and args.pop("fast_decoder") and not faster_whisper:
+    if args.pop("fast_decoder") and not faster_whisper:
         args["overlap"] = overlap
         args["batches"] = batches
         modify_model(model)
@@ -440,9 +432,13 @@ if __name__ == "__main__":
 
     ats, sta = match(streams, chapters)
 
-    for i in range(len(streams)):
-        for j in range(len(streams[i][2])):
-            streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
+    nopend = args.pop('nopend_punctuations')
+
+    with tqdm(range(len(streams))) as bar:
+        for i in range(len(streams)):
+            bar.set_description(basename(streams[i][2][0].path))
+            for j in range(len(streams[i][2])):
+                streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
 
     # with futures.ThreadPoolExecutor(max_workers=threads//2) as p:
     # with futures.ThreadPoolExecutor(max_workers=1) as p:
@@ -468,23 +464,23 @@ if __name__ == "__main__":
 
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst'))
 
-    nopend = set('うぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ…\u3000\x20')
-    for i, v in enumerate(streams):
-        offset = 0
-        segments = []
-        for j, v in enumerate(v[2]):
-            if (i, j) in ats:
-                ci, cj, _ = ats[(i, j)]
-                print(i, j, streams[i][2][j].cn, chapters[ci][1][cj].title)
-                text = chapters[ci][1][cj].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
-                transcript = v.transcribe(model, cache, temperature=temperature, **args)
-                # pprint([i.text() for i in text])
-                # pprint([i['text'] for i in transcript['segments']])
-                alignment, references = align.align(model, transcript, text, set(args['prepend_punctuations']), set(args['append_punctuations']), nopend)
-                segments.extend(to_subs(text, transcript, alignment, offset, references))
-                break
-            offset += v.duration
-        with open(f"/tmp/out{i}.vtt", "w") as out:
-            out.write("WEBVTT\n\n")
-            out.write('\n\n'.join([s.vtt() for s in segments]))
-        break
+    with tqdm(streams) as bar:
+        for i, v in enumerate(bar):
+            bar.set_description(basename(v[2][0].path))
+            offset, segments = 0, []
+            with tqdm(v[2]) as bar2:
+                for j, audstr in enumerate(bar2):
+                    bar2.set_description(audstr.cn)
+                    if (i, j) in ats:
+                        ci, cj, _ = ats[(i, j)]
+                        text = chapters[ci][1][cj].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
+                        transcript = audstr.transcribe(model, cache, temperature=temperature, **args)
+                        alignment, references = align.align(model, transcript, text, set(args['prepend_punctuations']), set(args['append_punctuations']), set(nopend))
+                        segments.extend(to_subs(text, transcript, alignment, offset, references))
+                    offset += audstr.duration
+            if segments:
+                with (output_dir / (splitext(basename(v[2][0].path))[0] + '.vtt')).open("w", encoding='utf-8') as out:
+                    out.write("WEBVTT\n\n")
+                    out.write('\n\n'.join([s.vtt() for s in segments]))
+            else:
+                print(v[2][0].path, "empty alignment?")
