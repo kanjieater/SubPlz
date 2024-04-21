@@ -106,9 +106,9 @@ def align_sub(coords, text, subs, thing=2):
     #         print(text[l][ss:ee])
     #         print(subs[sub])
     #         print()
-        # print()
     return segments[:len(text)]
 
+# """"""Heuristics"""""""
 def fix_punc(text, segments, prepend, append, nopend):
     for l, s in enumerate(segments):
         if not s: continue
@@ -120,8 +120,11 @@ def fix_punc(text, segments, prepend, append, nopend):
                     p[1] += 1
                 elif t[p[1]-1] in prepend:
                     p[1] -= 1
-                elif (p[1] > 0 and t[p[1]-1] in nopend) or (p[1] < len(t) and t[p[1]] in nopend):
+                elif (p[1] > 0 and t[p[1]-1] in nopend) or (p[1] < len(t) and t[p[1]] in nopend) or (p[1] < len(t)-1 and t[p[1]+1] in nopend):
                     start, end = p[1]-1, p[1]
+                    if  p[1] < len(t)-1 and t[p[1]+1] in nopend and 0x4e00 > ord(t[p[1]]) or ord(t[p[1]]) > 0x9faf: # Bail out of we end on a kanji
+                        end += 1
+
                     while start > 0 and t[start] in nopend:
                         start -= 1
                     while end < len(t)-1 and t[end] in nopend:

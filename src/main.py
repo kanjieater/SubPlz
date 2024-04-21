@@ -60,9 +60,9 @@ class Cache:
         if filename in self.memcache: return self.memcache[filename]
         fn = (filename + '.' + str(chid) +  '.' + self.model_name + ".subs") # Include the hash of the model settings?
         fn2 = (filename + '.' + str(chid) +  '.' + 'small' + ".subs") # TODO(YM): DEBUG
-        if (q := Path(self.cache_dir) / fn).exists():
-            return eval(q.read_bytes().decode("utf-8"))
         if (q := Path(self.cache_dir) / fn2).exists():
+            return eval(q.read_bytes().decode("utf-8"))
+        if (q := Path(self.cache_dir) / fn).exists():
             return eval(q.read_bytes().decode("utf-8"))
 
     def put(self, filename, chid, content):
