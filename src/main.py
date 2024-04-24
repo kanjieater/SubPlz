@@ -29,6 +29,9 @@ from bs4 import element
 from bs4 import BeautifulSoup
 
 from os.path import basename, splitext
+from test import astar
+from Bio import Align
+# from stringzilla import edit_distance
 
 def sexagesimal(secs):
     mm, ss = divmod(secs, 60)
@@ -235,6 +238,7 @@ def match(audio, text):
 
                 for j in range(len(tc)):
                     tch = text_full_title + align.clean(tc[j].title)
+                    # print(ach, tch)
                     score = fuzz.ratio(ach, tch)
                     if score > main and score > best[-1]:
                         best = (ti, j, score)
@@ -252,9 +256,10 @@ def match(audio, text):
 
 # THIS IS SUPER SLOW LOOOOL
 def content_match(audio, text, ats, sta, cache):
+    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=1, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
     picked = set()
     textcache = {}
-    for ai in trange(len(audio), desc='Fuzzy matching the remaining chapters'):
+    for ai in trange(len(audio)):
         afn, at, ac = audio[ai]
         for i in trange(len(ac)):
             if (ai, i) in ats: continue
@@ -270,11 +275,17 @@ def content_match(audio, text, ats, sta, cache):
 
                     if (ti, j) not in textcache:
                         textcache[(ti, j)] = align.clean(''.join(p.text() for p in tc[j].text()))
+                        # if len(textcache[(ti, j)]) == 6301:
+                        #     open("/tmp/test", "w").write(textcache[(ti, j)])
+                        #     open("/tmp/test2", "w").write(acontent)
+                        #     exit(0)
                     tcontent = textcache[(ti, j)]
+
 
                     if len(acontent) < 5 or len(tcontent) < 5:
                         continue
 
+                    # score =  aligner.align(acontent, tcontent).score / max(len(acontent), len(tcontent)) * 50 + 50 # astar(acontent, tcontent) #fuzz.ratio(acontent, tcontent)
                     score = fuzz.ratio(acontent, tcontent)
                     if score > 40 and score > best[-1]:
                         best = (ti, j, score)
@@ -375,7 +386,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_line_width", type=int, default=None, help="(requires --word_timestamps True) the maximum number of characters in a line before breaking the line")
     parser.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
     parser.add_argument("--max_words_per_line", type=int, default=None, help="(requires --word_timestamps True, no effect with --max_line_width) the maximum number of words in a segment")
-    parser.add_argument("--output-dir", default=None, help="Ouput directory, default uses the directory for the first audio file")
+    parser.add_argument("--output-dir", default=None, help="Output directory, default uses the directory for the first audio file")
+    parser.add_argument("--local-only", default=False, help="Don't download outside models", action=argparse.BooleanOptionalAction)
     # parser.add_argument("--split-script", default="", help=r"the regex to split the script with. for monogatari it is something like ^\s[\uFF10-\uFF19]*\s$")
 
     args = parser.parse_args().__dict__
@@ -383,6 +395,7 @@ if __name__ == "__main__":
     if (threads := args.pop("threads")) > 0: torch.set_num_threads(threads)
 
     output_dir = Path(k) if (k := args.pop('output_dir')) else Path('.')#os.path.dirname(args['audio'][0]))
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     model, device = args.pop("model"), args.pop('device')
 
@@ -392,8 +405,9 @@ if __name__ == "__main__":
                   memcache={})
 
     faster_whisper = args.pop('faster_whisper')
+    local_only = args.pop('local_only')
     if faster_whisper:
-        model = WhisperModel(model, device, local_files_only=True, compute_type='int8' if device == 'cpu' else 'float16', num_workers=threads)
+        model = WhisperModel(model, device, local_files_only=local_only, compute_type='int8' if device == 'cpu' else 'float16', num_workers=threads)
         model.transcribe2 = model.transcribe
         model.transcribe = MethodType(faster_transcribe, model)
     else:
@@ -443,6 +457,7 @@ if __name__ == "__main__":
 
     nopend = args.pop('nopend_punctuations')
 
+    print('Transcribing...')
     with tqdm(range(len(streams))) as bar:
         for i in range(len(streams)):
             bar.set_description(basename(streams[i][2][0].path))
@@ -459,6 +474,7 @@ if __name__ == "__main__":
     #     pprint(f)
     #     pprint(f[0].exception())
 
+    print('Fuzzy matching chapters...')
     content_match(streams, chapters, ats, sta, cache)
 
     h = []
@@ -473,6 +489,23 @@ if __name__ == "__main__":
 
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst'))
 
+    # pprint(ats.keys())
+    # f = ats[(0, 1)]
+    # # print(f)
+    # ct, ci, _ = f
+    # f = open("/tmp/test", "w")
+    # ctext = chapters[ct][1][ci].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
+    # f.write(''.join([align.clean(i.text(), normalize=False) for i in ctext]))
+    # f.close()
+    # f = open('/tmp/test2', 'w')
+    # atext = streams[0][2][1].transcribe(model, cache, temperature=temperature, **args)
+    # f.write(''.join([align.clean(i['text'], normalize=False) for i in atext['segments']]))
+    # f.close()
+
+    # exit()
+
+
+    print('Syncing...')
     with tqdm(streams) as bar:
         for i, v in enumerate(bar):
             bar.set_description(basename(v[2][0].path))
@@ -493,3 +526,4 @@ if __name__ == "__main__":
                     out.write('\n\n'.join([s.vtt() for s in segments]))
             else:
                 print(v[2][0].path, "empty alignment?")
+    pprint(align.g_unused)

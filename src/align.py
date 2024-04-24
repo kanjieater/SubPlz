@@ -5,6 +5,8 @@ import numpy as np
 import sys
 from Bio import Align
 from pprint import pprint
+from tqdm import tqdm
+from test import astar
 np.set_printoptions(linewidth=np.inf, threshold=sys.maxsize)
 
 ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
@@ -19,6 +21,7 @@ test =  {ord(i): '。' for i in closingpunc}
 test2 = {ord('は'): 'わ', ord('あ'): 'わ'}
 
 allt = kata_hira | kansuu_to_arabic | ascii_to_wide | test | test2
+g_unused = []
 
 def clean(s, normalize=True):
     r = r'(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+'
@@ -39,6 +42,10 @@ def align_sub(coords, text, subs, thing=2):
         isgap = 0 in (c - p)
 
         while current[1] < len(subs) and (pos[1] + len(subs[current[1]])) <= c[1]:
+            if current[0] >= len(text):
+                unused.extend(subs[current[1]:])
+                g_unused.append(unused)
+                return segments[:len(text)]
             pos[1] += len(subs[current[1]])
             if isgap: gaps += np.clip(pos - p, 0, None)[::-1]
 
@@ -106,6 +113,7 @@ def align_sub(coords, text, subs, thing=2):
     #         print(text[l][ss:ee])
     #         print(subs[sub])
     #         print()
+    g_unused.append(unused)
     return segments[:len(text)]
 
 # """"""Heuristics"""""""
@@ -122,7 +130,7 @@ def fix_punc(text, segments, prepend, append, nopend):
                     p[1] -= 1
                 elif (p[1] > 0 and t[p[1]-1] in nopend) or (p[1] < len(t) and t[p[1]] in nopend) or (p[1] < len(t)-1 and t[p[1]+1] in nopend):
                     start, end = p[1]-1, p[1]
-                    if  p[1] < len(t)-1 and t[p[1]+1] in nopend and 0x4e00 > ord(t[p[1]]) or ord(t[p[1]]) > 0x9faf: # Bail out of we end on a kanji
+                    if  p[1] < len(t)-1 and t[p[1]+1] in nopend and 0x4e00 > ord(t[p[1]]) or ord(t[p[1]]) > 0x9faf: # Bail out if we end on a kanji
                         end += 1
 
                     while start > 0 and t[start] in nopend:
@@ -131,7 +139,11 @@ def fix_punc(text, segments, prepend, append, nopend):
                         end += 1
 
 
-                    if t[start] in append:
+                    if t[start] in prepend:
+                        if p[1] == start:
+                            break
+                        p[1] = start
+                    elif t[start] in append:
                         if p[1] == start+1:
                             break
                         p[1] = start+1
@@ -139,18 +151,15 @@ def fix_punc(text, segments, prepend, append, nopend):
                         if p[1] == end:
                             break
                         p[1] = end
-                    elif t[start] in prepend:
-                        if p[1] == start:
-                            break
-                        p[1] = start
                     elif t[end] in append:
                         if p[1] == end+1:
                             break
                         p[1] = end+1
                     else:
                         break
-                    if t[end] in prepend and t[start] in append:
-                        print("wtf")
+                    # if t[end] in prepend and t[start] in append:
+                    #     tqdm.write(t)
+                    #     tqdm.write("wtf")
                 else:
                     break
             if connected: f[0] = p[1]
