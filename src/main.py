@@ -371,7 +371,7 @@ if __name__ == "__main__":
     parser.add_argument("--cache-dir", default="AudiobookTextSyncCache", help="the cache directory")
     parser.add_argument("--overwrite-cache", default=False, action=argparse.BooleanOptionalAction, help="Always overwrite the cache")
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
-    parser.add_argument("--device", default="cpu", help="device to do inference on")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu", help="device to do inference on")
     parser.add_argument("--dynamic-quantization", "--dq", default=False, help="Use torch's dynamic quantization (cpu only)", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--faster-whisper", default=True, help='Use faster_whisper, doesn\'t work with hugging face\'s decoding method currently', action=argparse.BooleanOptionalAction)
@@ -482,8 +482,6 @@ if __name__ == "__main__":
     #         for j in range(len(streams[i][2])):
     #             streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
 
-    if threads < 4:
-        threads *= 2
     with futures.ThreadPoolExecutor(max_workers=threads) as p:
         r = []
         for i in range(len(streams)):
