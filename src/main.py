@@ -29,7 +29,7 @@ from bs4 import element
 from bs4 import BeautifulSoup
 
 from os.path import basename, splitext
-from test import astar
+# from test import astar
 from Bio import Align
 # from stringzilla import edit_distance
 
