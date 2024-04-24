@@ -98,7 +98,7 @@ class Cache:
             del i['compression_ratio']
             del i['no_speech_prob']
 
-        self.memcache[filename] = content
+        self.memcache[q] = content
         q.write_bytes(repr(content).encode('utf-8'))
         return content
 
@@ -459,9 +459,10 @@ if __name__ == "__main__":
 
     print('Transcribing...')
     with tqdm(range(len(streams))) as bar:
-        for i in range(len(streams)):
+        for i in bar:
             bar.set_description(basename(streams[i][2][0].path))
             for j in range(len(streams[i][2])):
+                print(j)
                 streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
 
     # with futures.ThreadPoolExecutor(max_workers=threads//2) as p:
