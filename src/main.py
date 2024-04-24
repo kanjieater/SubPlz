@@ -141,6 +141,7 @@ class AudioStream:
 
     @classmethod
     def from_file(cls, path, whole=False):
+        print(path)
         info = ffmpeg.probe(path, show_chapters=None)
         title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
@@ -305,7 +306,7 @@ def content_match(audio, text, ats, sta, cache):
 
                     # score =  aligner.align(acontent, tcontent).score / max(len(acontent), len(tcontent)) * 50 + 50 # astar(acontent, tcontent) #fuzz.ratio(acontent, tcontent)
                     score = fuzz.ratio(acontent, tcontent)
-                    if score > 40 and score > best[-1]:
+                    if score > 20 and score > best[-1]:
                         best = (ti, j, score)
 
             if best != (-1, -1, 0):
