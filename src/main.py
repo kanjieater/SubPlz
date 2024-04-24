@@ -306,7 +306,7 @@ def content_match(audio, text, ats, sta, cache):
 
                     # score =  aligner.align(acontent, tcontent).score / max(len(acontent), len(tcontent)) * 50 + 50 # astar(acontent, tcontent) #fuzz.ratio(acontent, tcontent)
                     score = fuzz.ratio(acontent, tcontent)
-                    if score > 20 and score > best[-1]:
+                    if score > best[-1]:
                         best = (ti, j, score)
 
             if best != (-1, -1, 0):
