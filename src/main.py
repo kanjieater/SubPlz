@@ -1,8 +1,24 @@
 import os
 import argparse
 from pprint import pprint
-from tqdm import tqdm, trange
 from types import MethodType
+
+def is_notebook() -> bool:
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True   # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False      # Probably standard Python interpreter
+
+if is_notebook():
+    from tqdm.notebook import tqdm, trange
+else:
+    from tqdm import tqdm, trange
 
 from functools import partialmethod
 from dataclasses import dataclass
@@ -22,7 +38,8 @@ from faster_whisper import WhisperModel
 
 import ffmpeg
 from ebooklib import epub
-from fuzzywuzzy import fuzz
+# from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 from tabulate import tabulate, SEPARATING_LINE
 
 from bs4 import element
@@ -32,6 +49,7 @@ from os.path import basename, splitext
 # from test import astar
 from Bio import Align
 # from stringzilla import edit_distance
+
 
 def sexagesimal(secs):
     mm, ss = divmod(secs, 60)
@@ -458,21 +476,20 @@ if __name__ == "__main__":
     nopend = args.pop('nopend_punctuations')
 
     print('Transcribing...')
-    with tqdm(range(len(streams))) as bar:
-        for i in bar:
-            bar.set_description(basename(streams[i][2][0].path))
-            for j in range(len(streams[i][2])):
-                streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
+    # with tqdm(range(len(streams))) as bar:
+    #     for i in bar:
+    #         bar.set_description(basename(streams[i][2][0].path))
+    #         for j in range(len(streams[i][2])):
+    #             streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
 
-    # with futures.ThreadPoolExecutor(max_workers=threads//2) as p:
-    # with futures.ThreadPoolExecutor(max_workers=1) as p:
-    #     r = []
-    #     for i in range(len(streams)):
-    #         for j, v in enumerate(streams[i][2]):
-    #             r.append(p.submit(lambda x: x.transcribe(model, cache, temperature=temperature, **args), v))
-    #     f = list(futures.wait(r)[0])
-    #     pprint(f)
-    #     pprint(f[0].exception())
+    if threads < 4:
+        threads *= 2
+    with futures.ThreadPoolExecutor(max_workers=threads) as p:
+        r = []
+        for i in range(len(streams)):
+            for j, v in enumerate(streams[i][2]):
+                r.append(p.submit(lambda x: x.transcribe(model, cache, temperature=temperature, **args), v))
+        futures.wait(r)
 
     print('Fuzzy matching chapters...')
     content_match(streams, chapters, ats, sta, cache)
@@ -488,22 +505,6 @@ if __name__ == "__main__":
         h.append([streams[ai][1] + ":" + streams[ai][2][i].cn, chapters[ti][1][0].epub.title + ":" + chapters[ti][1][tj].title if type(chapters[ti][1][0]) is Epub else chapters[ti][1][tj].path, s])
 
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst'))
-
-    # pprint(ats.keys())
-    # f = ats[(0, 1)]
-    # # print(f)
-    # ct, ci, _ = f
-    # f = open("/tmp/test", "w")
-    # ctext = chapters[ct][1][ci].text(prefix_chapter_name, follow_links=follow_links, ignore=ignore_tags)
-    # f.write(''.join([align.clean(i.text(), normalize=False) for i in ctext]))
-    # f.close()
-    # f = open('/tmp/test2', 'w')
-    # atext = streams[0][2][1].transcribe(model, cache, temperature=temperature, **args)
-    # f.write(''.join([align.clean(i['text'], normalize=False) for i in atext['segments']]))
-    # f.close()
-
-    # exit()
-
 
     print('Syncing...')
     with tqdm(streams) as bar:
