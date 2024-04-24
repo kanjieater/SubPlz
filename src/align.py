@@ -6,7 +6,6 @@ import sys
 from Bio import Align
 from pprint import pprint
 from tqdm import tqdm
-from test import astar
 np.set_printoptions(linewidth=np.inf, threshold=sys.maxsize)
 
 ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
