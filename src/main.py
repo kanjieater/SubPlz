@@ -462,7 +462,6 @@ if __name__ == "__main__":
         for i in bar:
             bar.set_description(basename(streams[i][2][0].path))
             for j in range(len(streams[i][2])):
-                print(j)
                 streams[i][2][j].transcribe(model, cache, temperature=temperature, **args)
 
     # with futures.ThreadPoolExecutor(max_workers=threads//2) as p:
