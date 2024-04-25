@@ -122,14 +122,17 @@ def fix_punc(text, segments, prepend, append, nopend):
         t = text[l]
         for p, f in zip(s, s[1:] + [s[-1]]):
             connected = f[0] == p[1]
+            k = 0
             while True:
+                if k > 20:
+                    break
                 if p[1] < len(t) and t[p[1]] in append:
                     p[1] += 1
                 elif t[p[1]-1] in prepend:
                     p[1] -= 1
                 elif (p[1] > 0 and t[p[1]-1] in nopend) or (p[1] < len(t) and t[p[1]] in nopend) or (p[1] < len(t)-1 and t[p[1]+1] in nopend):
                     start, end = p[1]-1, p[1]
-                    if  p[1] < len(t)-1 and t[p[1]+1] in nopend and 0x4e00 > ord(t[p[1]]) or ord(t[p[1]]) > 0x9faf: # Bail out if we end on a kanji
+                    if  p[1] < len(t)-1 and (t[p[1]+1] in nopend and 0x4e00 > ord(t[p[1]]) or ord(t[p[1]]) > 0x9faf): # Bail out if we end on a kanji
                         end += 1
 
                     while start > 0 and t[start] in nopend:
@@ -146,11 +149,11 @@ def fix_punc(text, segments, prepend, append, nopend):
                         if p[1] == start+1:
                             break
                         p[1] = start+1
-                    elif t[end] in prepend:
+                    elif end < len(t) and t[end] in prepend:
                         if p[1] == end:
                             break
                         p[1] = end
-                    elif t[end] in append:
+                    elif end < len(t) and t[end] in append:
                         if p[1] == end+1:
                             break
                         p[1] = end+1
@@ -161,6 +164,7 @@ def fix_punc(text, segments, prepend, append, nopend):
                     #     tqdm.write("wtf")
                 else:
                     break
+                k += 1
             if connected: f[0] = p[1]
 
 def fix(original, edited, segments):

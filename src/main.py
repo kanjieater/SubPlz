@@ -362,6 +362,7 @@ if __name__ == "__main__":
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu", help="device to do inference on")
     parser.add_argument("--dynamic-quantization", "--dq", default=False, help="Use torch's dynamic quantization (cpu only)", action=argparse.BooleanOptionalAction)
+    parser.add_argument('--fp16', default=True, help="use fp16", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--faster-whisper", default=True, help='Use faster_whisper, doesn\'t work with hugging face\'s decoding method currently', action=argparse.BooleanOptionalAction)
     parser.add_argument("--fast-decoder", default=False, help="Use hugging face's decoding method, currently incomplete", action=argparse.BooleanOptionalAction)
@@ -414,7 +415,8 @@ if __name__ == "__main__":
     faster_whisper = args.pop('faster_whisper')
     local_only = args.pop('local_only')
     if faster_whisper:
-        model = WhisperModel(model, device, local_files_only=local_only, compute_type='int8' if device == 'cpu' else 'float16', num_workers=threads)
+        fp16 = args.pop("fp16")
+        model = WhisperModel(model, device, local_files_only=local_only, compute_type='int8' if device == 'cpu' else ('float16' if fp16 else 'float32'), num_workers=threads)
         model.transcribe2 = model.transcribe
         model.transcribe = MethodType(faster_transcribe, model)
     else:
