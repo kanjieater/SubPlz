@@ -38,7 +38,6 @@ from faster_whisper import WhisperModel
 
 import ffmpeg
 from ebooklib import epub
-# from fuzzywuzzy import fuzz
 from rapidfuzz import fuzz
 from tabulate import tabulate, SEPARATING_LINE
 
@@ -46,9 +45,6 @@ from bs4 import element
 from bs4 import BeautifulSoup
 
 from os.path import basename, splitext
-# from test import astar
-from Bio import Align
-# from stringzilla import edit_distance
 
 
 def sexagesimal(secs):
@@ -141,7 +137,6 @@ class AudioStream:
 
     @classmethod
     def from_file(cls, path, whole=False):
-        print(path)
         info = ffmpeg.probe(path, show_chapters=None)
         title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
@@ -275,7 +270,6 @@ def match(audio, text):
 
 # THIS IS SUPER SLOW LOOOOL
 def content_match(audio, text, ats, sta, cache):
-    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=1, open_gap_score=-1, mismatch_score=-1, extend_gap_score=-1)
     picked = set()
     textcache = {}
     for ai in trange(len(audio)):
@@ -294,17 +288,11 @@ def content_match(audio, text, ats, sta, cache):
 
                     if (ti, j) not in textcache:
                         textcache[(ti, j)] = align.clean(''.join(p.text() for p in tc[j].text()))
-                        # if len(textcache[(ti, j)]) == 6301:
-                        #     open("/tmp/test", "w").write(textcache[(ti, j)])
-                        #     open("/tmp/test2", "w").write(acontent)
-                        #     exit(0)
                     tcontent = textcache[(ti, j)]
-
 
                     if len(acontent) < 5 or len(tcontent) < 5:
                         continue
 
-                    # score =  aligner.align(acontent, tcontent).score / max(len(acontent), len(tcontent)) * 50 + 50 # astar(acontent, tcontent) #fuzz.ratio(acontent, tcontent)
                     score = fuzz.ratio(acontent, tcontent)
                     if score > 40 and score > best[-1]:
                         best = (ti, j, score)
@@ -320,7 +308,7 @@ def to_epub():
     pass
 
 def to_subs(text, subs, alignment, offset, references):
-    alignment = [t + [i] for i, a in enumerate(alignment[:-2]) for t in a]
+    alignment = [t + [i] for i, a in enumerate(alignment) for t in a]
     start, end = 0, 0
     segments = []
     for si, s in enumerate(subs['segments']):
@@ -504,10 +492,13 @@ if __name__ == "__main__":
         h.append([streams[ai][1] + ":" + streams[ai][2][i].cn, chapters[ti][1][0].epub.title + ":" + chapters[ti][1][tj].title if type(chapters[ti][1][0]) is Epub else chapters[ti][1][tj].path, s])
 
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst'))
+    # exit(1)
 
     print('Syncing...')
     with tqdm(streams) as bar:
         for i, v in enumerate(bar):
+            if (output_dir / (splitext(basename(v[2][0].path))[0] + '.vtt')).exists():
+                continue
             bar.set_description(basename(v[2][0].path))
             offset, segments = 0, []
             with tqdm(v[2]) as bar2:
