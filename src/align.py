@@ -4,9 +4,9 @@ import unicodedata
 import numpy as np
 import sys
 from Bio import Align
+from Bio.Align import substitution_matrices
 from pprint import pprint
 from tqdm import tqdm
-np.set_printoptions(linewidth=np.inf, threshold=sys.maxsize)
 
 ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
 kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
@@ -15,11 +15,11 @@ kansuu = '一二三四五六七八九十〇零壱弐参肆伍陸漆捌玖拾'
 arabic = '１２３４５６７８９１００'
 kansuu_to_arabic = {ord(kansuu[i]): arabic[i%len(arabic)] for i in range(len(kansuu))}
 
-closingpunc =  set('・,，!！?？:：”)]}、』」）〉》〕】｝］')
-test =  {ord(i): '。' for i in closingpunc}
-test2 = {ord('は'): 'わ', ord('あ'): 'わ'}
+closingpunc =  '・,，!！?？:：”)]}、』」）〉》〕】｝］’〟'
+punc =  {ord(i): '。' for i in closingpunc}
+confused = {ord('は'): 'わ', ord('あ'): 'わ', ord('お'): 'を', ord('へ'): 'え'}
 
-allt = kata_hira | kansuu_to_arabic | ascii_to_wide | test | test2
+allt = kata_hira | kansuu_to_arabic | ascii_to_wide | punc | confused
 g_unused = []
 
 def clean(s, normalize=True):
@@ -102,16 +102,6 @@ def align_sub(coords, text, subs, thing=2):
         p = c
 
 
-    # pprint(unused)
-    # pprint(segments)
-    # print(len(text))
-    # print(count)
-    # for l, s in enumerate(segments[:len(text)]):
-    #     if not l: continue
-    #     for ss, ee, sub in s:
-    #         print(text[l][ss:ee])
-    #         print(subs[sub])
-    #         print()
     g_unused.append(unused)
     return segments[:len(text)]
 
@@ -122,9 +112,9 @@ def fix_punc(text, segments, prepend, append, nopend):
         t = text[l]
         for p, f in zip(s, s[1:] + [s[-1]]):
             connected = f[0] == p[1]
-            k = 0
+            loop = 0
             while True:
-                if k > 20:
+                if loop > 20:
                     break
                 if p[1] < len(t) and t[p[1]] in append:
                     p[1] += 1
@@ -159,12 +149,9 @@ def fix_punc(text, segments, prepend, append, nopend):
                         p[1] = end+1
                     else:
                         break
-                    # if t[end] in prepend and t[start] in append:
-                    #     tqdm.write(t)
-                    #     tqdm.write("wtf")
                 else:
                     break
-                k += 1
+                loop += 1
             if connected: f[0] = p[1]
 
 def fix(original, edited, segments):
@@ -185,11 +172,19 @@ def fix(original, edited, segments):
             f[1] = m[f[1]]
 
 def align(model, transcript, text, prepend, append, nopend):
-    transcript_str = [i['text'] for i in transcript['segments']]
+    transcript_str = [i['text'] for i in transcript]
     transcript_str_clean = [clean(i, normalize=False) for i in transcript_str]
     transcript_str_joined = ''.join(transcript_str_clean)
+    inc = set(''.join(transcript_str_clean))
+    t = None# substitution_matrices.Array('。' + ''.join(inc-set('。')), dims=2)
+    # TODO
+    # t[0][:] = -100
+    # t[0][0] = 1
+    # sub = np.broadcast_to(, (len(inc), len(inc)))
+    # tqdm.write(str(len(set(transcript_str_joined))))
 
-    aligner = Align.PairwiseAligner(scoring=None, mode='global', match_score=0.8, open_gap_score=-0.8, mismatch_score=-1, extend_gap_score=-0.5)
+
+    aligner = Align.PairwiseAligner(substitution_matrix=t, mode='global', match_score=1, open_gap_score=-0.8, mismatch_score=-0.6, extend_gap_score=-0.5)
     def inner(text_str):
         text_str_clean = [clean(i, normalize=False) for i in text_str]
         text_str_joined = ''.join(text_str_clean)
