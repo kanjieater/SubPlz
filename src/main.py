@@ -142,7 +142,7 @@ class AudioStream:
         info = ffmpeg.probe(path, show_chapters=None)
         title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
-            return title, [cls(stream=ffmpeg.input(path), transcription=None, duration=float(info['streams'][0]['duration']), path=path, cn=title, cid=0)]
+            return title, [cls(stream=ffmpeg.input(path), duration=float(info['streams'][0]['duration']), path=path, cn=title, cid=0)]
         return title, [cls(stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
                            duration=float(chapter['end_time']) - float(chapter['start_time']),
                            path=path,
