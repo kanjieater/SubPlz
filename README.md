@@ -24,6 +24,7 @@ AudiobookTextSync needs ffmpeg to be installed.
 
 ```
 git clone https://github.com/ym1234/AudiobookTextSync.git
+cd AudiobookTextSync
 pip install -r requirements.txt
 ```
 
