@@ -175,8 +175,8 @@ def fix(original, edited, segments):
                 m[i] = m[last]
 
         for k, f in enumerate(s):
-            f[0] = m[f[0]]
-            f[1] = m[f[1]]
+            f[0] = m[min(max(f[0], 0), len(e))]
+            f[1] = m[min(max(f[1], 0), len(e))]
 
 def align(model, transcript, text, prepend, append, nopend):
     transcript_str = [i['text'] for i in transcript]
