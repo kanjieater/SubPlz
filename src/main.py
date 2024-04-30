@@ -236,11 +236,11 @@ def match_start(audio, text, cache):
                     if (ti, j) not in textcache:
                         textcache[ti, j] = align.clean(''.join(p.text() for p in tc[j].text()))
                     tcontent = textcache[ti, j]
-                    if len(acontent) < 5 or len(tcontent) < 5: continue
+                    if len(acontent) < 150 or len(tcontent) < 150: continue
 
                     l = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
-                    if score > 40 and score > best[-1]:
+                    if score > 50 and score > best[-1]:
                         best = (ti, j, score)
 
             if best[:-1] in sta:
