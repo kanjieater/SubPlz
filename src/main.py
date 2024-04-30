@@ -49,10 +49,13 @@ from os.path import basename, splitext
 import time
 
 
-def sexagesimal(secs):
+def sexagesimal(secs, use_comma=False):
     mm, ss = divmod(secs, 60)
     hh, mm = divmod(mm, 60)
-    return f'{hh:0>2.0f}:{mm:0>2.0f}:{ss:0>6.3f}'
+    r = f'{hh:0>2.0f}:{mm:0>2.0f}:{ss:0>6.3f}'
+    if use_comma:
+        r = r.replace('.', ',')
+    return r
 
 @dataclass(eq=True)
 class Segment:
@@ -62,8 +65,14 @@ class Segment:
     end: float
     def __repr__(self):
         return f"Segment(text='{self.text}', start={sexagesimal(self.start)}, end={sexagesimal(self.end)})"
-    def vtt(self):
-        return f"{sexagesimal(self.start)} --> {sexagesimal(self.end)}\n{self.text}"
+    def vtt(self, use_comma=False):
+        return f"{sexagesimal(self.start, use_comma)} --> {sexagesimal(self.end, use_comma)}\n{self.text}"
+
+def write_srt(segments, o):
+    o.write('\n\n'.join(str(i+1)+'\n'+s.vtt(use_comma=True) for i, s in enumerate(segments)))
+
+def write_vtt(segments, o):
+    o.write("WEBVTT\n\n"+'\n\n'.join(s.vtt() for s in segments))
 
 @dataclass(eq=True)
 class Cache:
@@ -387,6 +396,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
     parser.add_argument("--max_words_per_line", type=int, default=None, help="(requires --word_timestamps True, no effect with --max_line_width) the maximum number of words in a segment")
     parser.add_argument("--output-dir", default=None, help="Output directory, default uses the directory for the first audio file")
+    parser.add_argument("--output-format", default='srt', help="Output format, currently only supports vtt and srt")
     parser.add_argument("--local-only", default=False, help="Don't download outside models", action=argparse.BooleanOptionalAction)
 
     # parser.add_argument("--split-script", default="", help=r"the regex to split the script with. for monogatari it is something like ^\s[\uFF10-\uFF19]*\s$")
@@ -397,6 +407,7 @@ if __name__ == "__main__":
 
     output_dir = Path(k) if (k := args.pop('output_dir')) else Path('.')#os.path.dirname(args['audio'][0]))
     output_dir.mkdir(parents=True, exist_ok=True)
+    output_format = args.pop('output_format')
 
     model, device = args.pop("model"), args.pop('device')
     if device == 'cuda' and not torch.cuda.is_available():
@@ -480,7 +491,7 @@ if __name__ == "__main__":
     print('Syncing...')
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
-            out = output_dir / (splitext(basename(streams[ai][2][0].path))[0] + '.vtt')
+            out = output_dir / (splitext(basename(streams[ai][2][0].path))[0] + '.' + output_format)
             if not overwrite and out.exists():
                 bar.write(f"{out.name} already exsits, skipping.")
                 continue
@@ -511,5 +522,7 @@ if __name__ == "__main__":
                 continue
 
             with out.open("w", encoding="utf8") as o:
-                o.write("WEBVTT\n\n")
-                o.write('\n\n'.join([s.vtt() for s in segments]))
+                if output_format == 'srt':
+                    write_srt(segments, o)
+                elif output_format == 'vtt':
+                    write_vtt(segments, o)
