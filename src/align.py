@@ -167,6 +167,13 @@ def fix(original, edited, segments):
         m[ei] = oi # Snap to end
         m[0] = 0 # Snap to zero
 
+        last = 0
+        for i in range(len(e)):
+            if i in m:
+                last = i
+            else:
+                m[i] = m[last]
+
         for k, f in enumerate(s):
             f[0] = m[f[0]]
             f[1] = m[f[1]]
