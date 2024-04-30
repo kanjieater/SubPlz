@@ -475,7 +475,6 @@ if __name__ == "__main__":
     print('Fuzzy matching chapters...')
     ats, sta = match_start(streams, chapters, cache)
     audio_batches = expand_matches(streams, chapters, ats, sta)
-
     print_batches(audio_batches)
 
     print('Syncing...')
@@ -492,11 +491,21 @@ if __name__ == "__main__":
                 ach = [streams[ai][2][aj] for aj in ajs]
                 tch = [chapters[chi][1][chj] for chj in chjs]
                 if tch:
-                    acontent = [p for a in ach for p in a.transcribe(model, cache, temperature=temperature, **args)['segments']]
+                    acontent = []
+                    boff = 0
+                    for a in ach:
+                        for p in a.transcribe(model, cache, temperature=temperature, **args)['segments']:
+                            p['start'] += boff
+                            p['end'] += boff
+                            acontent.append(p)
+                        boff += a.duration
+
                     tcontent = [p for t in tch for p in t.text(prefix_chapter_name, ignore=ignore_tags)]
-                    alignment, refereences = align.align(model, acontent, tcontent, set(args['prepend_punctuations']), set(args['append_punctuations']), set(nopend))
+                    alignment, references = align.align(model, acontent, tcontent, set(args['prepend_punctuations']), set(args['append_punctuations']), set(nopend))
+
+                    # pprint(alignment)
                     segments.extend(to_subs(tcontent, acontent, alignment, offset, None))
-                offset += sum([a.duration for a in ach])
+                offset += sum(a.duration for a in ach)
 
             if not segments:
                 continue
