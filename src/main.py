@@ -148,7 +148,7 @@ class AudioStream:
 
     @classmethod
     def from_file(cls, path, whole=False):
-        info = ffmpeg.probe(path, show_chapters=None)
+        info = ffmpeg.probe(path, loglevel='error', show_chapters=None)
         title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
             return title, [cls(stream=ffmpeg.input(path), duration=float(info['streams'][0]['duration']), path=path, cn=title, cid=0)]
@@ -220,7 +220,6 @@ class Epub:
     def from_file(cls, path):
         file = epub.read_epub(path, {"ignore_ncx": True})
         spine, toc = list(file.spine), [file.get_item_with_href(x.href.split("#")[0]) for x in flatten(file.toc)]
-        pprint(toc)
         for i in range(len(spine)):
             c = list(spine[i])
             for j in toc:
