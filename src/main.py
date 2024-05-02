@@ -186,6 +186,20 @@ class TextFile:
     def text(self, *args, **kwargs):
         return [TextParagraph(path=self.path, idx=i, content=o, references=[]) for i, v in enumerate(Path(self.path).read_text().split('\n')) if (o := v.strip()) != '']
 
+def flatten(t):
+    if isinstance(t, epub.Link):
+        return t
+
+    l = []
+    if isinstance(t, (tuple, list)):
+        for i in t:
+            r = flatten(i)
+            if isinstance(r, list):
+                l.extend(r)
+            else:
+                l.append(r)
+    return l
+
 @dataclass(eq=True, frozen=True)
 class Epub:
     epub: epub.EpubBook
@@ -205,7 +219,8 @@ class Epub:
     @classmethod
     def from_file(cls, path):
         file = epub.read_epub(path, {"ignore_ncx": True})
-        spine, toc = list(file.spine), [file.get_item_with_href(x.href.split("#")[0]) for x in file.toc]
+        spine, toc = list(file.spine), [file.get_item_with_href(x.href.split("#")[0]) for x in flatten(file.toc)]
+        pprint(toc)
         for i in range(len(spine)):
             c = list(spine[i])
             for j in toc:
@@ -245,7 +260,7 @@ def match_start(audio, text, cache):
                     if (ti, j) not in textcache:
                         textcache[ti, j] = align.clean(''.join(p.text() for p in tc[j].text()))
                     tcontent = textcache[ti, j]
-                    if len(acontent) < 150 or len(tcontent) < 150: continue
+                    if len(acontent) < 100 or len(tcontent) < 100: continue
 
                     l = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
