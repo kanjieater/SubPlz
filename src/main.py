@@ -27,6 +27,7 @@ from pathlib import Path
 
 import multiprocessing
 import concurrent.futures as futures
+import urllib
 
 import torch
 import numpy as np
@@ -223,7 +224,7 @@ class Epub:
     @classmethod
     def from_file(cls, path):
         file = epub.read_epub(path, {"ignore_ncx": True})
-        spine, toc = list(file.spine), [file.get_item_with_href(x.href.split("#")[0]) for x in flatten(file.toc)]
+        spine, toc = list(file.spine), [file.get_item_with_href(urllib.parse.unquote(x.href.split("#")[0])) for x in flatten(file.toc)]
         for i in range(len(spine)):
             c = list(spine[i])
             for j in toc:
