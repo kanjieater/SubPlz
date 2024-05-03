@@ -148,7 +148,11 @@ class AudioStream:
 
     @classmethod
     def from_file(cls, path, whole=False):
-        info = ffmpeg.probe(path, loglevel='error', show_chapters=None)
+        try:
+            info = ffmpeg.probe(path, show_chapters=None)
+        except ffmpeg.Error as e:
+            print(e.stderr.decode('utf8'))
+            exit(1)
         title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
             return title, [cls(stream=ffmpeg.input(path), duration=float(info['streams'][0]['duration']), path=path, cn=title, cid=0)]
