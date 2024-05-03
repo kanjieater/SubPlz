@@ -225,6 +225,9 @@ class Epub:
     def from_file(cls, path):
         file = epub.read_epub(path, {"ignore_ncx": True})
         spine, toc = list(file.spine), [file.get_item_with_href(urllib.parse.unquote(x.href.split("#")[0])) for x in flatten(file.toc)]
+        if None in toc:
+            print("Couldn't map toc to chapters, contact the dev, preferably with the epub")
+            exit(1)
         for i in range(len(spine)):
             c = list(spine[i])
             for j in toc:
