@@ -291,7 +291,7 @@ def expand_matches(streams, chapters, ats, sta):
         batch = []
         def add(idx, other=[]):
             chi, chj, _ = ats[ai, idx]
-            z =  ist(takewhile(lambda chp: chp not in sta, ((i, j) for i in range(chi, len(chapters)) for j in range((chj+1) if i == chi else 0, len(chapters[i][1])))))
+            z = list(takewhile(lambda chp: chp not in sta, ((i, j) for i in range(chi, len(chapters)) for j in range((chj+1) if i == chi else 0, len(chapters[i][1])))))
             batch.append(([idx]+other,[(chi, chj)] + z, ats[ai, idx][-1]))
 
         prev = None
@@ -303,7 +303,7 @@ def expand_matches(streams, chapters, ats, sta):
             elif prev is not None:
                 add(prev, k)
             else:
-                batch.append((k, (0, []), None))
+                batch.append((k, [], None))
 
         if prev == len(a[2])-1:
             add(prev)
@@ -317,9 +317,10 @@ def print_batches(batches):
             h.append(SEPARATING_LINE)
         h.append([basename(streams[ai][2][0].path), '', ''])
         h.append(SEPARATING_LINE)
-        for ajs, (chi, chjs), score in batch:
+        for ajs, chps, score in batch:
+            print(chps)
             a = '\n'.join([streams[ai][2][aj].cn for aj in ajs])
-            c = '\n'.join([t.epub.title+":"+t.titles[0][:25] for chj in chjs if len((t := chapters[chi][1][chj]).titles)])
+            c = '\n'.join([t.epub.title+":"+t.titles[0][:25] for (chi, chj) in chps if len((t := chapters[chi][1][chj]).titles)])
             h.append([a, c, score])
 
     # floatfmt doesn't work?
@@ -533,6 +534,7 @@ if __name__ == "__main__":
             bar.set_description(basename(streams[ai][2][0].path))
             offset, segments = 0, []
             for ajs, chps, _ in tqdm(batches):
+                if not chps: continue
                 ach = [streams[ai][2][aj] for aj in ajs]
                 tch = [chapters[chi][1][chj] for (chi, chj) in chps]
                 if tch:
