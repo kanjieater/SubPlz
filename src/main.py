@@ -2,6 +2,7 @@ import os
 import argparse
 from pprint import pprint
 from types import MethodType
+from natsort import natsorted
 
 def is_notebook() -> bool:
     try:
@@ -290,8 +291,8 @@ def expand_matches(streams, chapters, ats, sta):
         batch = []
         def add(idx, other=[]):
             chi, chj, _ = ats[ai, idx]
-            z = [chj] + list(takewhile(lambda j: (chi, j) not in sta, range(chj+1, len(chapters[chi][1]))))
-            batch.append(([idx]+other, (chi, z), ats[ai, idx][-1]))
+            z =  ist(takewhile(lambda chp: chp not in sta, ((i, j) for i in range(chi, len(chapters)) for j in range((chj+1) if i == chi else 0, len(chapters[i][1])))))
+            batch.append(([idx]+other,[(chi, chj)] + z, ats[ai, idx][-1]))
 
         prev = None
         for t, it in groupby(range(len(a[2])), key=lambda aj: (ai, aj) in ats):
@@ -370,6 +371,17 @@ def faster_transcribe(self, audio, **args):
         pbar.refresh()
 
     return {'segments': segments, 'language': args['language'] if 'language' in args else info.language}
+
+
+# def load_exts(path, exts):
+#     assert path.is_dir(), "dumb fuck"
+#     # if path.is_file():
+#     #     pexts = path.suffixes
+#     #     return path, ''.join(pexts) in exts or exts.intersection([i[1:] for i in pexts])
+#     {ext: for ext in exts + {'.zip', 'rar'}}
+#     path.glob()
+#     pass
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
@@ -462,8 +474,8 @@ if __name__ == "__main__":
         modify_model(model)
 
     print("Loading...")
-    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
-    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in args.pop('text')]
+    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in natsorted(args.pop('audio'))]
+    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in natsorted(args.pop('text'))]
 
     temperature = args.pop("temperature")
     if (increment := args.pop("temperature_increment_on_fallback")) is not None:
@@ -520,9 +532,9 @@ if __name__ == "__main__":
 
             bar.set_description(basename(streams[ai][2][0].path))
             offset, segments = 0, []
-            for ajs, (chi, chjs), _ in tqdm(batches):
+            for ajs, chps, _ in tqdm(batches):
                 ach = [streams[ai][2][aj] for aj in ajs]
-                tch = [chapters[chi][1][chj] for chj in chjs]
+                tch = [chapters[chi][1][chj] for (chi, chj) in chps]
                 if tch:
                     acontent = []
                     boff = 0
