@@ -271,8 +271,8 @@ def match_start(audio, text, cache):
 
                     l = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
-                    title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
-                    tqdm.write(ac[i].cn + ' ' + title + str(j) + str(score))
+                    # title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
+                    # tqdm.write(ac[i].cn + ' ' + title + str(j) + str(score))
                     if score > 50 and score > best[-1]:
                         best = (ti, j, score)
 
@@ -328,7 +328,7 @@ def print_batches(batches):
             for chj in chjs:
                 t = chapters[chi][1][chj]
                 if type(t) is Epub:
-                    c.append(t.epub.title+":"+t.titles[0][:25] if t.titles else 'Epub doesn\'t have any titles')
+                    c.append(t.epub.title+":"+t.titles[0][:25] if t.titles else t.epub.spine[t.idx][0])
                 else:
                     c.append(basename(t.path))
             c = '\n'.join(c)
