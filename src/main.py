@@ -326,11 +326,11 @@ def print_batches(batches):
             a = '\n'.join([m + streams[ai][2][aj].cn for aj in ajs])
             c = []
             for chj in chjs:
-                ch = chapters[chi][1][chj]
-                if type(ch) is Epub:
+                t = chapters[chi][1][chj]
+                if type(t) is Epub:
                     c.append(t.epub.title+":"+t.titles[0][:25] if t.titles else 'Epub doesn\'t have any titles')
                 else:
-                    c.append(basename(ch.path))
+                    c.append(basename(t.path))
             c = '\n'.join(c)
             h.append([a, c, score/100 if score is not None else None])
 
