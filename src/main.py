@@ -262,7 +262,7 @@ def match_start(audio, text, cache):
                 tfn, tc = text[ti]
 
                 for j in range(len(tc)):
-                    if (ti, j) in sta: continue
+                    # if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
                         textcache[ti, j] = align.clean(''.join(p.text() for p in tc[j].text()))
@@ -271,6 +271,8 @@ def match_start(audio, text, cache):
 
                     l = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
+                    title = tc[j].titles[0] if hasattr(tc, 'titles') else basename(tc[j].path)
+                    tqdm.write(ac[i].cn + ' ' + title + str(j) + str(score))
                     if score > 50 and score > best[-1]:
                         best = (ti, j, score)
 
@@ -314,12 +316,23 @@ def print_batches(batches):
     for ai, batch in enumerate(batches):
         if ai != 0:
             h.append(SEPARATING_LINE)
-        h.append([basename(streams[ai][2][0].path), '', ''])
-        h.append(SEPARATING_LINE)
+        if len(streams[ai][2]) > 1:
+            m = ''
+            h.append([basename(streams[ai][2][0].path), '', ''])
+            h.append(SEPARATING_LINE)
+        else:
+            m = basename(streams[ai][2][0].path) + '::'
         for ajs, (chi, chjs), score in batch:
-            a = '\n'.join([streams[ai][2][aj].cn for aj in ajs])
-            c = '\n'.join([t.epub.title+":"+t.titles[0][:25] for chj in chjs if len((t := chapters[chi][1][chj]).titles)])
-            h.append([a, c, score])
+            a = '\n'.join([m + streams[ai][2][aj].cn for aj in ajs])
+            c = []
+            for chj in chjs:
+                ch = chapters[chi][1][chj]
+                if type(ch) is Epub:
+                    c.append(t.epub.title+":"+t.titles[0][:25] if t.titles else 'Epub doesn\'t have any titles')
+                else:
+                    c.append(basename(ch.path))
+            c = '\n'.join(c)
+            h.append([a, c, score/100 if score is not None else None])
 
     # floatfmt doesn't work?
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst', floatfmt=".2%", missingval='?'))
