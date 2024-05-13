@@ -262,7 +262,7 @@ def match_start(audio, text, cache):
                 tfn, tc = text[ti]
 
                 for j in range(len(tc)):
-                    # if (ti, j) in sta: continue
+                    if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
                         textcache[ti, j] = align.clean(''.join(p.text() for p in tc[j].text()))
