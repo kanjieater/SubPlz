@@ -271,7 +271,7 @@ def match_start(audio, text, cache):
 
                     l = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
-                    title = tc[j].titles[0] if hasattr(tc, 'titles') else basename(tc[j].path)
+                    title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
                     tqdm.write(ac[i].cn + ' ' + title + str(j) + str(score))
                     if score > 50 and score > best[-1]:
                         best = (ti, j, score)
