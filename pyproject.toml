@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "setuptools_scm[toml]>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SubPlz"
+version = "1.0.0"
+description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+
+# Optional metadata
+authors = [{name = "KanjiEater", email = "kanjieat3r@gmail.com"}]
+keywords = ["whisper", "subtitles", "align", "generate"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+
+dependencies = [
+    "natsort ~= 8.2.0",
+    "AudiobookTextSync@git+https://github.com/ym1234/AudiobookTextSync#egg=master"
+    # "AudiobookTextSync @ file:///home/ke/code/AudiobookTextSync"
+]
+
+
+
+
+[project.optional-dependencies]
+anki = [
+  "requests==2.26.0",
+  "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=2391f40"
+]
+
+[project.scripts]
+"subplz" = "scripts:src"

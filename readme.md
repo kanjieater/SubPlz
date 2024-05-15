@@ -1,4 +1,4 @@
-# SubPlease🫴: Get Incredibly Accurate Subs for Anything
+# SubPlz🫴: Get Incredibly Accurate Subs for Anything
 
 
 https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-874c-5731b4261736.mp4
@@ -8,7 +8,7 @@ Generate accurate subtitles from audio, align existing subs to videos, generate 
 
 This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. You can also just generate subtitles for videos with it, without needing any existing subtitles. Soon, it will support syncronizing existing subs as well. Currently I am only developing this tool for Japanese use.
 
-It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a communty built Google Colab notebook available on discord. 
+It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a communty built Google Colab notebook available on discord.
 
 Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. Accuracy has improved tremendously with the latest updates to the AI tooling used.
 
@@ -19,13 +19,17 @@ Support for any tool by KanjiEater can be found [on KanjiEater's Discord](https:
 
 # Install
 
-Currently supports unix based OS's like Ubuntu 20.04 on WSL2.
+Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 22.04 on WSL2.
+
+## Running from Docker
+
+## Running from source
 
 1. Install `ffmpeg` and make it available on the path
 
-2. Use python `3.9.9`
+2. Use python >= `3.11.2` (latest working version is always specified in `pyproject.toml`)
 
-3. `pip install -r requirements.txt`
+3. `pip install .`
 
 4. If you're using a single file for the entire audiobook you are good to go. If you have individually split audio tracks, they need to be combined. You can use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
 

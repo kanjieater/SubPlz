@@ -274,38 +274,38 @@ def align_transcript(working_folder, content_name):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Match audio to a transcript")
-    parser.add_argument(
-        "-d",
-        "--dirs",
-        dest="dirs",
-        default=None,
-        required=True,
-        type=str,
-        nargs="+",
-        help="List of folders to run generate subs for",
-    )
+    # parser = argparse.ArgumentParser(description="Match audio to a transcript")
+    # parser.add_argument(
+    #     "-d",
+    #     "--dirs",
+    #     dest="dirs",
+    #     default=None,
+    #     required=True,
+    #     type=str,
+    #     nargs="+",
+    #     help="List of folders to run generate subs for",
+    # )
 
-    parser.add_argument(
-        "--use-filtered-cache",
-        help="Uses cached filtered files and skips cleanup. Skips making the filtered audio files.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--use-transcript-cache",
-        help="Uses cached transcript files and skips cleanup. Skips the whisper step.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--use-stable-ts-align",
-        help="Uses experimental alignment. Twice as fast, but sometimes misses on accuracy for long works",
-        action="store_true",
-        default=False,
-    )
-    args = parser.parse_args()
-    working_folders = get_working_folders(args.dirs)
+    # parser.add_argument(
+    #     "--use-filtered-cache",
+    #     help="Uses cached filtered files and skips cleanup. Skips making the filtered audio files.",
+    #     action="store_true",
+    #     default=False,
+    # )
+    # parser.add_argument(
+    #     "--use-transcript-cache",
+    #     help="Uses cached transcript files and skips cleanup. Skips the whisper step.",
+    #     action="store_true",
+    #     default=False,
+    # )
+    # parser.add_argument(
+    #     "--use-stable-ts-align",
+    #     help="Uses experimental alignment. Twice as fast, but sometimes misses on accuracy for long works",
+    #     action="store_true",
+    #     default=False,
+    # )
+    # args = parser.parse_args()
+    # working_folders = get_working_folders(args.dirs)
     if args.use_stable_ts_align:
         model = get_model('large-v2')
     else:

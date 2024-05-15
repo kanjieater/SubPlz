@@ -1,0 +1,29 @@
+---
+services:
+  faster-whisper:
+    tty: true
+    image: subplease:latest
+    container_name: subplease
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - WHISPER_MODEL=tiny-int8
+      - WHISPER_BEAM=1 #optional
+      - WHISPER_LANG=en #optional
+    volumes:
+      - ./:/app
+      - /mnt/d/sync:/sync
+    ports:
+      - 10300:10300
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            capabilities:
+              - gpu
+              - utility # nvidia-smi
+              - compute # CUDA
+              - video   # NVDEC/NVENC/NVCUVID. For instance to use a hardware accelerated ffmpeg. Skip it if you don't need it
