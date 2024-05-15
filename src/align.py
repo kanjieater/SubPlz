@@ -1,32 +1,9 @@
-import regex as re
-import unicodedata
-
 import numpy as np
 import sys
 from Bio import Align
 from Bio.Align import substitution_matrices
 from pprint import pprint
 from tqdm import tqdm
-
-ascii_to_wide = dict((i, chr(i + 0xfee0)) for i in range(0x21, 0x7f))
-kata_hira = dict((0x30a1 + i, chr(0x3041 + i)) for i in range(0x56))
-
-kansuu = '一二三四五六七八九十〇零壱弐参肆伍陸漆捌玖拾'
-arabic = '１２３４５６７８９１００'
-kansuu_to_arabic = {ord(kansuu[i]): arabic[i%len(arabic)] for i in range(len(kansuu))}
-
-closingpunc =  '・,，!！?？:：”)]}、』」）〉》〕】｝］’〟'
-punc =  {ord(i): '。' for i in closingpunc}
-confused = {ord('は'): 'わ', ord('あ'): 'わ', ord('お'): 'を', ord('へ'): 'え'}
-
-allt = kata_hira | kansuu_to_arabic | ascii_to_wide | punc | confused
-g_unused = []
-
-def clean(s, normalize=True):
-    r = r'(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ]+'
-    s = re.sub(r, '', s.translate(allt))
-    s = re.sub(r'(.)(?=\1+)', '', s) # aaa -> a, Doesn't feel that useful but w/e
-    return unicodedata.normalize("NFKD", s) if normalize else s
 
 def align_sub(coords, text, subs, thing=2):
     current = [0, 0]
@@ -42,8 +19,6 @@ def align_sub(coords, text, subs, thing=2):
 
         while current[1] < len(subs) and (pos[1] + len(subs[current[1]])) <= c[1]:
             if current[0] >= len(text):
-                unused.extend(subs[current[1]:])
-                g_unused.append(unused)
                 return segments[:len(text)]
             pos[1] += len(subs[current[1]])
             if isgap: gaps += np.clip(pos - p, 0, None)[::-1]
@@ -102,7 +77,6 @@ def align_sub(coords, text, subs, thing=2):
         p = c
 
 
-    g_unused.append(unused)
     return segments[:len(text)]
 
 # """"""Heuristics"""""""
@@ -154,9 +128,9 @@ def fix_punc(text, segments, prepend, append, nopend):
                 loop += 1
             if connected: f[0] = p[1]
 
-def fix(original, edited, segments):
+def fix(lang, original, edited, segments):
     for l, s in enumerate(segments):
-        o, e = original[l].translate(allt), edited[l]
+        o, e = lang.translate(original[l]), edited[l]
         m = {}
         oi, ei, ii = 0, 0, 0
         for oi in range(len(o)):
@@ -178,45 +152,24 @@ def fix(original, edited, segments):
             f[0] = m[min(max(f[0], 0), len(e))]
             f[1] = m[min(max(f[1], 0), len(e))]
 
-def align(model, transcript, text, prepend, append, nopend):
-    transcript_str = [i['text'] for i in transcript]
-    transcript_str_clean = [clean(i, normalize=False) for i in transcript_str]
-    transcript_str_joined = ''.join(transcript_str_clean)
-    inc = set(''.join(transcript_str_clean))
-    t = None# substitution_matrices.Array('。' + ''.join(inc-set('。')), dims=2)
-    # TODO
-    # t[0][:] = -100
-    # t[0][0] = 1
-    # sub = np.broadcast_to(, (len(inc), len(inc)))
-    # tqdm.write(str(len(set(transcript_str_joined))))
+# This is structured like this to deal with references later
+def align(model, lang, transcript, text, references, prepend, append, nopend):
+    aligner = Align.PairwiseAligner(mode='global', match_score=1, open_gap_score=-0.8, mismatch_score=-0.6, extend_gap_score=-0.5)
 
+    transcript_clean = [lang.clean(i, normalize=False) for i in transcript]
+    transcript_joined = ''.join(transcript_clean)
 
-    aligner = Align.PairwiseAligner(substitution_matrix=t, mode='global', match_score=1, open_gap_score=-0.8, mismatch_score=-0.6, extend_gap_score=-0.5)
-    def inner(text_str):
-        text_str_clean = [clean(i, normalize=False) for i in text_str]
-        text_str_joined = ''.join(text_str_clean)
+    def inner(text):
+        text_clean = [lang.clean(i, normalize=False) for i in text]
+        text_joined = ''.join(text_clean)
 
-        if not len(text_str_joined) or not len(transcript_str_joined): return []
-        alignment = aligner.align(text_str_joined, transcript_str_joined)[0]
-        # print(alignment.__str__().replace('-', "ー"))
+        if not len(text_joined) or not len(transcript_joined): return []
+        alignment = aligner.align(text_joined, transcript_joined)[0]
         coords = alignment.coordinates
-        # print(coords)
 
-        segments = align_sub(coords, text_str_clean, transcript_str_clean)
-        fix(text_str, text_str_clean, segments)
-        fix_punc(text_str, segments, prepend, append, nopend)
+        segments = align_sub(coords, text_clean, transcript_clean)
+        fix(lang, text, text_clean, segments)
+        fix_punc(text, segments, prepend, append, nopend)
         return segments
 
-    references = {k.element.attrs['id']:k for i in text for k in i.references} # Filter out dups
-
-    text_str = [i.text() for i in text]
-    segments = inner(text_str)
-    # pprint(segments)
-    # for k, v in references.items():
-    #     ref_segments = inner([v.text()], fix3=True)
-    #     pprint(ref_segments)
-    #     for i in range(len(ref_segments)):
-    #         ref_segments[i][0] = k
-    #     replace(segments, text_str, ref_segments)
-
-    return segments, references
+    return inner(text), [] #references

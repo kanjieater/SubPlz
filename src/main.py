@@ -2,6 +2,7 @@ import os
 import argparse
 from pprint import pprint
 from types import MethodType
+from lang import get_lang
 
 def is_notebook() -> bool:
     try:
@@ -193,16 +194,12 @@ class TextFile:
 
 def flatten(t):
     if isinstance(t, epub.Link):
-        return t
+        return [t]
 
     l = []
     if isinstance(t, (tuple, list)):
         for i in t:
-            r = flatten(i)
-            if isinstance(r, list):
-                l.extend(r)
-            else:
-                l.append(r)
+            l.extend(flatten(i))
     return l
 
 @dataclass(eq=True, frozen=True)
@@ -256,7 +253,9 @@ def match_start(audio, text, cache):
         for i in trange(len(ac)):
             if (ai, i) in ats: continue
 
-            acontent = align.clean(''.join(seg['text'] for seg in ac[i].transcribe(None, cache)['segments']))
+            l = ac[i].transcribe(None, cache)
+            lang = get_lang(l['language'])
+            acontent = lang.clean(''.join(seg['text'] for seg in l['segments']))
             best = (-1, -1, 0)
             for ti in range(len(text)):
                 tfn, tc = text[ti]
@@ -265,7 +264,7 @@ def match_start(audio, text, cache):
                     if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
-                        textcache[ti, j] = align.clean(''.join(p.text() for p in tc[j].text()))
+                        textcache[ti, j] = lang.clean(''.join(p.text() for p in tc[j].text()))
                     tcontent = textcache[ti, j]
                     if len(acontent) < 100 or len(tcontent) < 100: continue
 
@@ -283,7 +282,6 @@ def match_start(audio, text, cache):
                 sta[best[:-1]] = (ai, i, best[-1])
 
     return ats, sta
-
 
 # I hate it
 def expand_matches(streams, chapters, ats, sta):
@@ -337,6 +335,7 @@ def print_batches(batches):
     # floatfmt doesn't work?
     print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst', floatfmt=".2%", missingval='?'))
 
+
 def to_epub():
     pass
 
@@ -361,6 +360,22 @@ def to_subs(text, subs, alignment, offset, references):
 
         start = end
     return segments
+
+def do_batch(ach, tch, prepend, append, nopend, offset):
+    acontent = []
+    boff = 0
+    for a in ach:
+        for p in a[0]['segments']:
+            p['start'] += boff
+            p['end'] += boff
+            acontent.append(p)
+        boff += a[1]
+
+    language = get_lang(ach[0][0]['language'])
+
+    tcontent = [p for t in tch for p in t.text(prefix_chapter_name, ignore=ignore_tags)]
+    alignment, references = align.align(None, language, [p['text'] for p in acontent], [p.text() for p in  tcontent], [], prepend, append, nopend)
+    return to_subs(tcontent, acontent, alignment, offset, None)
 
 def faster_transcribe(self, audio, **args):
     name = args.pop('name')
@@ -506,7 +521,7 @@ if __name__ == "__main__":
     prefix_chapter_name = args.pop('prefix_chapter_name')
     follow_links = args.pop('follow_links')
 
-    nopend = args.pop('nopend_punctuations')
+    nopend = set(args.pop('nopend_punctuations'))
 
     print('Transcribing...')
     s = time.monotonic()
@@ -528,30 +543,18 @@ if __name__ == "__main__":
         for ai, batches in enumerate(bar):
             out = output_dir / (splitext(basename(streams[ai][2][0].path))[0] + '.' + output_format)
             if not overwrite and out.exists():
-                bar.write(f"{out.name} already exsits, skipping.")
+                bar.write(f"{out.name} already exists, skipping.")
                 continue
 
             bar.set_description(basename(streams[ai][2][0].path))
             offset, segments = 0, []
             for ajs, (chi, chjs), _ in tqdm(batches):
-                ach = [streams[ai][2][aj] for aj in ajs]
+                ach = [(streams[ai][2][aj].transcribe(model, cache, temperature=temperature, **args), streams[ai][2][aj].duration) for aj in ajs]
                 tch = [chapters[chi][1][chj] for chj in chjs]
                 if tch:
-                    acontent = []
-                    boff = 0
-                    for a in ach:
-                        for p in a.transcribe(model, cache, temperature=temperature, **args)['segments']:
-                            p['start'] += boff
-                            p['end'] += boff
-                            acontent.append(p)
-                        boff += a.duration
+                    segments.extend(do_batch(ach, tch, set(args['prepend_punctuations']), set(args['append_punctuations']), nopend, offset))
 
-                    tcontent = [p for t in tch for p in t.text(prefix_chapter_name, ignore=ignore_tags)]
-                    alignment, references = align.align(model, acontent, tcontent, set(args['prepend_punctuations']), set(args['append_punctuations']), set(nopend))
-
-                    # pprint(alignment)
-                    segments.extend(to_subs(tcontent, acontent, alignment, offset, None))
-                offset += sum(a.duration for a in ach)
+                offset += sum(a[1] for a in ach)
 
             if not segments:
                 continue
