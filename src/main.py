@@ -447,7 +447,7 @@ if __name__ == "__main__":
     model, device = args.pop("model"), args.pop('device')
     if device == 'cuda' and not torch.cuda.is_available():
         device = 'cpu'
-
+    print(f"We're using {device}")
     overwrite, overwrite_cache = args.pop('overwrite'), args.pop('overwrite_cache')
     cache = Cache(model_name=model, enabled=args.pop("use_cache"), cache_dir=args.pop("cache_dir"),
                   ask=not overwrite_cache, overwrite=overwrite_cache,
