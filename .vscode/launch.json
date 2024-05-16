@@ -18,6 +18,16 @@
       "justMyCode": true,
       "host": "127.0.0.1"
     },
+    {
+      "name": "Python: ym",
+      "type": "python",
+      "request": "launch",
+      "program": "./src/main.py",
+      "args": ["-d", "/mnt/d/sync/変な家", "--audio", "/mnt/d/sync/変な家/変な家.m4b", "--text", "/mnt/d/sync/変な家/変な家.epub", "--faster-whisper"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "host": "127.0.0.1"
+    },
 
 
     {

@@ -2,15 +2,24 @@ from faster_whisper import WhisperModel
 import whisper
 from types import MethodType
 import torch
+import numpy as np
+
 # from huggingface import modify_model
 # from quantization import ptdq_linear
 
-from ats import faster_transcribe
+from ats.main import faster_transcribe
 
+def get_temperature(args):
+    print(args)
+    temperature = args.pop("temperature")
+    if (increment := args.pop("temperature_increment_on_fallback")) is not None:
+        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
+    else:
+        temperature = [temperature]
+    return temperature
 
-
-def get_model(args):
-    model, device = args.pop("model"), args.pop('device')
+def get_model(args, threads):
+    model, device = args.get("model"), args.pop('device')
     if device == 'cuda' and not torch.cuda.is_available():
         device = 'cpu'
     print(f"We're using {device}. Results should be similar in runtime between CPU & cuda")

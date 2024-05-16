@@ -1,26 +1,46 @@
 from os.path import basename, splitext
 
-from ats import match_start, expand_matches, print_batches, do_batch, write_srt, write_vtt
-from src.utils import get_tqdm
+from ats.main import match_start, expand_matches, print_batches, write_srt, write_vtt, to_subs
+from lang import get_lang
+from ats import align
+
+from utils import get_tqdm
 
 tqdm = get_tqdm()
 
 def fuzzy_match_chapters(streams, chapters, cache):
     print('Fuzzy matching chapters...')
+    print(streams)
     ats, sta = match_start(streams, chapters, cache)
     audio_batches = expand_matches(streams, chapters, ats, sta)
     print_batches(audio_batches)
     return audio_batches
 
+def do_batch(ach, tch, prepend, append, nopend, offset):
+    acontent = []
+    boff = 0
+    for a in ach:
+        for p in a[0]['segments']:
+            p['start'] += boff
+            p['end'] += boff
+            acontent.append(p)
+        boff += a[1]
+
+    language = get_lang(ach[0][0]['language'])
+
+    tcontent = [p for t in tch for p in t.text()]
+    alignment, references = align.align(None, language, [p['text'] for p in acontent], [p.text() for p in  tcontent], [], prepend, append, nopend)
+    return to_subs(tcontent, acontent, alignment, offset, None)
+
 #TODO decouple output formatting
-def sync(output_dir, output_format, streams, chapters, cache, overwrite, temperature, args):
+def sync(output_dir, output_format, model, streams, chapters, cache, temperature, args):
     nopend = set(args.pop('nopend_punctuations'))
     audio_batches = fuzzy_match_chapters(streams, chapters, cache)
     print('Syncing...')
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
             out = output_dir / (splitext(basename(streams[ai][2][0].path))[0] + '.' + output_format)
-            if not overwrite and out.exists():
+            if not cache.overwrite and out.exists():
                 bar.write(f"{out.name} already exists, skipping.")
                 continue
 

@@ -88,37 +88,37 @@ def run_main():
     #     args["batches"] = batches
     #     modify_model(model)
 
-    print("Loading...")
-    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
-    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in args.pop('text')]
+    # print("Loading...")
+    # streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
+    # chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in args.pop('text')]
 
-    temperature = args.pop("temperature")
-    if (increment := args.pop("temperature_increment_on_fallback")) is not None:
-        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
-    else:
-        temperature = [temperature]
+    # temperature = args.pop("temperature")
+    # if (increment := args.pop("temperature_increment_on_fallback")) is not None:
+    #     temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
+    # else:
+    #     temperature = [temperature]
 
-    word_options = [
-        "highlight_words",
-        "max_line_count",
-        "max_line_width",
-        "max_words_per_line",
-    ]
-    if not args["word_timestamps"]:
-        for option in word_options:
-            if args[option]:
-                parser.error(f"--{option} requires --word_timestamps True")
+    # word_options = [
+    #     "highlight_words",
+    #     "max_line_count",
+    #     "max_line_width",
+    #     "max_words_per_line",
+    # ]
+    # if not args["word_timestamps"]:
+    #     for option in word_options:
+    #         if args[option]:
+    #             parser.error(f"--{option} requires --word_timestamps True")
 
-    if args["max_line_count"] and not args["max_line_width"]:
-        warnings.warn("--max_line_count has no effect without --max_line_width")
-    if args["max_words_per_line"] and args["max_line_width"]:
-        warnings.warn("--max_words_per_line has no effect with --max_line_width")
-    writer_args = {arg: args.pop(arg) for arg in word_options}
-    word_timestamps = args.pop("word_timestamps")
+    # if args["max_line_count"] and not args["max_line_width"]:
+    #     warnings.warn("--max_line_count has no effect without --max_line_width")
+    # if args["max_words_per_line"] and args["max_line_width"]:
+    #     warnings.warn("--max_words_per_line has no effect with --max_line_width")
+    # writer_args = {arg: args.pop(arg) for arg in word_options}
+    # word_timestamps = args.pop("word_timestamps")
 
-    ignore_tags = set(args.pop('ignore_tags'))
-    prefix_chapter_name = args.pop('prefix_chapter_name')
-    follow_links = args.pop('follow_links')
+    # ignore_tags = set(args.pop('ignore_tags'))
+    # prefix_chapter_name = args.pop('prefix_chapter_name')
+    # follow_links = args.pop('follow_links')
 
     # nopend = args.pop('nopend_punctuations')
 

@@ -1,3 +1,7 @@
+from functools import partialmethod
+import torch
+
+
 def is_notebook() -> bool:
     try:
         shell = get_ipython().__class__.__name__
@@ -10,9 +14,17 @@ def is_notebook() -> bool:
     except NameError:
         return False      # Probably standard Python interpreter
 
-def get_tqdm():
+def get_tqdm(progress=True):
+    t = None
     if is_notebook():
         from tqdm.notebook import tqdm, trange
+        t = tqdm
     else:
         from tqdm import tqdm, trange
-    return tqdm
+        t = tqdm
+    t.__init__ = partialmethod(tqdm.__init__, disable=not progress)
+    return t
+
+def get_thread_count(args):
+    if (threads := args.pop("threads")) > 0: torch.set_num_threads(threads)
+    return threads

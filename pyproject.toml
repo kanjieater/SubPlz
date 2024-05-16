@@ -21,7 +21,8 @@ classifiers = [
 
 dependencies = [
     "natsort ~= 8.2.0",
-    "AudiobookTextSync@git+https://github.com/ym1234/AudiobookTextSync#egg=master"
+    "tqdm~=4.66.3",
+    # "AudiobookTextSync@git+https://github.com/ym1234/AudiobookTextSync#egg=master"
     # "AudiobookTextSync @ file:///home/ke/code/AudiobookTextSync"
 ]
 
