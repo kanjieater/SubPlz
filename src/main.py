@@ -3,6 +3,7 @@ import argparse
 from pprint import pprint
 from types import MethodType
 from lang import get_lang
+from wcwidth import wcswidth
 
 def is_notebook() -> bool:
     try:
@@ -21,7 +22,8 @@ if is_notebook():
 else:
     from tqdm import tqdm, trange
 
-from functools import partialmethod
+import operator
+from functools import partialmethod, reduce
 from itertools import groupby, takewhile
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,7 +44,6 @@ from faster_whisper import WhisperModel
 import ffmpeg
 from ebooklib import epub
 from rapidfuzz import fuzz
-from tabulate import tabulate, SEPARATING_LINE
 
 from bs4 import element
 from bs4 import BeautifulSoup
@@ -190,6 +191,8 @@ class TextParagraph:
 class TextFile:
     path: str
     title: str
+    def name(self):
+        return self.title
     def text(self, *args, **kwargs):
         return [TextParagraph(path=self.path, idx=i, content=o, references=[]) for i, v in enumerate(Path(self.path).read_text().split('\n')) if (o := v.strip()) != '']
 
@@ -219,21 +222,24 @@ class Epub:
             r.append(Paragraph(chapter=self.idx, element=p, references=[])) # For now
         return r
 
+    def name(self):
+        return self.titles[0][:15]
+
     @classmethod
     def from_file(cls, path):
         file = epub.read_epub(path, {"ignore_ncx": True})
+        flattoc = flatten(file.toc)
         spine, toc = list(file.spine), [file.get_item_with_href(urllib.parse.unquote(x.href.split("#")[0])) for x in flatten(file.toc)]
         if None in toc:
             print("Couldn't map toc to chapters, contact the dev, preferably with the epub")
             exit(1)
         for i in range(len(spine)):
             c = list(spine[i])
-            for j in toc:
-                if c[0] == j.id and j.title.strip():
-                    c.append(j.title)
-            # if len(c) == 2:
-            #     c.append(c[0])
             spine[i] = c
+            for i, j in enumerate(toc):
+                if c[0] == j.id and flattoc[i].title.strip():
+                    c.append(flattoc[i].title)
+                    break
 
         r = []
         for i, v in enumerate(spine):
@@ -243,6 +249,8 @@ class Epub:
                 if t.get_text().strip():
                     v.append(t.get_text())
                     break
+            if len(v) == 2:
+                v.append(v[0])
             r.append(cls(epub=file, titles=v[2:], idx=i, content=content, is_linear=v[1]))
         return r
 
@@ -303,39 +311,57 @@ def expand_matches(streams, chapters, ats, sta):
             elif prev is not None:
                 add(prev, k)
             else:
-                batch.append((k, (0, []), None))
+                batch.append((k, (-1, []), None))
 
         if prev == len(a[2])-1:
             add(prev)
         audio_batches.append(batch)
     return audio_batches
 
-def print_batches(batches):
-    h = []
+def print_batches(batches, spacing=2, sep1='=', sep2='-'):
+    rows = [1, ["Audio", "Text", "Score"]]
+    width = [wcswidth(h) for h in rows[-1]]
+
     for ai, batch in enumerate(batches):
-        if ai != 0:
-            h.append(SEPARATING_LINE)
-        if len(streams[ai][2]) > 1:
-            m = ''
-            h.append([basename(streams[ai][2][0].path), '', ''])
-            h.append(SEPARATING_LINE)
-        else:
-            m = basename(streams[ai][2][0].path) + '::'
+        # pprint(batch)
+        afn = basename(streams[ai][2][0].path)
+        asuf = afn + '::'
+        idk = [b[1][0] for b in batch if b[1][0] != -1]
+        onefile = all([i == idk[0] for i in idk])
+        tsuf = onefile and sum([len(b[1][1]) for b in batch]) > 3
+        if tsuf or len(streams[ai][2]) > 1:
+               rows.append(1)
+               rows.append([afn, chapters[idk[0]][1][0].epub.title if onefile else '', ''])
+               width[0] = max(width[0], wcswidth(rows[-1][0]))
+               width[1] = max(width[1], wcswidth(rows[-1][1]))
+               asuf = ''
+        rows.append(1)
         for ajs, (chi, chjs), score in batch:
-            a = '\n'.join([m + streams[ai][2][aj].cn for aj in ajs])
-            c = []
-            for chj in chjs:
-                t = chapters[chi][1][chj]
-                if type(t) is Epub:
-                    c.append(t.epub.title+":"+t.titles[0][:25] if t.titles else t.epub.spine[t.idx][0])
-                else:
-                    c.append(basename(t.path))
-            c = '\n'.join(c)
-            h.append([a, c, format(score/100, '.2%') if score is not None else '?'])
+            a = [streams[ai][2][aj] for aj in ajs]
+            t = [chapters[chi][1][chj] for chj in chjs]
+            for i in range(max(len(a), len(t))):
+                row = ['', '' if t else '?', '']
+                if i < len(a):
+                    row[0] = asuf + a[i].cn
+                    width[0] = max(width[0], wcswidth(row[0]))
+                if i < len(t):
+                    row[1] = (t[i].epub.title if not tsuf else '') + t[i].name().strip()
+                    width[1] = max(width[1], wcswidth(row[1]))
+                if i == 0:
+                    row[2] = format(score/100, '.2%') if score is not None else '?'
+                    width[2] = max(width[2], wcswidth(row[2]))
+                rows.append(row)
+            rows.append(2)
+        rows = rows[:-1]
+    rows.append(1)
 
-    # floatfmt doesn't work?
-    print(tabulate(h, headers=["Audio", "Text", "Score"], tablefmt='rst'))
-
+    for row in rows:
+        csep = ' ' * spacing
+        if type(row) is int:
+            sep = sep1 if row == 1 else sep2
+            print(csep.join([sep*w for w in width]))
+            continue
+        print(csep.join([r.ljust(width[i]-wcswidth(r)+len(r)) for i, r in enumerate(row)]))
 
 def to_epub():
     pass
