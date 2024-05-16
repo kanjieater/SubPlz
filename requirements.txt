@@ -8,3 +8,4 @@ numpy==1.24.3
 openai_whisper==20231117
 regex==2023.12.25
 tqdm>=4.66.3
+wcwidth>=0.2.13
