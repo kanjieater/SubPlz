@@ -85,13 +85,13 @@ class Cache:
     overwrite: bool
     memcache: dict
 
+    def get_name(self, filename, chid):
+        return filename + '.' + str(chid) +  '.' + self.model_name + ".subs"
+
     def get(self, filename, chid):
+        fn = self.get_name(filename, chid)
+        if fn in self.memcache: return self.memcache[fn]
         if not self.enabled: return
-        if filename in self.memcache: return self.memcache[filename]
-        fn = (filename + '.' + str(chid) +  '.' + self.model_name + ".subs") # Include the hash of the model settings?
-        fn2 = (filename + '.' + str(chid) +  '.' + 'small' + ".subs") # TODO(YM): DEBUG
-        if (q := Path(self.cache_dir) / fn2).exists():
-            return eval(q.read_bytes().decode("utf-8"))
         if (q := Path(self.cache_dir) / fn).exists():
             return eval(q.read_bytes().decode("utf-8"))
 
@@ -99,8 +99,9 @@ class Cache:
         # if not self.enabled: return content
         cd = Path(self.cache_dir)
         cd.mkdir(parents=True, exist_ok=True)
-        q = cd / (filename + '.' + str(chid) +  '.' + self.model_name + ".subs")
-        if q.exists():
+        fn =  self.get_name(filename, chid)
+        p = cd / fn
+        if p.exists():
             if self.ask:
                 prompt = f"Cache for file {filename}, chapter id {chid} already exists. Overwrite?  [y/n/Y/N] (yes, no, yes/no and don't ask again) "
                 while (k := input(prompt).strip()) not in ['y', 'n', 'Y', 'N']: pass
@@ -125,8 +126,8 @@ class Cache:
             del i['compression_ratio']
             del i['no_speech_prob']
 
-        self.memcache[q] = content
-        q.write_bytes(repr(content).encode('utf-8'))
+        self.memcache[fn] = content
+        p.write_bytes(repr(content).encode('utf-8'))
         return content
 
 @dataclass(eq=True, frozen=True)
@@ -210,7 +211,7 @@ class Epub:
     idx: int
     is_linear: bool
 
-    def text(self, prefix=None, ignore=set()):
+    def text(self):
         paragraphs = self.content.find("body").find_all(["p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"])
         r = []
         for p in paragraphs:
@@ -255,7 +256,7 @@ def match_start(audio, text, cache):
 
             l = ac[i].transcribe(None, cache)
             lang = get_lang(l['language'])
-            acontent = lang.clean(''.join(seg['text'] for seg in l['segments']))
+            acontent = lang.normalize(lang.clean(''.join(seg['text'] for seg in l['segments'])))
             best = (-1, -1, 0)
             for ti in range(len(text)):
                 tfn, tc = text[ti]
@@ -264,15 +265,15 @@ def match_start(audio, text, cache):
                     if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
-                        textcache[ti, j] = lang.clean(''.join(p.text() for p in tc[j].text()))
+                        textcache[ti, j] = lang.normalize(lang.clean(''.join(p.text() for p in tc[j].text())))
                     tcontent = textcache[ti, j]
                     if len(acontent) < 100 or len(tcontent) < 100: continue
 
                     l = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
                     # title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
-                    # tqdm.write(ac[i].cn + ' ' + title + str(j) + str(score))
-                    if score > 50 and score > best[-1]:
+                    # tqdm.write(ac[i].cn + ' ' + title + ' ' + str(j) + ' ' + str(score))
+                    if score > 40 and score > best[-1]:
                         best = (ti, j, score)
 
             if best[:-1] in sta:
@@ -352,7 +353,7 @@ def to_subs(text, subs, alignment, offset, references):
             r += text[a[-1]].text()[a[0]:a[1]]
 
         if r.strip():
-            if False:
+            if False: # Debug
                 r = s['text']+'\n'+r
             segments.append(Segment(text=r, start=s['start']+offset, end=s['end']+offset))
         else:
@@ -373,7 +374,7 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
 
     language = get_lang(ach[0][0]['language'])
 
-    tcontent = [p for t in tch for p in t.text(prefix_chapter_name, ignore=ignore_tags)]
+    tcontent = [p for t in tch for p in t.text()]
     alignment, references = align.align(None, language, [p['text'] for p in acontent], [p.text() for p in  tcontent], [], prepend, append, nopend)
     return to_subs(tcontent, acontent, alignment, offset, None)
 
@@ -419,10 +420,6 @@ if __name__ == "__main__":
     parser.add_argument("--fast-decoder", default=False, help="Use hugging face's decoding method, currently incomplete", action=argparse.BooleanOptionalAction)
     parser.add_argument("--fast-decoder-overlap", type=int, default=10,help="Overlap between each batch")
     parser.add_argument("--fast-decoder-batches", type=int, default=1, help="Number of batches to operate on")
-
-    parser.add_argument("--ignore-tags", default=['rt'], nargs='+', help="Tags to ignore during the epub to text conversion, useful for removing furigana")
-    parser.add_argument("--prefix-chapter-name", default=True, help="Whether to prefix the text of each chapter with its name", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--follow-links", default=True, help="Whether to follow hrefs or not in the ebook", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--beam_size", type=int, default=None, help="number of beams in beam search, only applicable when temperature is zero")
     parser.add_argument("--patience", type=float, default=None, help="optional patience value to use in beam decoding, as in https://arxiv.org/abs/2204.05424, the default (1.0) is equivalent to conventional beam search")
@@ -516,10 +513,6 @@ if __name__ == "__main__":
         warnings.warn("--max_words_per_line has no effect with --max_line_width")
     writer_args = {arg: args.pop(arg) for arg in word_options}
     word_timestamps = args.pop("word_timestamps")
-
-    ignore_tags = set(args.pop('ignore_tags'))
-    prefix_chapter_name = args.pop('prefix_chapter_name')
-    follow_links = args.pop('follow_links')
 
     nopend = set(args.pop('nopend_punctuations'))
 

@@ -156,11 +156,11 @@ def fix(lang, original, edited, segments):
 def align(model, lang, transcript, text, references, prepend, append, nopend):
     aligner = Align.PairwiseAligner(mode='global', match_score=1, open_gap_score=-0.8, mismatch_score=-0.6, extend_gap_score=-0.5)
 
-    transcript_clean = [lang.clean(i, normalize=False) for i in transcript]
+    transcript_clean = [lang.clean(i) for i in transcript]
     transcript_joined = ''.join(transcript_clean)
 
     def inner(text):
-        text_clean = [lang.clean(i, normalize=False) for i in text]
+        text_clean = [lang.clean(i) for i in text]
         text_joined = ''.join(text_clean)
 
         if not len(text_joined) or not len(transcript_joined): return []

@@ -4,11 +4,13 @@ from functools import cache
 
 class Language:
     def __init__(self, prepend, append, nopend):
-        pass
-    def translate(self, s):
-        return s
-    def clean(self, s, normalize=True):
-        return unicodedata.normalize("NFKD", s)
+        self.translations = {}
+        self.prepend, self.append, self.nopend = prepend, append, nopend
+
+    def normalize(self, s): return unicodedata.normalize("NFKD", s)
+    def translate(self, s): return s.translate(self.translations).lower()
+    def clean(self, s): return self.translate(s)
+    def fix(self, s, i): return i
 
 class Japanese(Language):
     def __init__(self, prepend, append, nopend):
@@ -27,18 +29,14 @@ class Japanese(Language):
         self.r1 = re.compile(r'(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝ'+nopend+r']+')
         self.r2 = re.compile(r'(.)(?=\1+)')
 
-    def translate(self, s):
-        return s.translate(self.translations).lower()
-    def clean(self, s, normalize=True):
+    def clean(self, s):
         s = self.translate(s)
         s = self.r1.sub('', s)
-        s = self.r2.sub('', s)
-        return unicodedata.normalize("NFKD", s) if normalize else s
+        return self.r2.sub('', s)
 
 class English(Language):
-    def clean(self, s, normalize=True):
-        s = s.lower()
-        return unicodedata.normalize("NFKD", s) if normalize else  s
+    def __init__(self, prepend, append, nopend):
+        self.translations = {ord(i): '.' for i in prepend}
 
 _languages = {
         'ja': Japanese,
