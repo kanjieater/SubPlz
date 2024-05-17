@@ -8,13 +8,12 @@
       "module": "subplz",
       "args": [
         "sync",
-        // "-d",
-        // "/mnt/d/sync/変な家",
-        "--audio",
-        "/mnt/d/sync/変な家/変な家.m4b",
-        "--text",
-        "/mnt/d/sync/変な家/変な家.epub",
-        "--faster-whisper"
+        "-d",
+        "/mnt/d/sync/変な家",
+        // "--audio",
+        // "/mnt/d/sync/変な家/変な家.m4b",
+        // "--text",
+        // "/mnt/d/sync/変な家/変な家.epub",
       ],
     },
 

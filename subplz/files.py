@@ -3,14 +3,14 @@ from pathlib import Path
 from os import path
 from ats.main import TextFile, Epub, AudioStream
 
-def get_streams(args):
+def get_streams(sources):
     print("Loading streams...")
-    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
+    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in sources.audio]
     return streams
 
-def get_chapters(args):
+def get_chapters(sources):
     print("Finding chunks...")
-    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in args.pop('text')]
+    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in sources.text]
     return chapters
 
 

@@ -9,25 +9,27 @@ import numpy as np
 
 from ats.main import faster_transcribe
 
-def get_temperature(args):
-    print(args)
-    temperature = args.pop("temperature")
-    if (increment := args.pop("temperature_increment_on_fallback")) is not None:
-        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
+def set_temperature(backend):
+    temperature, temperature_increment_on_fallback = backend.temperature, backend.temperature_increment_on_fallback
+    if (temperature_increment_on_fallback) is not None:
+        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, temperature_increment_on_fallback))
     else:
         temperature = [temperature]
     return temperature
 
-def get_model(args, threads):
-    model, device = args.get("model"), args.pop('device')
+def get_model(backend):
+    model_name = backend.model_name
+    device = backend.device
+    faster_whisper = backend.faster_whisper
+    local_files_only = backend.local_only
+    quantize = backend.quantize
+    num_workers= backend.threads
     if device == 'cuda' and not torch.cuda.is_available():
         device = 'cpu'
     print(f"We're using {device}. Results should be similar in runtime between CPU & cuda")
-    faster_whisper = args.pop('faster_whisper')
-    local_only = args.pop('local_only')
-    quantize = args.pop("quantize")
+    compute_type = 'float32' if not quantize else ('int8' if device == 'cpu' else 'float16')
     if faster_whisper:
-        model = WhisperModel(model, device, local_files_only=local_only, compute_type='float32' if not quantize else ('int8' if device == 'cpu' else 'float16'), num_workers=threads)
+        model = WhisperModel(model_name, device, local_files_only, compute_type, num_workers)
         model.transcribe2 = model.transcribe
         model.transcribe = MethodType(faster_transcribe, model)
     else:

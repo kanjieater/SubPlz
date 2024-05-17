@@ -108,6 +108,7 @@ def get_aggregated_inputs(args):
     # print(args)
     working_folders = get_working_folders(args.sources.dirs)
     print(working_folders)
+    #TODO normalize to texts & audio inputs
     return args
 
 
@@ -124,19 +125,52 @@ def validate_source_inputs(sources):
 def get_inputs():
     args = get_args()
     inputs = SimpleNamespace(
-        transcribe=SimpleNamespace(
-            ogprob_threshold= args.logprob_threshold,
-            beam_size= args.beam_size,
-            patience= args.patience,
-            length_penalty= args.length_penalty
+        backend = SimpleNamespace(
+            model_name=args.model,
+            initial_prompt=args.initial_prompt,
+            length_penalty=args.length_penalty,
+            temperature=args.temperature,
+            temperature_increment_on_fallback=args.temperature_increment_on_fallback,
+            beam_size=args.beam_size,
+            patience=args.patience,
+            suppress_tokens=args.suppress_tokens,
+            prepend_punctuations=args.prepend_punctuations,
+            append_punctuations=args.append_punctuations,
+            nopend_punctuations=args.nopend_punctuations,
+
+            faster_whisper=args.faster_whisper,
+            local_only=args.local_only,
+            quantize=args.quantize,
+
+            threads=args.threads,
+            device=args.device,
         ),
+        cache = SimpleNamespace(
+            overwrite_cache=args.overwrite_cache,
+            use_cache=args.use_cache,
+            cache_dir=args.cache_dir,
+        ),
+        # sync=SimpleNamespace(
+        #     initial_prompt=args.initial_prompt,
+        #     length_penalty=args.length_penalty,
+        #     temperature=args.temperature,
+        #     temperature_increment_on_fallback=args.temperature_increment_on_fallback,
+        #     beam_size=args.beam_size,
+        #     patience=args.patience,
+        #     suppress_tokens=args.suppress_tokens,
+        #     prepend_punctuations=args.prepend_punctuations,
+        #     append_punctuations=args.append_punctuations,
+        #     nopend_punctuations=args.nopend_punctuations
+        # ),
         sources=SimpleNamespace(
             dirs=args.dirs,
             audio=args.audio,
             text=args.text,
             output_dir=args.output_dir,
-            output_format=args.output_format
-        )
+            output_format=args.output_format,
+            overwrite=args.overwrite,
+        ),
+
     )
     validate_source_inputs(inputs.sources)
 

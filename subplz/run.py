@@ -4,8 +4,8 @@ from subplz.transcribe import transcribe
 from subplz.sync import sync
 from subplz.files import get_chapters, get_streams
 from subplz.cache import get_cache
-from subplz.models import get_model, get_temperature
-from subplz.utils import get_thread_count
+from subplz.models import get_model, set_temperature
+from subplz.utils import set_threads
 from subplz.cli import get_inputs
 
 
@@ -13,13 +13,13 @@ from subplz.cli import get_inputs
 def execute_on_inputs():
     inputs = get_inputs()
 
-    temperature = get_temperature(args)
-    thread_count = get_thread_count(args)
-    model = get_model(args, thread_count)
-    cache = get_cache(args, model)
+    set_temperature(inputs.backend)
+    set_threads(inputs.backend)
+    model = get_model(inputs.backend)
+    cache = get_cache(model, inputs.backend, inputs.cache)
 
-    chapters = get_chapters(args)
-    streams = get_streams(args)
+    chapters = get_chapters(inputs.sources)
+    streams = get_streams(inputs.sources)
 
     transcribed_streams = transcribe(streams, model, cache, temperature, thread_count, args)
 

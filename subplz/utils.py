@@ -25,6 +25,7 @@ def get_tqdm(progress=True):
     t.__init__ = partialmethod(tqdm.__init__, disable=not progress)
     return t
 
-def get_thread_count(args):
-    if (threads := args.pop("threads")) > 0: torch.set_num_threads(threads)
-    return threads
+def set_threads(hardware):
+    threads = hardware.threads
+    if threads > 0:
+        torch.set_num_threads(threads)
