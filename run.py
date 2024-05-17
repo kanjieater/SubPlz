@@ -17,21 +17,25 @@ import traceback
 
 SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
-def get_model(model_type='large-v2'):
+
+def get_model(model_type="large-v2"):
     return stable_whisper.load_model(model_type)
     # return stable_whisper.load_faster_whisper(model_type)
 
-def generate_transcript_from_audio(audio_file, full_timings_path, model, sub_format='ass', **kwargs):
+
+def generate_transcript_from_audio(
+    audio_file, full_timings_path, model, sub_format="ass", **kwargs
+):
     default_args = {
-        'language': 'ja',
-        'suppress_silence': True,
+        "language": "ja",
+        "suppress_silence": True,
         # 'vad': True,
-        'regroup': True,
-        'word_timestamps': True,
-        'use_word_position': True,
+        "regroup": True,
+        "word_timestamps": True,
+        "use_word_position": True,
         # 'only_voice_freq': True,
-        'prepend_punctuations': '''「"'“¿([{-)''',
-        'append_punctuations': '''.。,，!！?？:：”)]}、)」''',
+        "prepend_punctuations": """「"'“¿([{-)""",
+        "append_punctuations": """.。,，!！?？:：”)]}、)」""",
     }
 
     default_args.update(kwargs)
@@ -42,20 +46,22 @@ def generate_transcript_from_audio(audio_file, full_timings_path, model, sub_for
     # else:
     result.to_srt_vtt(full_timings_path, word_level=False)
 
+
 def align_text(model, working_folder, script_file, final):
     file_content = Path(script_file).read_text()
     audio_file = prep_audio(working_folder)
-    result = model.align(audio_file, file_content,
-                         language="ja",
-                         original_split=True,
-                         prepend_punctuations='''「"'“¿([{-)''',
-                         append_punctuations='''.。,，!！?？:：”)]}、)」''',
-                        #  use_word_position=True,
-                        #  max_word_dur=60.0,
-                        #  word_dur_factor=40.0,
-                        # vad=True,
-
-                         )
+    result = model.align(
+        audio_file,
+        file_content,
+        language="ja",
+        original_split=True,
+        prepend_punctuations="""「"'“¿([{-)""",
+        append_punctuations=""".。,，!！?？:：”)]}、)」""",
+        #  use_word_position=True,
+        #  max_word_dur=60.0,
+        #  word_dur_factor=40.0,
+        # vad=True,
+    )
     # result = model.refine(audio_file, result, word_level=False)
 
     result.to_srt_vtt(final, word_level=False)
@@ -105,7 +111,7 @@ def combine_vtt(vtt_files, offsets, output_file_path):
     subs = []
 
     for n, vtt_file in enumerate(vtt_files):
-        with open(vtt_file, encoding='utf-8') as vtt:
+        with open(vtt_file, encoding="utf-8") as vtt:
             latest_subs = read_vtt(vtt)
             last_offset = offsets[n]
             subs += adjust_timings(latest_subs, last_offset)
@@ -161,11 +167,12 @@ def prep_audio(working_folder, use_cache=False):
     if len(file_paths) == 0:
         raise Exception(f"No audio files found at {working_folder}")
     if len(file_paths) > 1:
-        raise Exception(f"Multiple audio files found at {working_folder}. Make sure there is only one, and try again.")
+        raise Exception(
+            f"Multiple audio files found at {working_folder}. Make sure there is only one, and try again."
+        )
     return audio_files[0]
     # pprint(f"{len(file_paths)} file will be processed:")
     # pprint(file_paths)
-
 
     # if not use_cache:
     #     process_map(filter_audio, file_paths, max_workers=multiprocessing.cpu_count())
@@ -248,7 +255,10 @@ def run(working_folder, use_transcript_cache, use_filtered_cache, model):
     if not use_transcript_cache:
         prepped_audio = prep_audio(working_folder, use_filtered_cache)
         # audio_path_dicts = [
-        audio_path_dict = {"working_folder": working_folder, "audio_file": prepped_audio} # for af in prepped_audio
+        audio_path_dict = {
+            "working_folder": working_folder,
+            "audio_file": prepped_audio,
+        }  # for af in prepped_audio
         # ]
         # for audio_path_dict in tqdm(audio_path_dicts):
         generate_transcript_from_audio_wrapper(audio_path_dict, model)
@@ -262,6 +272,7 @@ def align_stable_transcript(working_folder, content_name):
     final = path.join(working_folder, f"{content_name}.srt")
     align_text(model, working_folder, split_script[0], final)
     remove_files(split_script)
+
 
 def align_transcript(working_folder, content_name):
     split_script = grab_files(working_folder, ["*.split.txt"])
@@ -307,9 +318,9 @@ if __name__ == "__main__":
     # args = parser.parse_args()
     # working_folders = get_working_folders(args.dirs)
     if args.use_stable_ts_align:
-        model = get_model('large-v2')
+        model = get_model("large-v2")
     else:
-        model = get_model('tiny')
+        model = get_model("tiny")
     successes = []
     failures = []
     for working_folder in working_folders:
@@ -317,9 +328,16 @@ if __name__ == "__main__":
             print(f"Working on {working_folder}")
             split_txt(working_folder)
             if args.use_stable_ts_align:
-                align_stable_transcript(working_folder, get_content_name(working_folder))
+                align_stable_transcript(
+                    working_folder, get_content_name(working_folder)
+                )
             else:
-                run(working_folder, args.use_transcript_cache, args.use_filtered_cache, model)
+                run(
+                    working_folder,
+                    args.use_transcript_cache,
+                    args.use_filtered_cache,
+                    model,
+                )
                 align_transcript(working_folder, get_content_name(working_folder))
             successes.append(working_folder)
         except Exception as err:
@@ -333,5 +351,5 @@ if __name__ == "__main__":
     if len(failures) > 0:
         print(f"The following {len(failures)} failed:")
         for failure in failures:
-            pprint(failure['working_folder'])
-            pprint(failure['err'])
+            pprint(failure["working_folder"])
+            pprint(failure["err"])

@@ -3,6 +3,7 @@ import sys, os
 import stable_whisper
 import ffmpeg
 import multiprocessing
+
 # from subsai import SubsAI
 import traceback
 from os import path
@@ -12,20 +13,34 @@ from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 from pprint import pprint
 from utils import read_vtt, write_sub, grab_files
+
 # from split_sentences import split_sentences
 from run import get_working_folders, generate_transcript_from_audio, get_model
 
-audio_formats = ['aac', 'ac3', 'alac', 'ape', 'flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'm4b']
-video_formats = ['3g2', '3gp', 'avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'webm']
-subtitle_formats = ['ass', 'srt', 'vtt']
+audio_formats = [
+    "aac",
+    "ac3",
+    "alac",
+    "ape",
+    "flac",
+    "mp3",
+    "m4a",
+    "ogg",
+    "opus",
+    "wav",
+    "m4b",
+]
+video_formats = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
+subtitle_formats = ["ass", "srt", "vtt"]
 
-SUPPORTED_FORMATS = ['*.' + extension for extension in video_formats + audio_formats]
+SUPPORTED_FORMATS = ["*." + extension for extension in video_formats + audio_formats]
+
 
 def generate_subs(files, model):
     for file in files:
         try:
-            ext = 'srt'
-            lang_code = '.ja'
+            ext = "srt"
+            lang_code = ".ja"
             sub_path = str(Path(file).with_suffix(lang_code))
             generate_transcript_from_audio(file, sub_path, model, ext)
         except Exception as err:
@@ -33,7 +48,6 @@ def generate_subs(files, model):
             pprint(tb)
             failures.append({"working_folder": file, "err": err})
     return failures
-
 
 
 if __name__ == "__main__":
@@ -83,7 +97,7 @@ if __name__ == "__main__":
     working_folders = get_working_folders(args.dirs)
     global model
     model = False  # global model preserved between files
-    model = get_model('large-v2')
+    model = get_model("large-v2")
     successes = []
     failures = []
     for working_folder in working_folders:
@@ -102,5 +116,5 @@ if __name__ == "__main__":
     if len(failures) > 0:
         print(f"The following {len(failures)} failed:")
         for failure in failures:
-            pprint(failure['working_folder'])
-            pprint(failure['err'])
+            pprint(failure["working_folder"])
+            pprint(failure["err"])

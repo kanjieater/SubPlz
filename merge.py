@@ -14,12 +14,13 @@ def get_mp4_files(audiobook_path):
     mp4_files = [f'"{f}"' for f in mp4_files]
     return mp4_files
 
+
 def run_docker_cmd_success(audiobook_path, audiobook_name, mp4_files, fallback=False):
     fallback_docker_cmd = (
         f'docker run -it --rm -u $(id -u):$(id -g) -v "{audiobook_path}":/mnt sandreas/m4b-tool:latest merge '
         f"{' '.join(mp4_files)} --output-file \"./{audiobook_name}.m4b\""
     )
-    docker_cmd = f'{fallback_docker_cmd} --jobs {cpu_count()}'
+    docker_cmd = f"{fallback_docker_cmd} --jobs {cpu_count()}"
     cmd = fallback_docker_cmd if fallback else docker_cmd
     print(cmd)
     try:
@@ -111,7 +112,9 @@ def merge_audiobook(audiobook_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("audiobooks_path", type=str, help="Path to audiobooks directory")
+    parser.add_argument(
+        "audiobooks_path", type=str, help="Path to audiobooks directory"
+    )
     args = parser.parse_args()
     audiobooks_path = Path(args.audiobooks_path)
 

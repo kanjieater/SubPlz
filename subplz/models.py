@@ -11,14 +11,18 @@ from copy import deepcopy
 
 from ats.main import faster_transcribe
 
+
 def get_temperature(inputs):
     temperature = copy(inputs.temperature)
     temperature_increment_on_fallback = copy(inputs.temperature_increment_on_fallback)
     if (temperature_increment_on_fallback) is not None:
-        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, temperature_increment_on_fallback))
+        temperature = tuple(
+            np.arange(temperature, 1.0 + 1e-6, temperature_increment_on_fallback)
+        )
     else:
         temperature = [temperature]
     return temperature
+
 
 def get_model(backend):
     model_name = backend.model_name
@@ -26,18 +30,24 @@ def get_model(backend):
     faster_whisper = backend.faster_whisper
     local_files_only = backend.local_only
     quantize = backend.quantize
-    num_workers= backend.threads
-    if device == 'cuda' and not torch.cuda.is_available():
-        device = 'cpu'
-    print(f"We're using {device}. Results should be similar in runtime between CPU & cuda")
-    compute_type = 'float32' if not quantize else ('int8' if device == 'cpu' else 'float16')
+    num_workers = backend.threads
+    if device == "cuda" and not torch.cuda.is_available():
+        device = "cpu"
+    print(
+        f"We're using {device}. Results should be similar in runtime between CPU & cuda"
+    )
+    compute_type = (
+        "float32" if not quantize else ("int8" if device == "cpu" else "float16")
+    )
     if faster_whisper:
-        model = WhisperModel(model_name, device, local_files_only, compute_type, num_workers)
+        model = WhisperModel(
+            model_name, device, local_files_only, compute_type, num_workers
+        )
         model.transcribe2 = model.transcribe
         model.transcribe = MethodType(faster_transcribe, model)
     else:
         model = whisper.load_model(model).to(device)
-        if quantize and device != 'cpu':
+        if quantize and device != "cpu":
             model = model.half()
     return model
 
@@ -48,4 +58,4 @@ def get_model(backend):
     # if args.pop("fast_decoder") and not faster_whisper:
     #     args["overlap"] = overlap
     #     args["batches"] = batches
-        # modify_model(model)
+    # modify_model(model)

@@ -8,7 +8,6 @@ from subplz.utils import get_threads
 from subplz.cli import get_inputs
 
 
-
 def execute_on_inputs():
     inputs = get_inputs()
     be = inputs.backend
@@ -23,9 +22,16 @@ def execute_on_inputs():
 
     transcribed_streams = transcribe(streams, model, cache, be)
 
-    output_dir = Path(k) if (k := args.pop('output_dir')) else Path('.')
+    output_dir = Path(k) if (k := args.pop("output_dir")) else Path(".")
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_format = args.pop('output_format')
-    sync(output_dir, output_format, model, transcribed_streams, chapters, cache, temperature, args)
-
-
+    output_format = args.pop("output_format")
+    sync(
+        output_dir,
+        output_format,
+        model,
+        transcribed_streams,
+        chapters,
+        cache,
+        temperature,
+        args,
+    )

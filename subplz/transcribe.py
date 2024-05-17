@@ -4,11 +4,10 @@ import concurrent.futures as futures
 
 def transcribe(streams, model, cache, be):
     max_workers = be.threads
-    print('Transcribing...')
+    print("Transcribing...")
     # copy the args from
     args = {
         "language": be.language,
-
         "initial_prompt": be.initial_prompt,
         "length_penalty": be.length_penalty,
         "temperature": be.temperature,
@@ -31,7 +30,7 @@ def transcribe(streams, model, cache, be):
         r = []
         for i in range(len(streams)):
             for j, v in enumerate(streams[i][2]):
-                #TODO add **args back in
+                # TODO add **args back in
                 future = p.submit(lambda x: x.transcribe(model, cache, **args), v)
                 r.append(future)
         futures.wait(r)
@@ -42,9 +41,9 @@ def transcribe(streams, model, cache, be):
             # except Exception as e:
             #     print("An error occurred while transcribing", e)
 
-
     print(f"Transcribing took: {time.monotonic()-s:.2f}s")
     return streams
+
 
 # def transcribe(streams, model, cache, temperature, threads, args):
 #     for i in range(len(streams)):
@@ -60,4 +59,3 @@ def transcribe(streams, model, cache, be):
 #     #     futures.wait(r)
 #     # print(f"Transcribing took: {time.monotonic()-s:.2f}s")
 #     return streams
-

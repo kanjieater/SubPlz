@@ -207,9 +207,6 @@ def send_to_anki_connect(csv_path, note_template, field_mappings):
         )
 
 
-
-
-
 def parse_mapping(mapping):
     note_template = deep_copy(mapping)
     field_mapping = {}
@@ -243,7 +240,6 @@ def move_individual_media(file_data):
     shutil.move(file_data["src"], file_data["dest"])
 
 
-
 def move_media(srs_export_dir, anki_media_dir):
     print(f"Exporting media from {srs_export_dir}")
     files = grab_files(srs_export_dir, ["*.mp3"], False)
@@ -252,7 +248,12 @@ def move_media(srs_export_dir, anki_media_dir):
         dest = os.path.join(anki_media_dir, os.path.basename(file))
         file_data.append({"src": file, "dest": dest})
     cpu_count = multiprocessing.cpu_count()
-    process_map(move_individual_media, file_data, max_workers=cpu_count, chunksize=len(file_data) // cpu_count)
+    process_map(
+        move_individual_media,
+        file_data,
+        max_workers=cpu_count,
+        chunksize=len(file_data) // cpu_count,
+    )
 
 
 def get_srs_export_dir(csv_path):
