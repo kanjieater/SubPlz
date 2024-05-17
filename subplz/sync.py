@@ -1,10 +1,10 @@
 from os.path import basename, splitext
 
 from ats.main import match_start, expand_matches, print_batches, write_srt, write_vtt, to_subs
-from lang import get_lang
 from ats import align
 
-from utils import get_tqdm
+from ats.lang import get_lang
+from subplz.utils import get_tqdm
 
 tqdm = get_tqdm()
 
