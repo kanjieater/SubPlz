@@ -1,13 +1,11 @@
-from os.path import basename, splitext
 
 from ats.main import (
     match_start,
     expand_matches,
     print_batches,
-    write_srt,
-    write_vtt,
     to_subs,
 )
+import warnings
 from ats import align
 
 from ats.lang import get_lang
@@ -15,13 +13,15 @@ from subplz.utils import get_tqdm
 
 tqdm = get_tqdm()
 
+# Filter out the specific warning
+warnings.filterwarnings("ignore", category=FutureWarning, message="This search incorrectly ignores the root element")
+
 
 def fuzzy_match_chapters(streams, chapters, cache):
     print("Fuzzy matching chapters...")
-    print(streams)
     ats, sta = match_start(streams, chapters, cache)
     audio_batches = expand_matches(streams, chapters, ats, sta)
-    print_batches(audio_batches)
+    # print_batches(audio_batches)
     return audio_batches
 
 
@@ -52,26 +52,38 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
 
 
 # TODO decouple output formatting
-def sync(output_dir, output_format, model, streams, chapters, cache, temperature, args):
-    nopend = set(args.pop("nopend_punctuations"))
+def sync(source, model, streams, chapters, cache, be):
+    output_format = source.output_format
+    nopend = set(be.nopend_punctuations)
+    args = {
+        "language": be.language,
+        "initial_prompt": be.initial_prompt,
+        "length_penalty": be.length_penalty,
+        "temperature": be.temperature,
+        "beam_size": be.beam_size,
+        "patience": be.patience,
+        "suppress_tokens": be.suppress_tokens,
+        "prepend_punctuations": be.prepend_punctuations,
+        "append_punctuations": be.append_punctuations,
+        "compression_ratio_threshold": be.compression_ratio_threshold,
+        "logprob_threshold": be.logprob_threshold,
+        "condition_on_previous_text": be.condition_on_previous_text,
+        "no_speech_threshold": be.no_speech_threshold,
+        "word_timestamps": be.word_timestamps,
+    }
+
     audio_batches = fuzzy_match_chapters(streams, chapters, cache)
     print("Syncing...")
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
-            out = output_dir / (
-                splitext(basename(streams[ai][2][0].path))[0] + "." + output_format
-            )
-            if not cache.overwrite and out.exists():
-                bar.write(f"{out.name} already exists, skipping.")
-                continue
 
-            bar.set_description(basename(streams[ai][2][0].path))
+            # bar.set_description(basename(streams[ai][2][0].path))
             offset, segments = 0, []
             for ajs, (chi, chjs), _ in tqdm(batches):
                 ach = [
                     (
                         streams[ai][2][aj].transcribe(
-                            model, cache, temperature=temperature, **args
+                            model, cache, **args
                         ),
                         streams[ai][2][aj].duration,
                     )
@@ -95,8 +107,4 @@ def sync(output_dir, output_format, model, streams, chapters, cache, temperature
             if not segments:
                 continue
 
-            with out.open("w", encoding="utf8") as o:
-                if output_format == "srt":
-                    write_srt(segments, o)
-                elif output_format == "vtt":
-                    write_vtt(segments, o)
+            source.writer(segments, source.output_full_paths[ai])

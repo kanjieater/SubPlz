@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 from pprint import pprint
-from utils import read_vtt, write_sub, grab_files
+from utils import read_vtt, write_sub, grab_files, check_workdir_content
 from split_sentences import split_sentences
 import align
 import traceback
@@ -20,7 +20,7 @@ SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
 def get_model(model_type="large-v2"):
     return stable_whisper.load_model(model_type)
-    # return stable_whisper.load_faster_whisper(model_type)
+    # return stable_whisper.load_faster_whisper(model_type)    
 
 
 def generate_transcript_from_audio(
@@ -326,6 +326,16 @@ if __name__ == "__main__":
     for working_folder in working_folders:
         try:
             print(f"Working on {working_folder}")
+            
+            # Ensure audio file(s) have the same name as the working dir
+            check_verdict = check_workdir_content(working_folder, SUPPORTED_FORMATS)
+            
+            if not check_verdict:
+                expected_file_name_base = path.basename(path.normpath(working_folder))
+                print("> ERROR: Current working directory does not contain an audio file of the same name.")
+                print(f"  Your audio file must have the same name as this directory, e.g. '{expected_file_name_base}.m4b'")
+                continue
+            
             split_txt(working_folder)
             if args.use_stable_ts_align:
                 align_stable_transcript(

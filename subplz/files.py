@@ -1,12 +1,15 @@
 import os
 from pathlib import Path
 from os import path
-from typing import List
+from os.path import basename, splitext, dirname, isdir, join
+from typing import List, Callable
 from dataclasses import dataclass
 from natsort import os_sorted
 from glob import glob, escape
 from pprint import pformat
-from ats.main import TextFile, Epub, AudioStream
+from ats.main import TextFile, Epub, AudioStream, write_srt, write_vtt
+from functools import partial
+
 
 audio_formats = [
     "aac",
@@ -28,9 +31,7 @@ text_formats = ["epub", "text"]
 SUPPORTED_AUDIO_FORMATS = [
     "*." + extension for extension in video_formats + audio_formats
 ]
-SUPPORTED_TEXT_FORMATS = [
-    "*." + extension for extension in text_formats
-]
+SUPPORTED_TEXT_FORMATS = ["*." + extension for extension in text_formats]
 
 
 @dataclass
@@ -41,6 +42,8 @@ class sourceData:
     output_dir: str
     output_format: str
     overwrite: bool
+    output_full_paths: str
+    writer: Callable[[str, str], None]
 
 
 def grab_files(folder, types, sort=True):
@@ -55,35 +58,29 @@ def grab_files(folder, types, sort=True):
 
 def get_streams(audio):
     print("Loading streams...")
-    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in audio]
+    streams = [(basename(f), *AudioStream.from_file(f)) for f in audio]
     return streams
 
 
 def get_chapters(text):
-    print("Finding chunks...")
+    print("Finding chapters...")
     chapters = [
         (
-            (os.path.basename(i), Epub.from_file(i))
+            (basename(i), Epub.from_file(i))
             if i.split(".")[-1] == "epub"
-            else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))])
+            else (basename(i), [TextFile(path=i, title=basename(i))])
         )
         for i in text
     ]
     return chapters
 
 
-def get_content_name(working_folder):
-    folder_name = path.dirname(working_folder)
-    content_name = path.basename(folder_name)
-    return content_name
-
-
 def get_working_folders(dirs):
     working_folders = []
     for dir in dirs:
-        if not path.isdir(dir):
+        if not isdir(dir):
             raise Exception(f"{dir} is not a valid directory")
-        full_folder = path.join(dir, "")
+        full_folder = join(dir, "")
         # content_name = get_content_name(dir)
         # split_folder = path.join(full_folder, f"{content_name}_splitted")
 
@@ -107,40 +104,92 @@ def get_text(folder):
     text = grab_files(folder, SUPPORTED_TEXT_FORMATS)
     return text
 
+
 def get_output_dir(folder, output_format):
     pass
+
 
 def setup_output_dir(output_dir):
     output_dir = Path(o) if (o := output_dir) else Path(".")
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
+
 def get_sources_from_dirs(input):
     sources = []
     working_folders = get_working_folders(input.dirs)
     for folder in working_folders:
+        audio = get_audio(folder)
+        output_full_paths = get_output_full_paths(audio, folder, input.output_format)
+        writer = get_writer(input.output_format)
         s = sourceData(
             dirs=input.dirs,
-            audio=get_audio(folder),
+            audio=audio,
             text=get_text(folder),
             output_dir=setup_output_dir(folder),
             output_format=input.output_format,
             overwrite=input.overwrite,
+            output_full_paths=output_full_paths,
+            writer=writer
         )
         sources.append(s)
     return sources
 
-def get_sources(input):
-    sources = [sourceData(
-            dirs=[],
-            audio=input.audio,
-            text=input.text,
-            output_dir=setup_output_dir(input.output_dir),
-            output_format=input.output_format,
-            overwrite=input.overwrite,
-        )]
+
+def get_output_full_paths(audio, output_dir, output_format):
+    output_full_paths = []
+    for a in audio:
+        content_name = basename(a)
+        fp = Path(output_dir) / (content_name + "." + output_format)
+        output_full_paths.append(fp)
+    return output_full_paths
+
+
+def write_sub(output_format, segments, output_full_path):
+    with output_full_path.open("w", encoding="utf8") as o:
+        if output_format == "srt":
+            return write_srt(segments, o)
+        elif output_format == "vtt":
+            return write_vtt(segments, o)
+
+
+def get_writer(output_format):
+    return partial(write_sub, output_format)
+
+
+def setup_sources(input):
     if input.dirs:
         sources = get_sources_from_dirs(input)
-    for source in sources:
-        print(f"'{pformat(source.audio)} will be matched to {pformat(source.text)}...")
+    else:
+        output_full_paths = get_output_full_paths(
+            input.audio, input.output_dir, input.output_format
+        )
+        writer = get_writer(input.output_format)
+        sources = [
+            sourceData(
+                dirs=[],
+                audio=input.audio,
+                text=input.text,
+                output_dir=setup_output_dir(input.output_dir),
+                output_format=input.output_format,
+                overwrite=input.overwrite,
+                output_full_paths=output_full_paths,
+                writer=writer,
+            )
+        ]
     return sources
+
+
+def get_sources(input):
+    sources = setup_sources(input)
+    valid_sources = []
+    for source in sources:
+        paths = source.output_full_paths
+        for fp in paths:
+            valid_sources.append(source)
+            if not source.overwrite and fp.exists():
+                print(f"{fp.name} already exists, skipping.")
+                valid_sources.pop(-1)
+    for source in valid_sources:
+        print(f"'{pformat(source.audio)}' will be matched to {pformat(source.text)}...")
+    return valid_sources

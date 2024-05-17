@@ -19,7 +19,7 @@ Support for any tool by KanjiEater can be found [on KanjiEater's Discord](https:
 
 # Install
 
-Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 22.04 on WSL2.
+Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 22.04 on WSL2. Primarily supports Japanese, but other languages may work as well with limited dev support.
 
 ## Running from Docker
 
@@ -46,9 +46,9 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 
 1. `git clone https://github.com/kanjieater/AudiobookTextSync.git`
 1. Make sure you run any commands that start with `./` from the project root, eg after you clone you can run `cd ./AudiobookTextSync`
-1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`
+1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`.
 1. Get the book script as text from a digital copy. Put the script at: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
-1. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b,mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
+1. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b, mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
  eg `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`. The split files must be in `./<name>/<name>_merge/`. This will merge your file into a single file so it can be processed.
 6. If you have the `script.txt` and either `./<name>/<name>.m4b`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `python run.py -d "<full folder path>"` eg `python run.py -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file that can be watched with `MPV`, showing audio in time with the full book as a subtitle.
 7. From there, use a [texthooker](https://github.com/Renji-XD/texthooker-ui) with something like [mpv_websocket](https://github.com/kuroahna/mpv_websocket) and enjoy Immersion Reading.
@@ -62,7 +62,7 @@ Primarily I'm using this for syncing audiobooks to their book script. So while y
 # Single File
 
 You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 8GB of RAM available.
-You need your`m4b`, `mp3`, or `mp4` audiobook file to be inside the folder: "<full folder path>", with a `txt` file in the same folder. The `txt` file can be named anything as long as it has a `txt` extension.
+You need your audio file to be inside a folder with the **same name as the audiofile**, in addition to a `txt` file in the same folder. The `txt` file can be named anything as long as it has a `txt` extension.
 The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter 2 The Spooky Sequel/"`
 ```bash
 /sync/
@@ -164,7 +164,7 @@ To convert in Calibre:
 ![image](https://user-images.githubusercontent.com/32607317/226463043-f2f89382-a75f-48ea-bb91-00efe0f05893.png)
 2. At the top right for output format, select `txt`
 ![image](https://user-images.githubusercontent.com/32607317/226463797-1c19385d-c6e7-4564-a795-926e04716562.png)
-3. Click Find & Replace. If your book has 《》for furigana as some aozora books do (戦場《せんじょう》), then add a regex. If they have rt for furigana use the rt one: 《(.+?)》 or <rt>(.*?)<\/rt>. When you copy the regex into the regex box, don't forget to click the Add button
+3. Click Find & Replace. If your book has 《》for furigana as some aozora books do (戦場《せんじょう》), then add a regex. If they have rt for furigana use the rt one: `《(.+?)》` or `<rt>(.*?)<\/rt>`. When you copy the regex into the regex box, don't forget to click the Add button
 ![image](https://user-images.githubusercontent.com/32607317/226463912-48bcfd57-4935-48fb-af7e-13d2a024cdee.png)
 4. You can add multiple regexes to strip any extra content or furigana as need be.
 ![image](https://user-images.githubusercontent.com/32607317/226464346-a752970e-0f1c-42db-b64d-a3bc6df6ebdd.png)

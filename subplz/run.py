@@ -23,12 +23,10 @@ def execute_on_inputs():
         streams = get_streams(source.audio)
         transcribed_streams = transcribe(streams, model, cache, be)
         sync(
-            output_dir,
-            output_format,
+            source,
             model,
             transcribed_streams,
             chapters,
             cache,
-            temperature,
-            args,
+            be,
         )

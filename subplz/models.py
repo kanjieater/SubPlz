@@ -33,9 +33,9 @@ def get_model(backend):
     num_workers = backend.threads
     if device == "cuda" and not torch.cuda.is_available():
         device = "cpu"
-    print(
-        f"We're using {device}. Results should be similar in runtime between CPU & cuda"
-    )
+    # print(
+    #     f"We're using {device}. Results should be the close in performance and results between CPU & cuda"
+    # )
     compute_type = (
         "float32" if not quantize else ("int8" if device == "cpu" else "float16")
     )
