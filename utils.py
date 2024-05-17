@@ -1,23 +1,7 @@
 import re
-from natsort import os_sorted
-from glob import glob, escape
+
 import json
 
-audio_formats = [
-    "aac",
-    "ac3",
-    "alac",
-    "ape",
-    "flac",
-    "mp3",
-    "m4a",
-    "ogg",
-    "opus",
-    "wav",
-    "m4b",
-]
-video_formats = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
-subtitle_formats = ["ass", "srt", "vtt"]
 
 
 class Subtitle:
@@ -94,15 +78,6 @@ def write_sub(output_file_path, subs):
             outfile.write("%s --> %s\n" % (sub.start, sub.end))
             outfile.write("%s\n\n" % (sub.line))
 
-
-def grab_files(folder, types, sort=True):
-    files = []
-    for type in types:
-        pattern = f"{escape(folder)}/{type}"
-        files.extend(glob(pattern))
-    if sort:
-        return os_sorted(files)
-    return files
 
 
 def get_mapping(mapping_path):

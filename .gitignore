@@ -4,5 +4,7 @@ __pycache__/
 build/
 *.egg-info
 
+SyncCache/
+
 mapping.json
 sub.json

@@ -17,24 +17,6 @@ from utils import read_vtt, write_sub, grab_files
 # from split_sentences import split_sentences
 from run import get_working_folders, generate_transcript_from_audio, get_model
 
-audio_formats = [
-    "aac",
-    "ac3",
-    "alac",
-    "ape",
-    "flac",
-    "mp3",
-    "m4a",
-    "ogg",
-    "opus",
-    "wav",
-    "m4b",
-]
-video_formats = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
-subtitle_formats = ["ass", "srt", "vtt"]
-
-SUPPORTED_FORMATS = ["*." + extension for extension in video_formats + audio_formats]
-
 
 def generate_subs(files, model):
     for file in files:
@@ -103,7 +85,7 @@ if __name__ == "__main__":
     for working_folder in working_folders:
         # try:
         print(working_folder)
-        audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
+        # audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
         failures.extend(generate_subs(audio_files, model))
         successes.append(working_folder)
         # except Exception as err:

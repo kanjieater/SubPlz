@@ -28,7 +28,7 @@ def setup_advanced_cli(parser):
         "-d",
         "--dirs",
         dest="dirs",
-        default=None,
+        default=[],
         required=False,
         type=str,
         nargs="+",
@@ -37,11 +37,12 @@ def setup_advanced_cli(parser):
     main_group.add_argument(
         "--audio",
         nargs="+",
+        default=[],
         required=False,
         help="list of audio files to process (in the correct order)",
     )
     main_group.add_argument(
-        "--text", nargs="+", required=False, help="path to the script file"
+        "--text", nargs="+", default=[], required=False, help="path to the script file"
     )
     main_group.add_argument(
         "--output-dir",
@@ -80,7 +81,7 @@ def setup_advanced_cli(parser):
         action=argparse.BooleanOptionalAction,
     )
     optional_group.add_argument(
-        "--cache-dir", default="AudiobookTextSyncCache", help="the cache directory"
+        "--cache-dir", default="SyncCache", help="the cache directory"
     )
     optional_group.add_argument(
         "--overwrite-cache",
@@ -286,15 +287,6 @@ def get_args():
     return args
 
 
-def get_aggregated_inputs(args):
-    # args = get_args()
-    # print(args)
-    working_folders = get_working_folders(args.sources.dirs)
-    print(working_folders)
-    # TODO normalize to texts & audio inputs
-    return args
-
-
 def validate_source_inputs(sources):
     has_explicit_params = sources.audio or sources.text or sources.output_dir
     error_text = "You must specify --dirs/-d, or alternatively all three of --audio --text --output_dir or which; not both"
@@ -303,19 +295,6 @@ def validate_source_inputs(sources):
             raise ValueError(error_text)
     elif not has_explicit_params:
         raise ValueError(error_text)
-
-
-from typing import NamedTuple
-
-
-@dataclass
-class sourceParams:
-    dirs: List[str]
-    audio: List[str]
-    text: List[str]
-    output_dir: str
-    output_format: str
-    overwrite: bool
 
 
 @dataclass
@@ -417,5 +396,4 @@ def get_inputs():
     )
     validate_source_inputs(inputs.sources)
 
-    aggr_inputs = get_aggregated_inputs(inputs)
     return inputs

@@ -4,5 +4,7 @@ build/
 .vscode/
 *.egg-info
 
+SyncCache/
+
 mapping.json
 sub.json
