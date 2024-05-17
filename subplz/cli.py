@@ -1,9 +1,11 @@
 import argparse
 from types import SimpleNamespace
+from typing import List
 import multiprocessing
 import torch
-from subplz.files import get_working_folders
+from dataclasses import dataclass
 
+from subplz.files import get_working_folders
 
 def setup_advanced_cli(parser):
     sp = parser.add_subparsers(help='Generate a subtitle file from an file\'s audio source', required=True)
@@ -66,14 +68,14 @@ def setup_advanced_cli(parser):
     advanced_group.add_argument("--prepend_punctuations", type=str, default="\"\'“¿([{-『「（〈《〔【｛［‘“〝※", help="if word_timestamps is True, merge these punctuation symbols with the next word")
     advanced_group.add_argument("--append_punctuations", type=str, default="\"\'・.。,，!！?？:：”)]}、』」）〉》〕】｝］’〟／＼～〜~", help="if word_timestamps is True, merge these punctuation symbols with the previous word")
     advanced_group.add_argument("--nopend_punctuations", type=str, default="うぁぃぅぇぉっゃゅょゎゕゖァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇷ゚ㇸㇹㇺャュョㇻㇼㇽㇾㇿヮ…\u3000\x20", help="TODO")
-
-    # Experimental Hugging Face
-    advanced_group.add_argument("--logprob_threshold", type=float, default=-1.0, help="if the average log probability is lower than this value, treat the decoding as failed")
     advanced_group.add_argument("--compression_ratio_threshold", type=float, default=2.4, help="if the gzip compression ratio is higher than this value, treat the decoding as failed")
+    advanced_group.add_argument("--logprob_threshold", type=float, default=-1.0, help="if the average log probability is lower than this value, treat the decoding as failed")
     advanced_group.add_argument("--condition_on_previous_text", default=False, help="if True, provide the previous output of the model as a prompt for the next window; disabling may make the text inconsistent across windows, but the model becomes less prone to getting stuck in a failure loop", action=argparse.BooleanOptionalAction)
     advanced_group.add_argument("--no_speech_threshold", type=float, default=0.6, help="if the probability of the <|nospeech|> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence")
-    # Experimental Word Timestamps
     advanced_group.add_argument("--word_timestamps", default=False, help="(experimental) extract word-level timestamps and refine the results based on them", action=argparse.BooleanOptionalAction)
+
+    # Experimental Hugging Face
+    # Experimental Word Timestamps
     advanced_group.add_argument("--highlight_words", default=False, help="(requires --word_timestamps True) underline each word as it is spoken in srt and vtt", action=argparse.BooleanOptionalAction)
     advanced_group.add_argument("--max_line_width", type=int, default=None, help="(requires --word_timestamps True) the maximum number of characters in a line before breaking the line")
     advanced_group.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
@@ -121,12 +123,81 @@ def validate_source_inputs(sources):
     elif (not has_explicit_params):
         raise ValueError(error_text)
 
+from typing import NamedTuple
+
+@dataclass
+class sourceParams:
+    dirs: List[str]
+    audio: List[str]
+    text: List[str]
+    output_dir: str
+    output_format: str
+    overwrite: bool
+
+@dataclass
+class backendParams:
+    # Hardware
+    threads: int
+    device: str
+    # UI
+    progress: bool
+    # General Whisper
+    language: str
+    model_name: str
+    # Faster Whisper
+    faster_whisper: bool
+    local_only: bool
+    # Advanced Whisper
+    initial_prompt: str
+    length_penalty: float
+    temperature: float
+    temperature_increment_on_fallback: float
+    beam_size: int
+    patience: float
+    suppress_tokens: List[str]
+    prepend_punctuations: str
+    append_punctuations: str
+    nopend_punctuations: str
+    compression_ratio_threshold: float
+    logprob_threshold: float
+    condition_on_previous_text: bool
+    no_speech_threshold: float
+    word_timestamps: bool
+    # Experimental Hugging Face
+    # Experimental Word Timestamps
+    highlight_words: bool
+    max_line_width: int
+    max_line_count: int
+    max_words_per_line: int
+    # Original Whisper Optimizations
+    dynamic_quantization: bool
+    quantize: bool
+    # Fast Decoder
+    fast_decoder: bool
+    fast_decoder_overlap: int
+    fast_decoder_batches: int
+
+
+
+# args.progress
+
+
+
 
 def get_inputs():
     args = get_args()
     inputs = SimpleNamespace(
-        backend = SimpleNamespace(
+        backend = backendParams(
+            threads=args.threads,
+            device=args.device,
+            progress=args.progress,
+
+            language=args.language,
             model_name=args.model,
+
+            faster_whisper=args.faster_whisper,
+            local_only=args.local_only,
+
             initial_prompt=args.initial_prompt,
             length_penalty=args.length_penalty,
             temperature=args.temperature,
@@ -138,30 +209,29 @@ def get_inputs():
             append_punctuations=args.append_punctuations,
             nopend_punctuations=args.nopend_punctuations,
 
-            faster_whisper=args.faster_whisper,
-            local_only=args.local_only,
+            logprob_threshold=args.logprob_threshold,
+            compression_ratio_threshold=args.compression_ratio_threshold,
+            condition_on_previous_text=args.condition_on_previous_text,
+            no_speech_threshold=args.no_speech_threshold,
+
+            word_timestamps=args.word_timestamps,
+            highlight_words=args.highlight_words,
+            max_line_width=args.max_line_width,
+            max_line_count=args.max_line_count,
+            max_words_per_line=args.max_words_per_line,
+
+            dynamic_quantization=args.dynamic_quantization,
             quantize=args.quantize,
 
-            threads=args.threads,
-            device=args.device,
+            fast_decoder=args.fast_decoder,
+            fast_decoder_overlap=args.fast_decoder_overlap,
+            fast_decoder_batches=args.fast_decoder_batches,
         ),
         cache = SimpleNamespace(
             overwrite_cache=args.overwrite_cache,
             use_cache=args.use_cache,
             cache_dir=args.cache_dir,
         ),
-        # sync=SimpleNamespace(
-        #     initial_prompt=args.initial_prompt,
-        #     length_penalty=args.length_penalty,
-        #     temperature=args.temperature,
-        #     temperature_increment_on_fallback=args.temperature_increment_on_fallback,
-        #     beam_size=args.beam_size,
-        #     patience=args.patience,
-        #     suppress_tokens=args.suppress_tokens,
-        #     prepend_punctuations=args.prepend_punctuations,
-        #     append_punctuations=args.append_punctuations,
-        #     nopend_punctuations=args.nopend_punctuations
-        # ),
         sources=SimpleNamespace(
             dirs=args.dirs,
             audio=args.audio,
@@ -170,7 +240,6 @@ def get_inputs():
             output_format=args.output_format,
             overwrite=args.overwrite,
         ),
-
     )
     validate_source_inputs(inputs.sources)
 

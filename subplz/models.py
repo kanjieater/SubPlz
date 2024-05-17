@@ -2,15 +2,18 @@ from faster_whisper import WhisperModel
 import whisper
 from types import MethodType
 import torch
+from copy import copy
 import numpy as np
+from copy import deepcopy
 
 # from huggingface import modify_model
 # from quantization import ptdq_linear
 
 from ats.main import faster_transcribe
 
-def set_temperature(backend):
-    temperature, temperature_increment_on_fallback = backend.temperature, backend.temperature_increment_on_fallback
+def get_temperature(inputs):
+    temperature = copy(inputs.temperature)
+    temperature_increment_on_fallback = copy(inputs.temperature_increment_on_fallback)
     if (temperature_increment_on_fallback) is not None:
         temperature = tuple(np.arange(temperature, 1.0 + 1e-6, temperature_increment_on_fallback))
     else:
