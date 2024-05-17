@@ -6,7 +6,7 @@ from subplz.files import get_working_folders
 
 
 def setup_advanced_cli(parser):
-    sp = parser.add_subparsers(help='Generate a subtitle file from an file\'s audio source')
+    sp = parser.add_subparsers(help='Generate a subtitle file from an file\'s audio source', required=True)
     sync = sp.add_parser('sync', help='Sync a text to an audio/video stream')
     gen = sp.add_parser('gen', help='Generate subs from a audio/video stream')
     main_group = sync.add_argument_group('Main arguments')
@@ -103,33 +103,37 @@ def get_args():
 def get_aggregated_inputs(args):
     # args = get_args()
     # print(args)
-    working_folders = get_working_folders(args['sources']['dirs'])
+    working_folders = get_working_folders(args.sources.dirs)
     print(working_folders)
     return args
 
 
 def validate_source_inputs(sources):
-    if (sources['dirs']):
-        if (sources["audio"] or sources["text"] or sources["output_dir"]):
-            raise ValueError("You can either specify 'audio', 'text' and 'output_dir', or which 'dirs'; not both")
+    has_explicit_params = sources.audio or sources.text or sources.output_dir
+    error_text = "You must specify --dirs/-d, or alternatively all three of --audio --text --output_dir or which; not both"
+    if (sources.dirs):
+        if (has_explicit_params):
+            raise ValueError(error_text)
+    elif (not has_explicit_params):
+        raise ValueError(error_text)
 
 
 def get_inputs():
     args = get_args()
     inputs = SimpleNamespace(
-        transcribe={
-            "logprob_threshold": args.logprob_threshold,
-            "beam_size": args.beam_size,
-            "patience": args.patience,
-            "length_penalty": args.length_penalty
-        },
-        sources={
-            "dirs": args.dirs,
-            "audio": args.audio,
-            "text": args.text,
-            "output_dir": args.output_dir,
-            "output_format": args.output_format
-        }
+        transcribe=SimpleNamespace(
+            ogprob_threshold= args.logprob_threshold,
+            beam_size= args.beam_size,
+            patience= args.patience,
+            length_penalty= args.length_penalty
+        ),
+        sources=SimpleNamespace(
+            dirs=args.dirs,
+            audio=args.audio,
+            text=args.text,
+            output_dir=args.output_dir,
+            output_format=args.output_format
+        )
     )
     validate_source_inputs(inputs.sources)
 
