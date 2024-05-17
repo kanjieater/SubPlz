@@ -17,7 +17,7 @@ tqdm = get_tqdm()
 
 
 def fuzzy_match_chapters(streams, chapters, cache):
-    print('Fuzzy matching chapters...')
+    print("Fuzzy matching chapters...")
     print(streams)
     ats, sta = match_start(streams, chapters, cache)
     audio_batches = expand_matches(streams, chapters, ats, sta)
@@ -29,19 +29,19 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
     acontent = []
     boff = 0
     for a in ach:
-        for p in a[0]['segments']:
-            p['start'] += boff
-            p['end'] += boff
+        for p in a[0]["segments"]:
+            p["start"] += boff
+            p["end"] += boff
             acontent.append(p)
         boff += a[1]
 
-    language = get_lang(ach[0][0]['language'])
+    language = get_lang(ach[0][0]["language"])
 
     tcontent = [p for t in tch for p in t.text()]
     alignment, references = align.align(
         None,
         language,
-        [p['text'] for p in acontent],
+        [p["text"] for p in acontent],
         [p.text() for p in tcontent],
         [],
         prepend,
@@ -53,16 +53,16 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
 
 # TODO decouple output formatting
 def sync(output_dir, output_format, model, streams, chapters, cache, temperature, args):
-    nopend = set(args.pop('nopend_punctuations'))
+    nopend = set(args.pop("nopend_punctuations"))
     audio_batches = fuzzy_match_chapters(streams, chapters, cache)
-    print('Syncing...')
+    print("Syncing...")
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
             out = output_dir / (
-                splitext(basename(streams[ai][2][0].path))[0] + '.' + output_format
+                splitext(basename(streams[ai][2][0].path))[0] + "." + output_format
             )
             if not cache.overwrite and out.exists():
-                bar.write(f'{out.name} already exists, skipping.')
+                bar.write(f"{out.name} already exists, skipping.")
                 continue
 
             bar.set_description(basename(streams[ai][2][0].path))
@@ -83,8 +83,8 @@ def sync(output_dir, output_format, model, streams, chapters, cache, temperature
                         do_batch(
                             ach,
                             tch,
-                            set(args['prepend_punctuations']),
-                            set(args['append_punctuations']),
+                            set(args["prepend_punctuations"]),
+                            set(args["append_punctuations"]),
                             nopend,
                             offset,
                         )
@@ -95,8 +95,8 @@ def sync(output_dir, output_format, model, streams, chapters, cache, temperature
             if not segments:
                 continue
 
-            with out.open('w', encoding='utf8') as o:
-                if output_format == 'srt':
+            with out.open("w", encoding="utf8") as o:
+                if output_format == "srt":
                     write_srt(segments, o)
-                elif output_format == 'vtt':
+                elif output_format == "vtt":
                     write_vtt(segments, o)

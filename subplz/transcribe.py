@@ -4,23 +4,23 @@ import concurrent.futures as futures
 
 def transcribe(streams, model, cache, be):
     max_workers = be.threads
-    print('Transcribing...')
+    print("Transcribing...")
     # copy the args from
     args = {
-        'language': be.language,
-        'initial_prompt': be.initial_prompt,
-        'length_penalty': be.length_penalty,
-        'temperature': be.temperature,
-        'beam_size': be.beam_size,
-        'patience': be.patience,
-        'suppress_tokens': be.suppress_tokens,
-        'prepend_punctuations': be.prepend_punctuations,
-        'append_punctuations': be.append_punctuations,
-        'compression_ratio_threshold': be.compression_ratio_threshold,
-        'log_prob_threshold': be.log_prob_threshold,
-        'condition_on_previous_text': be.condition_on_previous_text,
-        'no_speech_threshold': be.no_speech_threshold,
-        'word_timestamps': be.word_timestamps,
+        "language": be.language,
+        "initial_prompt": be.initial_prompt,
+        "length_penalty": be.length_penalty,
+        "temperature": be.temperature,
+        "beam_size": be.beam_size,
+        "patience": be.patience,
+        "suppress_tokens": be.suppress_tokens,
+        "prepend_punctuations": be.prepend_punctuations,
+        "append_punctuations": be.append_punctuations,
+        "compression_ratio_threshold": be.compression_ratio_threshold,
+        "log_prob_threshold": be.log_prob_threshold,
+        "condition_on_previous_text": be.condition_on_previous_text,
+        "no_speech_threshold": be.no_speech_threshold,
+        "word_timestamps": be.word_timestamps,
     }
     # TODO: not faster-whisper
     # logprob_threshold
@@ -41,7 +41,7 @@ def transcribe(streams, model, cache, be):
             # except Exception as e:
             #     print("An error occurred while transcribing", e)
 
-    print(f'Transcribing took: {time.monotonic()-s:.2f}s')
+    print(f"Transcribing took: {time.monotonic()-s:.2f}s")
     return streams
 
 

@@ -15,27 +15,27 @@ import align
 import traceback
 
 
-SUPPORTED_FORMATS = ['*.mp3', '*.m4b', '*.mp4']
+SUPPORTED_FORMATS = ["*.mp3", "*.m4b", "*.mp4"]
 
 
-def get_model(model_type='large-v2'):
+def get_model(model_type="large-v2"):
     return stable_whisper.load_model(model_type)
     # return stable_whisper.load_faster_whisper(model_type)
 
 
 def generate_transcript_from_audio(
-    audio_file, full_timings_path, model, sub_format='ass', **kwargs
+    audio_file, full_timings_path, model, sub_format="ass", **kwargs
 ):
     default_args = {
-        'language': 'ja',
-        'suppress_silence': True,
+        "language": "ja",
+        "suppress_silence": True,
         # 'vad': True,
-        'regroup': True,
-        'word_timestamps': True,
-        'use_word_position': True,
+        "regroup": True,
+        "word_timestamps": True,
+        "use_word_position": True,
         # 'only_voice_freq': True,
-        'prepend_punctuations': """「"'“¿([{-)""",
-        'append_punctuations': """.。,，!！?？:：”)]}、)」""",
+        "prepend_punctuations": """「"'“¿([{-)""",
+        "append_punctuations": """.。,，!！?？:：”)]}、)」""",
     }
 
     default_args.update(kwargs)
@@ -53,7 +53,7 @@ def align_text(model, working_folder, script_file, final):
     result = model.align(
         audio_file,
         file_content,
-        language='ja',
+        language="ja",
         original_split=True,
         prepend_punctuations="""「"'“¿([{-)""",
         append_punctuations=""".。,，!！?？:：”)]}、)」""",
@@ -70,17 +70,17 @@ def align_text(model, working_folder, script_file, final):
 
 def convert_sub_format(full_original_path, full_sub_path):
     stream = ffmpeg.input(full_original_path)
-    stream = ffmpeg.output(stream, full_sub_path, loglevel='error').global_args(
-        '-hide_banner'
+    stream = ffmpeg.output(stream, full_sub_path, loglevel="error").global_args(
+        "-hide_banner"
     )
     ffmpeg.run(stream, overwrite_output=True)
 
 
 def get_time_as_delta(time_str):
     try:
-        a = datetime.strptime(time_str, '%H:%M:%S.%f')  # '16:31:32.123'
+        a = datetime.strptime(time_str, "%H:%M:%S.%f")  # '16:31:32.123'
     except ValueError:
-        a = datetime.strptime(time_str, '%M:%S.%f')
+        a = datetime.strptime(time_str, "%M:%S.%f")
     ts = timedelta(
         hours=a.hour, minutes=a.minute, seconds=a.second, microseconds=a.microsecond
     )
@@ -90,10 +90,10 @@ def get_time_as_delta(time_str):
 def get_time_str_from_delta(delta):
     s = delta.total_seconds()
     micro = delta.microseconds
-    mif = str(micro).rjust(6, '0')[:3]
+    mif = str(micro).rjust(6, "0")[:3]
     hours, remainder = divmod(s, 3600)
     minutes, seconds = divmod(remainder, 60)
-    formatted_string = '{:02}:{:02}:{:02}.{:s}'.format(
+    formatted_string = "{:02}:{:02}:{:02}.{:s}".format(
         int(hours), int(minutes), int(seconds), mif
     )
     return formatted_string
@@ -111,7 +111,7 @@ def combine_vtt(vtt_files, offsets, output_file_path):
     subs = []
 
     for n, vtt_file in enumerate(vtt_files):
-        with open(vtt_file, encoding='utf-8') as vtt:
+        with open(vtt_file, encoding="utf-8") as vtt:
             latest_subs = read_vtt(vtt)
             last_offset = offsets[n]
             subs += adjust_timings(latest_subs, last_offset)
@@ -119,7 +119,7 @@ def combine_vtt(vtt_files, offsets, output_file_path):
 
 
 def get_audio_duration(audio_file_path):
-    duration_string = ffmpeg.probe(audio_file_path)['format']['duration']
+    duration_string = ffmpeg.probe(audio_file_path)["format"]["duration"]
     duration = timedelta(seconds=float(duration_string))
     return duration
 
@@ -139,11 +139,11 @@ def filter_audio(file_path):
     # stream = ffmpeg.filter('lowpass', f='3000')
     stream = ffmpeg.output(
         stream,
-        path.join(path.dirname(file_path), f'{filename}.filtered{ext}'),
-        af='highpass=f=200,lowpass=f=3000',
+        path.join(path.dirname(file_path), f"{filename}.filtered{ext}"),
+        af="highpass=f=200,lowpass=f=3000",
         vn=None,
-        loglevel='error',
-    ).global_args('-hide_banner')
+        loglevel="error",
+    ).global_args("-hide_banner")
     return ffmpeg.run(stream, overwrite_output=True)
 
 
@@ -165,10 +165,10 @@ def prep_audio(working_folder, use_cache=False):
     #     file_paths = cached
 
     if len(file_paths) == 0:
-        raise Exception(f'No audio files found at {working_folder}')
+        raise Exception(f"No audio files found at {working_folder}")
     if len(file_paths) > 1:
         raise Exception(
-            f'Multiple audio files found at {working_folder}. Make sure there is only one, and try again.'
+            f"Multiple audio files found at {working_folder}. Make sure there is only one, and try again."
         )
     return audio_files[0]
     # pprint(f"{len(file_paths)} file will be processed:")
@@ -188,16 +188,16 @@ def remove_files(files):
         try:
             os.remove(file)
         except OSError as e:
-            print('Error: %s - %s.' % (e.filename, e.strerror))
+            print("Error: %s - %s." % (e.filename, e.strerror))
 
 
 def generate_transcript_from_audio_wrapper(audio_path_dict, model):
-    audio_file = audio_path_dict['audio_file']
-    working_folder = audio_path_dict['working_folder']
+    audio_file = audio_path_dict["audio_file"]
+    working_folder = audio_path_dict["working_folder"]
     file_name = path.splitext(audio_file)[0]
-    full_timings_path = path.join(working_folder, f'{file_name}')
-    full_vtt_path = f'{path.splitext(full_timings_path)[0]}.vtt'.replace(
-        '.filtered', ''
+    full_timings_path = path.join(working_folder, f"{file_name}")
+    full_vtt_path = f"{path.splitext(full_timings_path)[0]}.vtt".replace(
+        ".filtered", ""
     )
     generate_transcript_from_audio(audio_file, full_vtt_path, model)
     # convert_sub_format(full_timings_path, full_vtt_path)
@@ -207,17 +207,17 @@ def generate_transcript_from_audio_wrapper(audio_path_dict, model):
 def split_txt(working_folder):
     txt_file = grab_files(
         working_folder,
-        ['*.txt'],
+        ["*.txt"],
     )
     split_file = grab_files(
         working_folder,
-        ['*.split.txt'],
+        ["*.split.txt"],
     )
     txt_file = list(set(txt_file) - set(split_file))
 
     if len(txt_file) > 1:
         raise Exception(
-            f'Multiple txt files found at {working_folder}. Only one is allowed.'
+            f"Multiple txt files found at {working_folder}. Only one is allowed."
         )
     split_sentences(txt_file)
 
@@ -231,9 +231,9 @@ def get_content_name(working_folder):
 def get_working_folders(dirs):
     working_folders = []
     for dir in dirs:
-        full_folder = os.path.join(dir, '')
+        full_folder = os.path.join(dir, "")
         content_name = get_content_name(dir)
-        split_folder = path.join(full_folder, f'{content_name}_splitted')
+        split_folder = path.join(full_folder, f"{content_name}_splitted")
 
         # if path.exists(split_folder) and path.isdir(split_folder):
         #     working_folder = split_folder
@@ -247,7 +247,7 @@ def get_working_folders(dirs):
 
 
 def cleanup():
-    temp_files = grab_files(working_folder, ['*.filtered.*'])
+    temp_files = grab_files(working_folder, ["*.filtered.*"])
     remove_files(temp_files)
 
 
@@ -256,8 +256,8 @@ def run(working_folder, use_transcript_cache, use_filtered_cache, model):
         prepped_audio = prep_audio(working_folder, use_filtered_cache)
         # audio_path_dicts = [
         audio_path_dict = {
-            'working_folder': working_folder,
-            'audio_file': prepped_audio,
+            "working_folder": working_folder,
+            "audio_file": prepped_audio,
         }  # for af in prepped_audio
         # ]
         # for audio_path_dict in tqdm(audio_path_dicts):
@@ -268,23 +268,23 @@ def run(working_folder, use_transcript_cache, use_filtered_cache, model):
 
 
 def align_stable_transcript(working_folder, content_name):
-    split_script = grab_files(working_folder, ['*.split.txt'])
-    final = path.join(working_folder, f'{content_name}.srt')
+    split_script = grab_files(working_folder, ["*.split.txt"])
+    final = path.join(working_folder, f"{content_name}.srt")
     align_text(model, working_folder, split_script[0], final)
     remove_files(split_script)
 
 
 def align_transcript(working_folder, content_name):
-    split_script = grab_files(working_folder, ['*.split.txt'])
-    subs_file = grab_files(working_folder, [f'{content_name}.vtt'])
-    out = path.join(working_folder, 'matched.vtt')
+    split_script = grab_files(working_folder, ["*.split.txt"])
+    subs_file = grab_files(working_folder, [f"{content_name}.vtt"])
+    out = path.join(working_folder, "matched.vtt")
     align.run(split_script[0], subs_file[0], out)
-    final = path.join(working_folder, f'{content_name}.srt')
+    final = path.join(working_folder, f"{content_name}.srt")
     convert_sub_format(out, final)
     remove_files(split_script + subs_file + [out])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # parser = argparse.ArgumentParser(description="Match audio to a transcript")
     # parser.add_argument(
     #     "-d",
@@ -318,14 +318,14 @@ if __name__ == '__main__':
     # args = parser.parse_args()
     # working_folders = get_working_folders(args.dirs)
     if args.use_stable_ts_align:
-        model = get_model('large-v2')
+        model = get_model("large-v2")
     else:
-        model = get_model('tiny')
+        model = get_model("tiny")
     successes = []
     failures = []
     for working_folder in working_folders:
         try:
-            print(f'Working on {working_folder}')
+            print(f"Working on {working_folder}")
             split_txt(working_folder)
             if args.use_stable_ts_align:
                 align_stable_transcript(
@@ -343,13 +343,13 @@ if __name__ == '__main__':
         except Exception as err:
             tb = traceback.format_exc()
             pprint(tb)
-            failures.append({'working_folder': working_folder, 'err': err})
+            failures.append({"working_folder": working_folder, "err": err})
 
     if len(successes) > 0:
-        print(f'The following {len(successes)} succeeded:')
+        print(f"The following {len(successes)} succeeded:")
         pprint(successes)
     if len(failures) > 0:
-        print(f'The following {len(failures)} failed:')
+        print(f"The following {len(failures)} failed:")
         for failure in failures:
-            pprint(failure['working_folder'])
-            pprint(failure['err'])
+            pprint(failure["working_folder"])
+            pprint(failure["err"])

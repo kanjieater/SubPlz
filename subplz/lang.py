@@ -9,7 +9,7 @@ class Language:
         self.prepend, self.append, self.nopend = prepend, append, nopend
 
     def normalize(self, s):
-        return unicodedata.normalize('NFKD', s)
+        return unicodedata.normalize("NFKD", s)
 
     def translate(self, s):
         return s.translate(self.translations).lower()
@@ -26,18 +26,18 @@ class Japanese(Language):
         self.ascii_wide = dict((i, chr(i + 0xFEE0)) for i in range(0x21, 0x7F))
         self.kata_hira = dict((0x30A1 + i, chr(0x3041 + i)) for i in range(0x56))
 
-        kansuu = '一二三四五六七八九十〇零壱弐参肆伍陸漆捌玖拾'
-        arabic = '１２３４５６７８９１００'
+        kansuu = "一二三四五六七八九十〇零壱弐参肆伍陸漆捌玖拾"
+        arabic = "１２３４５６７８９１００"
         self.kansuu_arabic = {
             ord(kansuu[i]): arabic[i % len(arabic)] for i in range(len(kansuu))
         }
 
-        self.punc = {ord(i): '。' for i in prepend}
+        self.punc = {ord(i): "。" for i in prepend}
         self.confused = {
-            ord('は'): 'わ',
-            ord('あ'): 'わ',
-            ord('お'): 'を',
-            ord('へ'): 'え',
+            ord("は"): "わ",
+            ord("あ"): "わ",
+            ord("お"): "を",
+            ord("へ"): "え",
         }
 
         self.translations = (
@@ -49,27 +49,27 @@ class Japanese(Language):
         )
 
         self.r1 = re.compile(
-            r'(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝ' + nopend + r']+'
+            r"(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝ" + nopend + r"]+"
         )
-        self.r2 = re.compile(r'(.)(?=\1+)')
+        self.r2 = re.compile(r"(.)(?=\1+)")
 
     def clean(self, s):
         s = self.translate(s)
-        s = self.r1.sub('', s)
-        return self.r2.sub('', s)
+        s = self.r1.sub("", s)
+        return self.r2.sub("", s)
 
 
 class English(Language):
     def __init__(self, prepend, append, nopend):
-        self.translations = {ord(i): '.' for i in prepend}
+        self.translations = {ord(i): "." for i in prepend}
 
 
 _languages = {
-    'ja': Japanese,
-    'en': English,
+    "ja": Japanese,
+    "en": English,
 }
 
 
 @cache
-def get_lang(lang, prepend='', append='', nopend=''):
-    return _languages.get(lang, _languages['en'])(prepend, append, nopend)
+def get_lang(lang, prepend="", append="", nopend=""):
+    return _languages.get(lang, _languages["en"])(prepend, append, nopend)

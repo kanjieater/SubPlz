@@ -31,13 +31,13 @@ def get_model(backend):
     local_files_only = backend.local_only
     quantize = backend.quantize
     num_workers = backend.threads
-    if device == 'cuda' and not torch.cuda.is_available():
-        device = 'cpu'
+    if device == "cuda" and not torch.cuda.is_available():
+        device = "cpu"
     print(
         f"We're using {device}. Results should be similar in runtime between CPU & cuda"
     )
     compute_type = (
-        'float32' if not quantize else ('int8' if device == 'cpu' else 'float16')
+        "float32" if not quantize else ("int8" if device == "cpu" else "float16")
     )
     if faster_whisper:
         model = WhisperModel(
@@ -47,7 +47,7 @@ def get_model(backend):
         model.transcribe = MethodType(faster_transcribe, model)
     else:
         model = whisper.load_model(model).to(device)
-        if quantize and device != 'cpu':
+        if quantize and device != "cpu":
             model = model.half()
     return model
 

@@ -22,34 +22,34 @@ from utils import (
 from run import get_working_folders, generate_transcript_from_audio, get_model
 
 
-SUPPORTED_FORMATS = ['*.' + extension for extension in video_formats + audio_formats]
+SUPPORTED_FORMATS = ["*." + extension for extension in video_formats + audio_formats]
 
 
 def match_subs(files, model):
     for file in files:
         try:
-            ext = 'srt'
-            lang_code = '.ja'
+            ext = "srt"
+            lang_code = ".ja"
             sub_path = str(Path(file).with_suffix(lang_code))
             generate_transcript_from_audio(file, sub_path, model, ext)
         except Exception as err:
             tb = traceback.format_exc()
             pprint(tb)
-            failures.append({'working_folder': file, 'err': err})
+            failures.append({"working_folder": file, "err": err})
     return failures
 
 
 def get_mapping_config():
     script_path = Path(__file__).resolve().parent
-    json_file_name = 'sub.json'
+    json_file_name = "sub.json"
     json_file_path = script_path / json_file_name
     return get_mapping(str(json_file_path))
 
 
 def get_matching_dirs(config):
-    content_dirs = config['content_dirs']
-    sub_dir = config['sub_dir']
-    blacklist_dirs = config['blacklist_dirs']
+    content_dirs = config["content_dirs"]
+    sub_dir = config["sub_dir"]
+    blacklist_dirs = config["blacklist_dirs"]
 
     sub_entries = [entry.name for entry in Path(sub_dir).iterdir() if entry.is_dir()]
     matching_dirs = []
@@ -71,7 +71,7 @@ def get_folders_with_matching_subs(content_names):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # args = parser.parse_args()
     config = get_mapping_config()
     content_names = get_matching_dirs(config)
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
     global model
     model = False  # global model preserved between files
-    model = get_model('large-v2')
+    model = get_model("large-v2")
     successes = []
     failures = []
     for working_folder in working_folders:
@@ -95,10 +95,10 @@ if __name__ == '__main__':
         #     failures.append({"working_folder": working_folder, "err": err})
 
     if len(successes) > 0:
-        print(f'The following {len(successes)} succeeded:')
+        print(f"The following {len(successes)} succeeded:")
         pprint(successes)
     if len(failures) > 0:
-        print(f'The following {len(failures)} failed:')
+        print(f"The following {len(failures)} failed:")
         for failure in failures:
-            pprint(failure['working_folder'])
-            pprint(failure['err'])
+            pprint(failure["working_folder"])
+            pprint(failure["err"])

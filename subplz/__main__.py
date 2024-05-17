@@ -5,5 +5,5 @@ def main():
     run.execute_on_inputs()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

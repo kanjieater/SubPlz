@@ -110,5 +110,4 @@ indent-width = 4
 target-version = "py38"
 
 [tool.ruff.format]
-quote-style = "single"
 docstring-code-format = true
