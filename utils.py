@@ -1,12 +1,12 @@
 import re
 from natsort import os_sorted
 from glob import glob, escape
+from os import path
 import json
 
 audio_formats = ['aac', 'ac3', 'alac', 'ape', 'flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'm4b']
 video_formats = ['3g2', '3gp', 'avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'webm']
 subtitle_formats = ['ass', 'srt', 'vtt']
-
 
 class Subtitle:
     def __init__(self, start, end, line):
@@ -14,15 +14,23 @@ class Subtitle:
         self.end = end
         self.line = line
 
+def check_workdir_content(workdir, formats):
+    workdir_stripped = path.basename(path.normpath(workdir))
+    
+    files = []
+    for format in formats:
+        result = glob(f"{workdir.rstrip('/')}/*{workdir_stripped}.{format}")
+        if len(result) > 0:
+            files.append(result)
+
+    return len(files) > 0
 
 def remove_tags(line):
     return re.sub('<[^>]*>', '', line)
 
-
 def get_lines(file):
     for line in file:
         yield line.rstrip('\n')
-
 
 def read_vtt(file):
     lines = get_lines(file)
@@ -68,7 +76,6 @@ def read_vtt(file):
 
     return subs
 
-
 def write_sub(output_file_path, subs):
     with open(output_file_path, "w", encoding='utf-8') as outfile:
         outfile.write('WEBVTT\n\n')
@@ -76,7 +83,6 @@ def write_sub(output_file_path, subs):
             # outfile.write('%d\n' % (n + 1))
             outfile.write('%s --> %s\n' % (sub.start, sub.end))
             outfile.write('%s\n\n' % (sub.line))
-
 
 def grab_files(folder, types, sort=True):
     files = []
