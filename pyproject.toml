@@ -33,6 +33,10 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 
 
 [project.optional-dependencies]
+dev = [
+  "black==24.4.2",
+  "ruff=0.4.4"
+]
 anki = [
   "requests==2.26.0",
   "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=2391f40"
