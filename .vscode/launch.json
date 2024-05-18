@@ -1,24 +1,54 @@
 {
   "version": "0.2.0",
   "configurations": [
-
-
-
-
-
-
+    {
+      "name": "Python Debugger: Module",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "sync",
+        "-d",
+        "/mnt/d/sync/変な家",
+        // "--audio",
+        // "/mnt/d/sync/変な家/変な家.m4b",
+        // "--text",
+        // "/mnt/d/sync/変な家/変な家.epub",
+      ],
+    },
 
     {
       "name": "Python: align vtt",
       "type": "python",
       "request": "launch",
       "program": "align_vtt_v2.py",
-      "args": ["/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/script.txt.split.txt", "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/timings.vtt", "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/matched.vtt"],
+      "args": [
+        "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/script.txt.split.txt",
+        "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/timings.vtt",
+        "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/matched.vtt"
+      ],
       "console": "integratedTerminal",
       "justMyCode": true,
       "host": "127.0.0.1"
     },
-
+    {
+      "name": "Python: ym",
+      "type": "python",
+      "request": "launch",
+      "program": "./subplz/__main__.py",
+      "args": [
+        "-d",
+        "/mnt/d/sync/変な家",
+        "--audio",
+        "/mnt/d/sync/変な家/変な家.m4b",
+        "--text",
+        "/mnt/d/sync/変な家/変な家.epub",
+        "--faster-whisper"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "host": "127.0.0.1"
+    },
 
     {
       "name": "Python:Gen",

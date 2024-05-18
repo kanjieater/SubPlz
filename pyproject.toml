@@ -1,0 +1,112 @@
+[build-system]
+requires = ["setuptools>=68", "setuptools_scm[toml]>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SubPlz"
+version = "2.0.0"
+description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+
+# Optional metadata
+authors = [{name = "KanjiEater", email = "kanjieat3r@gmail.com"}]
+keywords = ["whisper", "subtitles", "align", "generate"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+
+dependencies = [
+    "natsort ~= 8.2.0",
+    "tqdm~=4.66.3",
+    "ats@git+https://github.com/kanjieater/AudiobookTextSync#egg=master"
+    # "ats @ file:///home/ke/code/AudiobookTextSync"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]  # list of folders that contain the packages (["."] by default)
+include = ["*"]  # package names should match these glob patterns (["*"] by default)
+exclude = []  # exclude packages matching these glob patterns (empty by default)
+
+
+[project.optional-dependencies]
+dev = [
+  "black==24.4.2",
+  "ruff==0.4.4"
+]
+anki = [
+  "requests==2.26.0",
+  "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=2391f40"
+]
+
+[project.scripts]
+subplz = "subplz.__main__:main"
+
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+  | foo.py           # also separately exclude a file named foo.py in
+                     # the root of the project
+)
+'''
+
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+# Assume Python 3.8
+target-version = "py38"
+
+[tool.ruff.format]
+docstring-code-format = true
