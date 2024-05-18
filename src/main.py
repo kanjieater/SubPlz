@@ -22,15 +22,14 @@ if is_notebook():
 else:
     from tqdm import tqdm, trange
 
-import operator
+import mimetypes
 from functools import partialmethod, reduce
-from itertools import groupby, takewhile
+from itertools import groupby, takewhile, chain
 from dataclasses import dataclass
 from pathlib import Path
 
 import multiprocessing
 import concurrent.futures as futures
-import urllib
 
 import torch
 import numpy as np
@@ -41,8 +40,6 @@ from huggingface import modify_model
 from quantization import ptdq_linear
 from faster_whisper import WhisperModel
 
-import ffmpeg
-from ebooklib import epub
 from rapidfuzz import fuzz
 
 from bs4 import element
@@ -50,6 +47,9 @@ from bs4 import BeautifulSoup
 
 from os.path import basename, splitext
 import time
+
+from audio import AudioFile
+from text import TextFile
 
 
 def sexagesimal(secs, use_comma=False):
@@ -91,9 +91,17 @@ class Cache:
 
     def get(self, filename, chid):
         fn = self.get_name(filename, chid)
+        fn2 = filename + '.' + str(chid) +  '.' + 'small' + ".subs"
+        fn3 = filename + '.' + str(chid) +  '.' + 'base' + ".subs"
         if fn in self.memcache: return self.memcache[fn]
+        if fn2 in self.memcache: return self.memcache[fn2]
+        if fn3 in self.memcache: return self.memcache[fn2]
         if not self.enabled: return
         if (q := Path(self.cache_dir) / fn).exists():
+            return eval(q.read_bytes().decode("utf-8"))
+        if (q := Path(self.cache_dir) / fn2).exists():
+            return eval(q.read_bytes().decode("utf-8"))
+        if (q := Path(self.cache_dir) / fn3).exists():
             return eval(q.read_bytes().decode("utf-8"))
 
     def put(self, filename, chid, content):
@@ -130,129 +138,6 @@ class Cache:
         self.memcache[fn] = content
         p.write_bytes(repr(content).encode('utf-8'))
         return content
-
-@dataclass(eq=True, frozen=True)
-class AudioStream:
-    stream: ffmpeg.Stream
-    path: Path
-    duration: float
-    cn: str
-    cid: int
-
-    def audio(self):
-        data, _ = self.stream.output('-', format='s16le', acodec='pcm_s16le', ac=1, ar='16k').run(quiet=True, input='')
-        return np.frombuffer(data, np.int16).astype(np.float32) / 32768.0
-
-    def transcribe(self, model, cache, **kwargs):
-        transcription = cache.get(os.path.basename(self.path), self.cid)
-        if transcription is not None:
-            return transcription
-        transcription = model.transcribe(self.audio(), name=self.cn, **kwargs)
-        return cache.put(os.path.basename(self.path), self.cid, transcription)
-
-    @classmethod
-    def from_file(cls, path, whole=False):
-        try:
-            info = ffmpeg.probe(path, show_chapters=None)
-        except ffmpeg.Error as e:
-            print(e.stderr.decode('utf8'))
-            exit(1)
-        title = info.get('format', {}).get('tags', {}).get('title', os.path.basename(path))
-        if whole or 'chapters' not in info or len(info['chapters']) < 1:
-            return title, [cls(stream=ffmpeg.input(path), duration=float(info['streams'][0]['duration']), path=path, cn=title, cid=0)]
-        return title, [cls(stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
-                           duration=float(chapter['end_time']) - float(chapter['start_time']),
-                           path=path,
-                           cn=chapter.get('tags', {}).get('title', ''),
-                           cid=chapter['id'])
-                       for chapter in info['chapters']]
-
-@dataclass(eq=True, frozen=True)
-class Paragraph:
-    chapter: int
-    element: element.Tag
-    references: list
-
-    def text(self):
-        return ''.join(self.element.stripped_strings)
-
-
-@dataclass(eq=True, frozen=True)
-class TextParagraph:
-    path: str
-    idx: int
-    content: str
-    references: list
-
-    def text(self):
-        return self.content
-
-@dataclass(eq=True, frozen=True)
-class TextFile:
-    path: str
-    title: str
-    def name(self):
-        return self.title
-    def text(self, *args, **kwargs):
-        return [TextParagraph(path=self.path, idx=i, content=o, references=[]) for i, v in enumerate(Path(self.path).read_text().split('\n')) if (o := v.strip()) != '']
-
-def flatten(t):
-    if isinstance(t, epub.Link):
-        return [t]
-
-    l = []
-    if isinstance(t, (tuple, list)):
-        for i in t:
-            l.extend(flatten(i))
-    return l
-
-@dataclass(eq=True, frozen=True)
-class Epub:
-    epub: epub.EpubBook
-    content: BeautifulSoup
-    titles: list[str]
-    idx: int
-    is_linear: bool
-
-    def text(self):
-        paragraphs = self.content.find("body").find_all(["p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"])
-        r = []
-        for p in paragraphs:
-            if 'id' in p.attrs: continue
-            r.append(Paragraph(chapter=self.idx, element=p, references=[])) # For now
-        return r
-
-    def name(self):
-        return self.titles[0][:15]
-
-    @classmethod
-    def from_file(cls, path):
-        file = epub.read_epub(path, {"ignore_ncx": True})
-        flattoc = flatten(file.toc)
-        spine, toc = list(file.spine), [file.get_item_with_href(urllib.parse.unquote(x.href.split("#")[0])) for x in flatten(file.toc)]
-        if None in toc:
-            print("Couldn't map toc to chapters, contact the dev, preferably with the epub")
-            exit(1)
-        for i in range(len(spine)):
-            c = list(spine[i])
-            spine[i] = c
-            for i, j in enumerate(toc):
-                if c[0] == j.id and flattoc[i].title.strip():
-                    c.append(flattoc[i].title)
-                    break
-
-        r = []
-        for i, v in enumerate(spine):
-            content = BeautifulSoup(file.get_item_with_id(v[0]).get_content(), 'html.parser')
-            # find+string=not_empty doesn't work for some reason??? wtf
-            for t in content.find('body').find_all(["p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"]):
-                if t.get_text().strip():
-                    v.append(t.get_text())
-                    break
-            if len(v) == 2:
-                v.append(v[0])
-            r.append(cls(epub=file, titles=v[2:], idx=i, content=content, is_linear=v[1]))
-        return r
 
 def match_start(audio, text, cache):
     ats, sta = {}, {}
@@ -323,12 +208,11 @@ def print_batches(batches, spacing=2, sep1='=', sep2='-'):
     width = [wcswidth(h) for h in rows[-1]]
 
     for ai, batch in enumerate(batches):
-        # pprint(batch)
         afn = basename(streams[ai][2][0].path)
+        print("here")
         asuf = afn + '::'
         idk = [b[1][0] for b in batch if b[1][0] != -1]
-        onefile = all([i == idk[0] for i in idk])
-        tsuf = onefile and sum([len(b[1][1]) for b in batch]) > 3
+        tsuf = all([i == idk[0] for i in idk]) and sum([len(b[1][1]) for b in batch]) > 3
         if tsuf or len(streams[ai][2]) > 1:
                rows.append(1)
                rows.append([afn, chapters[idk[0]][1][0].epub.title if onefile else '', ''])
@@ -428,8 +312,8 @@ def faster_transcribe(self, audio, **args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
-    parser.add_argument( "--audio", nargs="+", required=True, help="list of audio files to process (in the correct order)")
-    parser.add_argument("--text", nargs="+", required=True, help="path to the script file")
+    parser.add_argument("--audio", nargs="+", type=Path, required=True, help="list of audio files to process (in the correct order)")
+    parser.add_argument("--text", nargs="+", type=Path, required=True, help="path to the script file")
 
     parser.add_argument("--model", default="tiny", help="whisper model to use. can be one of tiny, small, large, huge")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu", help="device to do inference on")
@@ -517,11 +401,6 @@ if __name__ == "__main__":
             args["batches"] = batches
             modify_model(model)
 
-
-    print("Loading...")
-    streams = [(os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop('audio')]
-    chapters = [(os.path.basename(i), Epub.from_file(i)) if i.split(".")[-1] == 'epub' else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))]) for i in args.pop('text')]
-
     temperature = args.pop("temperature")
     if (increment := args.pop("temperature_increment_on_fallback")) is not None:
         temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
@@ -547,6 +426,11 @@ if __name__ == "__main__":
     word_timestamps = args.pop("word_timestamps")
 
     nopend = set(args.pop('nopend_punctuations'))
+
+    print("Loading...")
+
+    streams = list(chain.from_iterable(AudioFile.from_dir(f) for f in args.pop('audio')))
+    chapters = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
 
     print('Transcribing...')
     s = time.monotonic()
