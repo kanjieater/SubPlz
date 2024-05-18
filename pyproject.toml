@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "SubPlz"
-version = "1.0.0"
+version = "2.0.0"
 description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,7 +35,7 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 [project.optional-dependencies]
 dev = [
   "black==24.4.2",
-  "ruff=0.4.4"
+  "ruff==0.4.4"
 ]
 anki = [
   "requests==2.26.0",
@@ -44,7 +44,6 @@ anki = [
 
 [project.scripts]
 subplz = "subplz.__main__:main"
-
 
 
 [tool.black]
