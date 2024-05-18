@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import List
 import multiprocessing
 import torch
+from pathlib import Path
 from dataclasses import dataclass
 
 from subplz.files import get_working_folders
@@ -46,7 +47,7 @@ def setup_advanced_cli(parser):
     )
     main_group.add_argument(
         "--output-dir",
-        default=None,
+        default=Path('.'),
         help="Output directory, default uses the directory for the first audio file",
     )
     main_group.add_argument(

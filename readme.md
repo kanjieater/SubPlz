@@ -23,15 +23,18 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 
 ## Running from Docker
 
-## Running from source
+## Setup from source
 
 1. Install `ffmpeg` and make it available on the path
+
+1. `git clone https://github.com/kanjieater/SubPlz.git`
 
 2. Use python >= `3.11.2` (latest working version is always specified in `pyproject.toml`)
 
 3. `pip install .`
 
-4. If you're using a single file for the entire audiobook you are good to go. If you have individually split audio tracks, they need to be combined. You can use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
+4. You can get a full list of cli params from `subplz sync -h `
+5. If you're using a single file for the entire audiobook with chapters you are good to go. If an file with audio is too long it may use up all of your RAM. You can use the docker image  [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation) to make a chaptered audio file. Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality if you plan to listen to the audio file.
 
 
 
@@ -39,44 +42,31 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 
 ## Quick Guide
 
-1. Put an `m4b` and a `txt` file in a folder
-1. Run `python run.py -d "<full folder path>"`
+1. Put an `m4b` (or any other audio/video file) and a `txt` or `epub` file in a folder. The `-d` parameter can multiple audiobooks to process like: `subplz sync -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter 2 The Spooky Sequel/"`
+```bash
+/sync/
+└── /Harry Potter 1/
+   ├── Im an audio file.m4b
+   └── Harry Potter.epub
+└── /Harry Potter 2 The Spooky Sequel/
+   ├── Harry Potter 2 The Spooky Sequel.mp3
+   └── script.txt
+```
+2. Run `subplz sync -d "<full folder path>"` like `/mnt/d/sync/Harry Potter 1"`
+2. From there, use a [texthooker](https://github.com/Renji-XD/texthooker-ui) with something like [mpv_websocket](https://github.com/kuroahna/mpv_websocket) and enjoy Immersion Reading.
 
-Primarily I'm using this for syncing audiobooks to their book script. So while you could use this for video files, I'm not doing that just yet.
+## Note
+- This can be GPU intense, RAM intense, and CPU intense script part. `subplz sync -d "<full folder path>"` eg `subplz sync -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a character level transcript. It then creates a sub format that can be matched to the `script.txt`. Each character level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file. The video or audio file then can be watched with `MPV`, playing audio in time with the subtitle.
+- Users with a modern CPU with lots of threads won't notice much of a difference between using CUDA/GPU & CPU
 
-1. `git clone https://github.com/kanjieater/AudiobookTextSync.git`
-1. Make sure you run any commands that start with `./` from the project root, eg after you clone you can run `cd ./AudiobookTextSync`
-1. Setup the folder. Create a folder to hold a single media file (like an audiobook). Name it whatever you name your media file, eg `Arslan Senki 7`, this is what should go anywhere you see me write `<name>`.
-1. Get the book script as text from a digital copy. Put the script at: `./<name>/script.txt`. Everything in this file will show up in your subtitles. So it's important you trim out excess (table of contents, character bios that aren't in the audiobook etc)
-1. Single media file should be in `./<name>/<name>.m4b`. If you have the split audiobook as m4b, mp3, or mp4's you can run `./merge.sh "<full folder path>"`,
- eg `./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`. The split files must be in `./<name>/<name>_merge/`. This will merge your file into a single file so it can be processed.
-6. If you have the `script.txt` and either `./<name>/<name>.m4b`, you can now run the GPU intense, time intense, and occasionally CPU intense script part. `python run.py -d "<full folder path>"` eg `python run.py -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a word level transcript. It then creates a sub format that can be matched to the `script.txt`. Each word level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file that can be watched with `MPV`, showing audio in time with the full book as a subtitle.
-7. From there, use a [texthooker](https://github.com/Renji-XD/texthooker-ui) with something like [mpv_websocket](https://github.com/kuroahna/mpv_websocket) and enjoy Immersion Reading.
 
 # Split m4b by chapter
 `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Get a subtitle with synced transcript from split files
-`python run.py -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
+`subplz sync -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
-# Single File
-
-You can also run for a single file. Beware if it's over 1GB/19hr you need as much as 8GB of RAM available.
-You need your audio file to be inside a folder with the **same name as the audiofile**, in addition to a `txt` file in the same folder. The `txt` file can be named anything as long as it has a `txt` extension.
-The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter 2 The Spooky Sequel/"`
-```bash
-/sync/
-└── /Harry Potter/
-   ├── Harry Potter.m4b
-   └── Harry Potter.txt
-└── /Harry Potter 2 The Spooky Sequel/
-   ├── Harry Potter 2 The Spooky Sequel.mp3
-   └── script.txt
-```
-
-
-
-`python run.py -d "<full folder path>"` eg `python run.py -d "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"` or `python run.py -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter The Sequel/"`
+`subplz sync -d "<full folder path>"` eg `subplz sync -d "$(wslpath -a "D:\Editing\Audiobooks\かがみの孤城\\")"` or `subplz sync -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter The Sequel/"`
 
 # Generate subs for a folder of video or audio file
 `python gen.py -d "/mnt/u/Videos/J-Shows/MAG Net/"`
@@ -88,7 +78,7 @@ The `-d` parameter can multiple audiobooks to process like: `python run.py -d "/
 
 This assumes you just have mp4's in a folder like `/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠`. It will run all of the folder's with mp4's and do a check on them after to make sure the chapters line up. Requires `docker` command to be available.
 
-`python merge.py "/mnt/d/Editing/Audiobooks/"`
+`python ./helpers/merge.py "/mnt/d/Editing/Audiobooks/"`
 
 
 # What does "bad" look like using the stable-ts library?
@@ -157,7 +147,9 @@ You might see various issues while trying this out in the early state. Here are 
 
 # Getting Book Scripts
 
-This program supports `txt` files. You may need to use an external program like Calibre to convert your `epub` or kindle formats like `azw3` to a `txt` file.
+Books now have furigana automatically escaped in txt and epub. You can use calibre though to export them in appropriate formats.
+
+This program supports `txt` files. You may need to use an external program like Calibre to convert your kindle formats like `azw3` to a `txt` of `epub` file.
 
 To convert in Calibre:
 1. Right click on the book and convert the individual book (or use the batch option beneath it)
@@ -177,3 +169,5 @@ Besides the other ones already mentioned & installed this project uses other ope
 https://github.com/gsingh93/anki-csv-importer
 
 https://github.com/kanjieater/subs2cia
+
+https://github.com/ym1234/audiobooktextsync

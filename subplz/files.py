@@ -137,13 +137,10 @@ def get_sources_from_dirs(input):
 
 
 def get_output_full_paths(audio, output_dir, output_format):
-    output_full_paths = []
-    for a in audio:
-        content_name = basename(a)
-        fp = Path(output_dir) / (content_name + "." + output_format)
-        output_full_paths.append(fp)
-    return output_full_paths
-
+    return [
+        Path(output_dir) / f"{Path(a).stem}.{output_format}"
+        for a in audio
+    ]
 
 def write_sub(output_format, segments, output_full_path):
     with output_full_path.open("w", encoding="utf8") as o:
@@ -151,6 +148,7 @@ def write_sub(output_format, segments, output_full_path):
             return write_srt(segments, o)
         elif output_format == "vtt":
             return write_vtt(segments, o)
+        print(f"Output to '{output_full_path}'")
 
 
 def get_writer(output_format):
