@@ -9,7 +9,7 @@ from glob import glob, escape
 from pprint import pformat
 from ats.main import TextFile, Epub, AudioStream, write_srt, write_vtt
 from functools import partial
-
+import ffmpeg
 
 audio_formats = [
     "aac",
@@ -45,6 +45,48 @@ class sourceData:
     output_full_paths: str
     writer: Callable[[str, str], None]
 
+def get_matching_audio_stream(streams, lang):
+    # ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /mnt/v/test/1.mkv
+    audio_streams = [stream for stream in streams if stream.get('codec_type', None) == "audio"]
+    target_streams = [stream for stream in audio_streams if stream.get('tags', {}).get('language', None) == lang]
+    return next((stream for stream in target_streams + audio_streams), None)
+
+@dataclass(eq=True, frozen=True)
+class AudioSub(AudioStream):
+    stream: ffmpeg.Stream
+    path: Path
+    duration: float
+    cn: str
+    cid: int
+
+    @classmethod
+    def from_file(cls, path, whole=False, lang='ja'):
+        try:
+            info = ffmpeg.probe(path, show_chapters=None)
+        except ffmpeg.Error as e:
+            print(e.stderr.decode('utf8'))
+            exit(1)
+
+        title = info.get('format', {}).get('tags', {}).get('title', basename(path))
+
+        if whole or 'chapters' not in info or len(info['chapters']) == 0:
+            stream = get_matching_audio_stream(info['streams'], lang)
+            return title, [cls(
+                stream=ffmpeg.input(path),
+                duration=float(stream['duration']),
+                path=path,
+                cn=title,
+                cid=0
+            )]
+
+        return title, [cls(
+            stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
+            duration=float(chapter['end_time']) - float(chapter['start_time']),
+            path=path,
+            cn=chapter.get('tags', {}).get('title', ''),
+            cid=chapter['id']
+        ) for chapter in info['chapters']]
+
 
 def grab_files(folder, types, sort=True):
     files = []
@@ -58,7 +100,7 @@ def grab_files(folder, types, sort=True):
 
 def get_streams(audio):
     print("Loading streams...")
-    streams = [(basename(f), *AudioStream.from_file(f)) for f in audio]
+    streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
     return streams
 
 
