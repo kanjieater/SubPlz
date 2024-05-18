@@ -10,7 +10,7 @@ services:
       - TZ=Etc/UTC
       - WHISPER_MODEL=tiny-int8
       - WHISPER_BEAM=1 #optional
-      - WHISPER_LANG=en #optional
+      - WHISPER_LANG=ja #optional
     volumes:
       - ./:/app
       - /mnt/d/sync:/sync

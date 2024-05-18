@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from os import path
 from os.path import basename, splitext, dirname, isdir, join
@@ -7,7 +8,15 @@ from dataclasses import dataclass
 from natsort import os_sorted
 from glob import glob, escape
 from pprint import pformat
-from ats.main import TextFile, Epub, AudioStream, write_srt, write_vtt
+from ats.main import (
+    TextFile,
+    Epub,
+    AudioStream,
+    TextFile,
+    TextParagraph,
+    write_srt,
+    write_vtt,
+)
 from functools import partial
 import ffmpeg
 
@@ -31,7 +40,9 @@ text_formats = ["epub", "text"]
 SUPPORTED_AUDIO_FORMATS = [
     "*." + extension for extension in video_formats + audio_formats
 ]
-SUPPORTED_TEXT_FORMATS = ["*." + extension for extension in text_formats]
+SUPPORTED_TEXT_FORMATS = [
+    "*." + extension for extension in text_formats + subtitle_formats
+]
 
 
 @dataclass
@@ -45,11 +56,35 @@ class sourceData:
     output_full_paths: str
     writer: Callable[[str, str], None]
 
+
+def get_video_duration(stream, file_path):
+    try:
+        if "duration" in stream:
+            duration = float(stream["duration"])
+        else:
+            probe = ffmpeg.probe(file_path)
+            duration = float(probe["format"]["duration"])
+        print(f"Duration: {duration}")
+        return duration
+    except ffmpeg.Error as e:
+        error_message = f"ffmpeg error: {e.stderr.decode('utf-8')}"
+        raise RuntimeError(error_message)
+    except Exception as e:
+        error_message = f"Unexpected error: {str(e)}"
+        raise RuntimeError(error_message)
+
+
 def get_matching_audio_stream(streams, lang):
-    # ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /mnt/v/test/1.mkv
-    audio_streams = [stream for stream in streams if stream.get('codec_type', None) == "audio"]
-    target_streams = [stream for stream in audio_streams if stream.get('tags', {}).get('language', None) == lang]
+    audio_streams = [
+        stream for stream in streams if stream.get("codec_type", None) == "audio"
+    ]
+    target_streams = [
+        stream
+        for stream in audio_streams
+        if stream.get("tags", {}).get("language", None) == lang
+    ]
     return next((stream for stream in target_streams + audio_streams), None)
+
 
 @dataclass(eq=True, frozen=True)
 class AudioSub(AudioStream):
@@ -60,32 +95,66 @@ class AudioSub(AudioStream):
     cid: int
 
     @classmethod
-    def from_file(cls, path, whole=False, lang='ja'):
+    def from_file(cls, path, whole=False, lang="ja"):
         try:
             info = ffmpeg.probe(path, show_chapters=None)
         except ffmpeg.Error as e:
-            print(e.stderr.decode('utf8'))
+            print(e.stderr.decode("utf8"))
             exit(1)
 
-        title = info.get('format', {}).get('tags', {}).get('title', basename(path))
+        title = info.get("format", {}).get("tags", {}).get("title", basename(path))
 
-        if whole or 'chapters' not in info or len(info['chapters']) == 0:
-            stream = get_matching_audio_stream(info['streams'], lang)
-            return title, [cls(
-                stream=ffmpeg.input(path),
-                duration=float(stream['duration']),
+        if whole or "chapters" not in info or len(info["chapters"]) == 0:
+            stream = get_matching_audio_stream(info["streams"], lang)
+            duration = get_video_duration(stream, path)
+            return title, [
+                cls(
+                    stream=ffmpeg.input(path),
+                    duration=duration,
+                    path=path,
+                    cn=title,
+                    cid=0,
+                )
+            ]
+
+        return title, [
+            cls(
+                stream=ffmpeg.input(
+                    path, ss=float(chapter["start_time"]), to=float(chapter["end_time"])
+                ),
+                duration=float(chapter["end_time"]) - float(chapter["start_time"]),
                 path=path,
-                cn=title,
-                cid=0
-            )]
+                cn=chapter.get("tags", {}).get("title", ""),
+                cid=chapter["id"],
+            )
+            for chapter in info["chapters"]
+        ]
 
-        return title, [cls(
-            stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
-            duration=float(chapter['end_time']) - float(chapter['start_time']),
-            path=path,
-            cn=chapter.get('tags', {}).get('title', ''),
-            cid=chapter['id']
-        ) for chapter in info['chapters']]
+
+# @dataclass(eq=True, frozen=True)
+# class TextSub:
+#     path: str
+#     title: str
+
+#     def name(self):
+#         return self.title
+
+#     def text(self, *args, **kwargs):
+#         # Read the file and split it into lines
+#         lines = Path(self.path).read_text().split('\n')
+#         paragraphs = []
+
+#         for i, line in enumerate(lines):
+#             stripped_line = line.strip()
+#             if stripped_line and not self._is_timing_line(stripped_line):
+#                 paragraphs.append(TextParagraph(path=self.path, idx=i, content=stripped_line, references=[]))
+
+#         return paragraphs
+
+#     def _is_timing_line(self, line: str) -> bool:
+#         # Regex pattern to match timing lines in SRT format
+#         timing_pattern = r'^\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}$'
+#         return re.match(timing_pattern, line) is not None
 
 
 def grab_files(folder, types, sort=True):
@@ -103,17 +172,43 @@ def get_streams(audio):
     streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
     return streams
 
+def convert_to_srt(file_path):
+    filename, ext = path.splitext(file_path)
+    stream = ffmpeg.input(file_path)
+    stream = ffmpeg.output(
+        stream,
+        path.join(path.dirname(file_path), f"{filename}.srt"),
+        vn=None,
+        loglevel="error",
+    ).global_args("-hide_banner")
+    return ffmpeg.run(stream, overwrite_output=True)
 
-def get_chapters(text):
+def convert_to_txt(file_path):
+    return
+
+
+def normalize_text(file_path):
+    convert_to_srt(file_path)
+    srt_path = file_path.replace(".srt", ".txt")
+    convert_to_txt(srt_path)
+    txt_path = file_path.replace(".srt", ".txt")
+    return txt_path
+
+
+def get_chapters(text: List[str]):
     print("Finding chapters...")
-    chapters = [
-        (
-            (basename(i), Epub.from_file(i))
-            if i.split(".")[-1] == "epub"
-            else (basename(i), [TextFile(path=i, title=basename(i))])
-        )
-        for i in text
-    ]
+    chapters = []
+    for file_path in text:
+        file_name = basename(file_path)
+        file_ext = splitext(file_name)[-1].lower()
+
+        if file_ext == ".epub":
+            chapters.append((file_name, Epub.from_file(file_path)))
+        elif file_ext == ".ass":
+            txt_path = normalize_text(file_path)
+            chapters.append((file_name, [TextFile(path=txt_path, title=file_name)]))
+        else:
+            chapters.append((file_name, [TextFile(path=file_path, title=file_name)]))
     return chapters
 
 
@@ -172,25 +267,23 @@ def get_sources_from_dirs(input):
             output_format=input.output_format,
             overwrite=input.overwrite,
             output_full_paths=output_full_paths,
-            writer=writer
+            writer=writer,
         )
         sources.append(s)
     return sources
 
 
 def get_output_full_paths(audio, output_dir, output_format):
-    return [
-        Path(output_dir) / f"{Path(a).stem}.{output_format}"
-        for a in audio
-    ]
+    return [Path(output_dir) / f"{Path(a).stem}.{output_format}" for a in audio]
+
 
 def write_sub(output_format, segments, output_full_path):
     with output_full_path.open("w", encoding="utf8") as o:
+        print(f"Writing to '{output_full_path}'")
         if output_format == "srt":
             return write_srt(segments, o)
         elif output_format == "vtt":
             return write_vtt(segments, o)
-        print(f"Output to '{output_full_path}'")
 
 
 def get_writer(output_format):
@@ -230,6 +323,16 @@ def get_sources(input):
             if not source.overwrite and fp.exists():
                 print(f"{fp.name} already exists, skipping.")
                 valid_sources.pop(-1)
+                continue
+            if not source.audio:
+                print(f"{fp.name}'s audio is missing, skipping.")
+                valid_sources.pop(-1)
+                continue
+            if not source.text:
+                print(f"{source.audio}'s text is missing, skipping.")
+                valid_sources.pop(-1)
+                continue
+
     for source in valid_sources:
         print(f"'{pformat(source.audio)}' will be matched to {pformat(source.text)}...")
     return valid_sources
