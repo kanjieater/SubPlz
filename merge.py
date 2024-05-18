@@ -63,22 +63,6 @@ def check_valid_chapters(mp4_files, chapter_file, audiobook_name):
         chapter_info = f.read().splitlines()
     chapters = [line for line in chapter_info if "total-duration" not in line]
 
-    #     if idx < len(mp4_files):
-    #         mp4_file = mp4_files[idx]
-    #         chapter_name = " ".join(chapter_info[0].split()[1:])
-    #         if chapter_name not in mp4_file.replace('\u3000', ' '):
-    #             print(
-    #                 f"Chapter name {chapter_name} does not match MP4 file name {mp4_file} in {audiobook_name}."
-    #             )
-    #             failed_chapters.append(chapter_name)
-    #     else:
-    #         print(f"Not enough MP4 files found for {chapter_file} in {audiobook_name}.")
-    #         failed_chapters.append(chapter_file)
-
-    # if len(mp4_files) > len(chapter_files):
-    #     print(f"Too many MP4 files found for {audiobook_name}.")
-    #     for mp4_file in mp4_files[len(chapter_files):]:
-    #         print(f"Unused MP4 file found: {mp4_file}")
     print(f"{audiobook_name}: mp4 {len(mp4_files)}, chapters {len(chapters)}")
     return len(mp4_files) == len(chapters)
 
