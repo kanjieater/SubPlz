@@ -26,7 +26,7 @@ audio_formats = [
 ]
 video_formats = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
 subtitle_formats = ["ass", "srt", "vtt"]
-text_formats = ["epub", "text"]
+text_formats = ["epub", "txt"]
 
 SUPPORTED_AUDIO_FORMATS = [
     "*." + extension for extension in video_formats + audio_formats
