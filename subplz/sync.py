@@ -52,8 +52,9 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
 
 
 # TODO decouple output formatting
-def sync(source, model, streams, chapters, cache, be):
+def sync(source, model, streams, cache, be):
     nopend = set(be.nopend_punctuations)
+    chapters = source.chapters
     args = {
         "language": be.language,
         "initial_prompt": be.initial_prompt,
