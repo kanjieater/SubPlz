@@ -8,8 +8,8 @@ from pathlib import Path
 class AudioStream:
     stream: ffmpeg.Stream
     duration: float
-    cn: str
-    cid: int
+    title: str
+    id: int
 
     def audio(self):
         data, _ = self.stream.output('-', format='s16le', acodec='pcm_s16le', ac=1, ar='16k').run(quiet=True, input='')
@@ -22,6 +22,9 @@ class AudioFile:
     duration: float
     chapters: list
 
+    def audio(self):
+        return np.concatenate([c.audio() for c in self.chapters])
+
     @classmethod
     def from_file(cls, path, whole=False):
         if not path.is_file(): raise FileNotFoundError(f"file {str(path)} is not a file")
@@ -29,8 +32,7 @@ class AudioFile:
         try:
             info = ffmpeg.probe(path, show_chapters=None)
         except ffmpeg.Error as e:
-            print(e.stderr.decode('utf8'))
-            exit(1)
+            raise Exception(e.stderr.decode('utf8'))
 
         ftitle, fduration = info.get('format', {}).get('tags', {}).get('title', path.name), float(info['streams'][0]['duration'])
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
@@ -57,4 +59,11 @@ class AudioFile:
                 if t.split('/', 1)[0] in mt:
                     yield cls.from_file(p, whole)
 
+class TranscribedAudioStream:
+    stream: AudioStream
+    language: str
+    segments: list
 
+class TranscribedAudioFile:
+    file: AudioFile
+    chapters: list

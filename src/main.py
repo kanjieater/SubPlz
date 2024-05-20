@@ -142,30 +142,25 @@ class Cache:
 def match_start(audio, text, cache):
     ats, sta = {}, {}
     textcache = {}
-    for ai in trange(len(audio)):
-        afn, at, ac = audio[ai]
-        for i in trange(len(ac)):
+    for ai, afile in enumerate(tqdm(audio)): #trange(len(audio)):
+        for i, ach in enumerate(tqdm(afile.chapters)):
             if (ai, i) in ats: continue
 
-            l = ac[i].transcribe(None, cache)
-            lang = get_lang(l['language'])
-            acontent = lang.normalize(lang.clean(''.join(seg['text'] for seg in l['segments'])))
-            best = (-1, -1, 0)
-            for ti in range(len(text)):
-                tfn, tc = text[ti]
+            lang = get_lang(ach.language)
+            acontent = lang.normalize(lang.clean(''.join(seg['text'] for seg in ach.segments)))
 
-                for j in range(len(tc)):
+            best = (-1, -1, 0)
+            for ti, tfile in enumerate(text):
+                for j in range(tfile.chapters):
                     if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
-                        textcache[ti, j] = lang.normalize(lang.clean(''.join(p.text() for p in tc[j].text())))
+                        textcache[ti, j] = lang.normalize(lang.clean(''.join(p.text() for p in tfile.chapters[j].text())))
                     tcontent = textcache[ti, j]
                     if len(acontent) < 100 or len(tcontent) < 100: continue
 
-                    l = min(len(tcontent), len(acontent), 2000)
-                    score = fuzz.ratio(acontent[:l], tcontent[:l])
-                    # title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
-                    # tqdm.write(ac[i].cn + ' ' + title + ' ' + str(j) + ' ' + str(score))
+                    limit = min(len(tcontent), len(acontent), 2000)
+                    score = fuzz.ratio(acontent[:limit], tcontent[:limit])
                     if score > 40 and score > best[-1]:
                         best = (ti, j, score)
 
@@ -178,17 +173,17 @@ def match_start(audio, text, cache):
     return ats, sta
 
 # I hate it
-def expand_matches(streams, chapters, ats, sta):
+def expand_matches(audio, text, ats, sta):
     audio_batches = []
-    for ai, a in enumerate(streams):
+    for ai, a in enumerate(audio):
         batch = []
         def add(idx, other=[]):
             chi, chj, _ = ats[ai, idx]
-            z = [chj] + list(takewhile(lambda j: (chi, j) not in sta, range(chj+1, len(chapters[chi][1]))))
+            z = [chj] + list(takewhile(lambda j: (chi, j) not in sta, range(chj+1, len(text[chi].chapters))))
             batch.append(([idx]+other, (chi, z), ats[ai, idx][-1]))
 
         prev = None
-        for t, it in groupby(range(len(a[2])), key=lambda aj: (ai, aj) in ats):
+        for t, it in groupby(range(len(a.chapters)), key=lambda aj: (ai, aj) in ats):
             k = list(it)
             if t:
                 for i in k[:-1]: add(i)
@@ -226,10 +221,10 @@ def print_batches(batches, spacing=2, sep1='=', sep2='-'):
             for i in range(max(len(a), len(t))):
                 row = ['', '' if t else '?', '']
                 if i < len(a):
-                    row[0] = asuf + a[i].cn
+                    row[0] = asuf + a[i].title
                     width[0] = max(width[0], wcswidth(row[0]))
                 if i < len(t):
-                    row[1] = (t[i].epub.title if not tsuf else '') + t[i].name().strip()
+                    row[1] = (t[i].title if not tsuf else '') + t[i].name().strip()
                     width[1] = max(width[1], wcswidth(row[1]))
                 if i == 0:
                     row[2] = format(score/100, '.2%') if score is not None else '?'

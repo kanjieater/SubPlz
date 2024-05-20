@@ -1,3 +1,4 @@
+from pathlib import Path
 from bs4 import element
 from bs4 import BeautifulSoup
 from dataclasses import dataclass
@@ -17,8 +18,10 @@ class TextParagraph:
 @dataclass(eq=True, frozen=True)
 class Txt:
     path: str
-    @property def chapters(self): return [self]
-    @property def title(self): return path.name
+    @property
+    def chapters(self): return [self]
+    @property
+    def title(self): return path.name
 
     def text(self, *args, **kwargs):
         return [TextParagraph(path=self.path, idx=i, content=o, references=[])
@@ -74,7 +77,7 @@ class Epub:
 
         chapters = []
         prev_title = ''
-        for i, v in enumerate(spine):
+        for i, v in enumerate(file.spine):
             item = file.get_item_with_id(v[0])
             title = flat_toc[m[v[0]]].title if v[0] in m else ''
 
@@ -100,7 +103,7 @@ class Epub:
 
             chapter = EpubChapter(content=content, title=title, is_linear=v[1], idx=i)
             chapters.append(chapter)
-        return cls(epub=file, path=path, title=epub.title.strip() or path.name, chapters=chapters)
+        return cls(epub=file, path=path, title=file.title.strip() or path.name, chapters=chapters)
 
 @dataclass(eq=True, frozen=True)
 class TextFile:
@@ -108,7 +111,7 @@ class TextFile:
     def from_file(cls, path):
         if 'txt' in path.name:
             return Txt(path)
-        elif 'epub' in f:
+        elif 'epub' in path.name:
             return Epub.from_file(path)
 
     @classmethod
