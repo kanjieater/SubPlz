@@ -69,7 +69,7 @@ def setup_advanced_cli(parser):
     # Behaviors
     optional_group.add_argument(
         "--overwrite",
-        default=False,
+        default=True,
         help="Overwrite any destination files",
         action=argparse.BooleanOptionalAction,
     )

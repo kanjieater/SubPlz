@@ -9,6 +9,7 @@ import warnings
 from ats import align
 
 from ats.lang import get_lang
+from subplz.files import sourceData
 from subplz.utils import get_tqdm
 
 tqdm = get_tqdm()
@@ -18,7 +19,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, message="This search i
 
 
 def fuzzy_match_chapters(streams, chapters, cache):
-    print("Fuzzy matching chapters...")
+    print("🔍 Fuzzy matching chapters...")
     ats, sta = match_start(streams, chapters, cache)
     audio_batches = expand_matches(streams, chapters, ats, sta)
     # print_batches(audio_batches)
@@ -51,10 +52,9 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
     return to_subs(tcontent, acontent, alignment, offset, None)
 
 
-# TODO decouple output formatting
-def sync(source, model, streams, chapters, cache, be):
-    output_format = source.output_format
+def sync(source: sourceData, model, streams, cache, be):
     nopend = set(be.nopend_punctuations)
+    chapters = source.chapters
     args = {
         "language": be.language,
         "initial_prompt": be.initial_prompt,
@@ -73,7 +73,7 @@ def sync(source, model, streams, chapters, cache, be):
     }
 
     audio_batches = fuzzy_match_chapters(streams, chapters, cache)
-    print("Syncing...")
+    print("🔄 Syncing...")
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
 
@@ -106,5 +106,4 @@ def sync(source, model, streams, chapters, cache, be):
 
             if not segments:
                 continue
-
-            source.writer(segments, source.output_full_paths[ai])
+            source.writer.write_sub(segments, source.output_full_paths[ai])

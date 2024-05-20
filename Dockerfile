@@ -17,9 +17,6 @@ RUN apt-get update \
         libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
-#remove when we get abts updated w/ a pyproject.toml
-COPY /home/ke/code/AudiobookTextSync /tmp/AudiobookTextSync
-
 COPY pyproject.toml /tmp/
 RUN pip install --no-cache-dir /tmp/
 
@@ -36,5 +33,5 @@ WORKDIR /app
 HEALTHCHECK --interval=30s --timeout=10s CMD nc -z localhost 10300 || exit 1
 
 # Start the application
-# ENTRYPOINT ["python", "./src/main.py"]
-# CMD ["--help"]
+ENTRYPOINT ["python", "-m", "subplz"]
+CMD ["--help"]
