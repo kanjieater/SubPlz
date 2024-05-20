@@ -403,10 +403,15 @@ def write_sub_cache(source: sourceData):
 
 def post_process(sources: List[sourceData]):
     cleanup(sources)
+    complete_success = False
     for source in sources:
         if source.writer.written:
             write_sub_cache(source)
             output_paths = [str(o) for o in source.output_full_paths]
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         else:
-            print(f"❗❗❗ No text was extracted for '{source.text}'. Your audio didn't match the text. It could be cached or the audio and text file matching might not have been ordered correctly.")
+            print(f"❗ No text was extracted for '{source.text}'. Your audio didn't match the text. It could be cached or the audio and text file matching might not have been ordered correctly.")
+    if complete_success:
+        print("🎉 Everything went great!")
+    else:
+        print("🙁 At least one of the files failed to sync. ")
