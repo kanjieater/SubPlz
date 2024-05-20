@@ -144,7 +144,6 @@ def match_start(audio, text, cache):
     textcache = {}
     for ai, afile in enumerate(tqdm(audio)):
         for i, ach in enumerate(tqdm(afile.chapters)):
-            tqdm.write(str(i))
             if (ai, i) in ats: continue
 
             lang = get_lang(ach.language)
@@ -156,7 +155,6 @@ def match_start(audio, text, cache):
                     if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
-                        print(tfile.chapters[j].idx, tch.title, tfile.chapters[j] == tch)
                         textcache[ti, j] = lang.normalize(lang.clean(''.join(p.text() for p in tfile.chapters[j].text())))
                     tcontent = textcache[ti, j]
                     if len(acontent) < 100 or len(tcontent) < 100: continue
@@ -167,7 +165,7 @@ def match_start(audio, text, cache):
                         best = (ti, j, score)
 
             if best[:-1] in sta:
-                tqdm.write("match_start")
+                tqdm.write("WARNING match_start")
             elif best != (-1, -1, 0):
                 ats[ai, i] = best
                 sta[best[:-1]] = (ai, i, best[-1])
@@ -435,6 +433,8 @@ def main():
     transcribed_audio = []
 
     # Trash code
+    # TODO: This really doesn't have much of a perf improvement
+    # Get rid of it and update faster-whisper to support batching
     with futures.ThreadPoolExecutor(max_workers=threads) as p:
         in_cache = []
         for i, a in enumerate(audio):
@@ -447,22 +447,23 @@ def main():
             # TODO ask the user for which ones to override
             overwrite = set()
 
-        fs = []
+        fs = [], []
         for i, a in enumerate(audio):
             cf = []
             for j, c in enumerate(a.chapters):
                 if (i, j) not in overwrite and (t := cache.get(a.path.name, c.id)):
-                    cf.append(p.submit(lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)))
+                    l = lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)
                 else:
-                    cf.append(p.submit(lambda c=c: TranscribedAudioStream.from_map(c, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args))))
+                    l = lambda c=c: TranscribedAudioStream.from_map(c, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args))
+                cf.append(p.submit(l))
             fs.append(cf)
 
-        transcribed_audio =  [TranscribedAudioFile(file=audio[i], chapters=[r.result() for r in futures.wait(f)[0]]) for i, f in enumerate(fs)]
+        transcribed_audio =  [TranscribedAudioFile(file=audio[i], chapters=[r.result() for r in f]) for i, f in enumerate(fs)]
     print(f"Transcribing took: {time.monotonic()-s:.2f}s")
 
     print('Fuzzy matching chapters...')
     ats, sta = match_start(transcribed_audio, text, cache)
-    audio_batches = expand_matches(audio, text, ats, sta)
+    audio_batches = expand_matches(transcribed_audio, text, ats, sta)
     print_batches(audio_batches, audio, text)
 
     print('Syncing...')
