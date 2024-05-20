@@ -456,19 +456,20 @@ def main():
         in_cache = []
         for i, a in enumerate(audio):
             for j, c in enumerate(a.chapters):
-                if (t := cache.get(a.path.name, c.id)):
+                if cache.get(a.path.name, c.id): # Cache the result here and not in the class?
                     in_cache.append((i, j))
-        if overwrite_cache:
+        if not cache.enabled or overwrite_cache:
             overwrite = set(in_cache)
         else:
             for i, v in enumerate(in_cache):
                 name = audio[v[0]].title+'/'+audio[v[0]].chapters[v[1]].title
                 print(('{0: >' + str(len(str(len(in_cache))))+ '} {1}').format(i, name))
-            overwrite = None
-            while overwrite is None:
+            indices = None
+            while indices is None:
                 inp = input('Choose cache files to overwrite: (eg: "1 2 3", "1-3", "^4" (empty for none)\n>> ') # Taken from yay
-                if (overwrite := parse_indices(inp, len(in_cache))) is None:
+                if (indices := parse_indices(inp, len(in_cache))) is None:
                     print("Parsing failed")
+            overwrite = {in_cache[i][:-1] for i in indices}
 
         fs = []
         for i, a in enumerate(audio):
