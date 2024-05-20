@@ -49,7 +49,7 @@ class EpubChapter:
         r = []
         for p in paragraphs:
             if 'id' in p.attrs: continue
-            r.append(Paragraph(chapter=self.idx, element=p, references=[])) # For now
+            r.append(EpubParagraph(chapter=self.idx, element=p, references=[])) # For now
         return r
 
 # TODO: append parent/child titles together?
@@ -87,8 +87,12 @@ class Epub:
 
             content = BeautifulSoup(item.get_content(), 'html.parser')
 
-            r = content.find('body').find(["p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"])
-            if not r:
+            r = content.find('body').find_all(["p", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"])
+            # Most of the time chapter names are on images
+            idx = 0
+            while idx < len(r) and not r[idx].get_text().strip():
+                idx += 1
+            if idx >= len(r):
                 if title: prev_title = title
                 continue
 
@@ -96,7 +100,7 @@ class Epub:
                 if (t := prev_title.strip()):
                     title = t
                     prev_title = ''
-                elif (t := r.get_text().strip()):
+                elif len(t := r[idx].get_text().strip()) < 25:
                     title = t
                 else:
                     title = item.get_name()

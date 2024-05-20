@@ -48,7 +48,7 @@ from bs4 import BeautifulSoup
 from os.path import basename, splitext
 import time
 
-from audio import AudioFile
+from audio import AudioFile, TranscribedAudioStream, TranscribedAudioFile
 from text import TextFile
 
 
@@ -142,7 +142,7 @@ class Cache:
 def match_start(audio, text, cache):
     ats, sta = {}, {}
     textcache = {}
-    for ai, afile in enumerate(tqdm(audio)): #trange(len(audio)):
+    for ai, afile in enumerate(tqdm(audio)):
         for i, ach in enumerate(tqdm(afile.chapters)):
             if (ai, i) in ats: continue
 
@@ -151,7 +151,7 @@ def match_start(audio, text, cache):
 
             best = (-1, -1, 0)
             for ti, tfile in enumerate(text):
-                for j in range(tfile.chapters):
+                for j, tch in enumerate(tfile.chapters):
                     if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
@@ -193,38 +193,38 @@ def expand_matches(audio, text, ats, sta):
             else:
                 batch.append((k, (-1, []), None))
 
-        if prev == len(a[2])-1:
+        if prev == len(a.chapters)-1:
             add(prev)
         audio_batches.append(batch)
     return audio_batches
 
-def print_batches(batches, spacing=2, sep1='=', sep2='-'):
+# Takes in the original not the transcribed classss
+def print_batches(batches, audio, text, spacing=2, sep1='=', sep2='-'):
     rows = [1, ["Audio", "Text", "Score"]]
     width = [wcswidth(h) for h in rows[-1]]
 
     for ai, batch in enumerate(batches):
-        afn = basename(streams[ai][2][0].path)
-        print("here")
+        afn = basename(audio[ai].title)
         asuf = afn + '::'
         idk = [b[1][0] for b in batch if b[1][0] != -1]
         tsuf = all([i == idk[0] for i in idk]) and sum([len(b[1][1]) for b in batch]) > 3
-        if tsuf or len(streams[ai][2]) > 1:
+        if tsuf or len(audio.chapters) > 1:
                rows.append(1)
-               rows.append([afn, chapters[idk[0]][1][0].epub.title if onefile else '', ''])
+               rows.append([afn, '', ''])
                width[0] = max(width[0], wcswidth(rows[-1][0]))
                width[1] = max(width[1], wcswidth(rows[-1][1]))
                asuf = ''
         rows.append(1)
         for ajs, (chi, chjs), score in batch:
-            a = [streams[ai][2][aj] for aj in ajs]
-            t = [chapters[chi][1][chj] for chj in chjs]
+            a = [audio[ai].chapters[aj] for aj in ajs]
+            t = [text[chi].chapters[chj] for chj in chjs]
             for i in range(max(len(a), len(t))):
                 row = ['', '' if t else '?', '']
                 if i < len(a):
                     row[0] = asuf + a[i].title
                     width[0] = max(width[0], wcswidth(row[0]))
                 if i < len(t):
-                    row[1] = (t[i].title if not tsuf else '') + t[i].name().strip()
+                    row[1] = (t[i].title if not tsuf else '') + t[i].title.strip()
                     width[1] = max(width[1], wcswidth(row[1]))
                 if i == 0:
                     row[2] = format(score/100, '.2%') if score is not None else '?'
@@ -424,23 +424,43 @@ if __name__ == "__main__":
 
     print("Loading...")
 
-    streams = list(chain.from_iterable(AudioFile.from_dir(f) for f in args.pop('audio')))
-    chapters = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
+    audio = list(chain.from_iterable(AudioFile.from_dir(f) for f in args.pop('audio')))
+    text = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
 
     print('Transcribing...')
     s = time.monotonic()
+    transcribed_audio = []
+
+    # Trash code
     with futures.ThreadPoolExecutor(max_workers=threads) as p:
-        r = []
-        for i in range(len(streams)):
-            for j, v in enumerate(streams[i][2]):
-                r.append(p.submit(lambda x: x.transcribe(model, cache, temperature=temperature, **args), v))
-        futures.wait(r)
+        in_cache = []
+        for i, a in enumerate(audio):
+            for j, c in enumerate(a.chapters):
+                if (t := cache.get(a.path.name, c.id)):
+                    in_cache.append((i, j))
+        if overwrite_cache:
+            overwrite = set(in_cache)
+        else:
+            pprint(in_cache)
+            overwrite = set()
+
+        fs = []
+        for i, a in enumerate(audio):
+            cf = []
+            for j, c in enumerate(a.chapters):
+                if (i, j) not in overwrite and (t := cache.get(a.path.name, c.id)):
+                    cf.append(p.submit(lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)))
+                else:
+                    cf.append(p.submit(lambda c=c: TranscribedAudioStream.from_map(c, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args))))
+            fs.append(cf)
+
+        transcribed_audio =  [TranscribedAudioFile(file=audio[i], chapters=[r.result() for r in futures.wait(f)[0]]) for i, f in enumerate(fs)]
     print(f"Transcribing took: {time.monotonic()-s:.2f}s")
 
     print('Fuzzy matching chapters...')
-    ats, sta = match_start(streams, chapters, cache)
-    audio_batches = expand_matches(streams, chapters, ats, sta)
-    print_batches(audio_batches)
+    ats, sta = match_start(transcribed_audio, text, cache)
+    audio_batches = expand_matches(audio, text, ats, sta)
+    print_batches(audio_batches, audio, text)
 
     print('Syncing...')
     with tqdm(audio_batches) as bar:

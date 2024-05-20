@@ -36,13 +36,13 @@ class AudioFile:
 
         ftitle, fduration = info.get('format', {}).get('tags', {}).get('title', path.name), float(info['streams'][0]['duration'])
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
-            chapters = chapters=[AudioStream(stream=ffmpeg.input(path), duration=fduration, cn=ftitle, cid=-1)]
+            chapters = chapters=[AudioStream(stream=ffmpeg.input(path), duration=fduration, title=ftitle, id=-1)]
         else:
             chapters = [AudioStream(stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
                                     duration=float(chapter['end_time']) - float(chapter['start_time']),
-                                    cn=chapter.get('tags', {}).get('title', ''),
-                                    cid=chapter['id'])
-                        for chapter in info['chapters']]
+                                    title=chapter.get('tags', {}).get('title', str(i)),
+                                    id=chapter['id'])
+                        for i, chapter in enumerate(info['chapters'])]
         return cls(title=ftitle, path=path, duration=fduration, chapters=chapters)
 
     @classmethod
@@ -59,11 +59,17 @@ class AudioFile:
                 if t.split('/', 1)[0] in mt:
                     yield cls.from_file(p, whole)
 
+@dataclass(eq=True, frozen=True)
 class TranscribedAudioStream:
     stream: AudioStream
     language: str
     segments: list
 
+    @classmethod
+    def from_map(cls, stream, transcript):
+        return cls(stream=stream, language=transcript['language'], segments=transcript['segments'])
+
+@dataclass(eq=True, frozen=True)
 class TranscribedAudioFile:
     file: AudioFile
-    chapters: list
+    chapters: list[TranscribedAudioStream]
