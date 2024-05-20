@@ -1,7 +1,6 @@
-from pathlib import Path
 from subplz.transcribe import transcribe
 from subplz.sync import sync
-from subplz.files import get_sources, cleanup
+from subplz.files import get_sources, post_process
 from subplz.cache import get_cache
 from subplz.models import get_model, get_temperature
 from subplz.utils import get_threads
@@ -27,4 +26,4 @@ def execute_on_inputs():
             cache,
             be,
         )
-    # cleanup(sources)
+    post_process(sources)

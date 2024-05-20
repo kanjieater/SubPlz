@@ -4,7 +4,7 @@ import concurrent.futures as futures
 
 def transcribe(streams, model, cache, be):
     max_workers = be.threads
-    print("Transcribing...")
+    print("📝 Transcribing...")
     args = {
         "language": be.language,
         "initial_prompt": be.initial_prompt,
@@ -38,6 +38,6 @@ def transcribe(streams, model, cache, be):
             future.result() # try to raise errors if they occurred
 
 
-    print(f"Transcribing took: {time.monotonic()-s:.2f}s")
+    print(f"⏱️  Transcribing took: {time.monotonic()-s:.2f}s")
     return streams
 

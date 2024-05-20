@@ -20,7 +20,7 @@ from ats.main import (
 from functools import partial
 import ffmpeg
 
-audio_formats = [
+AUDIO_FORMATS = [
     "aac",
     "ac3",
     "alac",
@@ -33,15 +33,15 @@ audio_formats = [
     "wav",
     "m4b",
 ]
-video_formats = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
-subtitle_formats = ["ass", "srt", "vtt"]
-text_formats = ["epub", "txt"]
+VIDEO_FORMATS = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
+SUBTITLE_FORMATS = ["ass", "srt", "vtt"]
+TEXT_FORMATS = ["epub", "txt"]
 
 SUPPORTED_AUDIO_FORMATS = [
-    "*." + extension for extension in video_formats + audio_formats
+    "*." + extension for extension in VIDEO_FORMATS + AUDIO_FORMATS
 ]
 SUPPORTED_TEXT_FORMATS = [
-    "*." + extension for extension in text_formats + subtitle_formats
+    "*." + extension for extension in TEXT_FORMATS + SUBTITLE_FORMATS
 ]
 
 
@@ -52,7 +52,7 @@ def get_video_duration(stream, file_path):
         else:
             probe = ffmpeg.probe(file_path)
             duration = float(probe["format"]["duration"])
-        print(f"Duration: {duration}")
+        # print(f"Duration: {duration}") #log
         return duration
     except ffmpeg.Error as e:
         error_message = f"ffmpeg error: {e.stderr.decode('utf-8')}"
@@ -72,6 +72,23 @@ def get_matching_audio_stream(streams, lang):
         if stream.get("tags", {}).get("language", None) == lang
     ]
     return next((stream for stream in target_streams + audio_streams), None)
+
+
+class Writer:
+    def __init__(self, output_format="srt"):
+        self.written = False
+        self.output_format = output_format
+
+    def write_sub(self, segments, output_full_path):
+        self.output_format = self.output_format
+        with output_full_path.open("w", encoding="utf8") as o:
+            # print(f"Writing to '{output_full_path}'") # log-
+            if self.output_format == "srt":
+                self.written = True
+                return write_srt(segments, o)
+            elif self.output_format == "vtt":
+                self.written = True
+                return write_vtt(segments, o)
 
 
 @dataclass(eq=True, frozen=True)
@@ -127,8 +144,8 @@ class sourceData:
     output_dir: str
     output_format: str
     overwrite: bool
-    output_full_paths: str
-    writer: Callable[[str, str], None]
+    output_full_paths: List[Path]
+    writer: Writer
     chapters: List
     streams: List
 
@@ -170,13 +187,12 @@ def grab_files(folder, types, sort=True):
 
 
 def get_streams(audio):
-    print("Loading streams...")
+    print("🎧 Loading streams...")
     streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
     return streams
 
 
 def convert_to_srt(file_path, output_path):
-
 
     stream = ffmpeg.input(str(file_path))
     stream = ffmpeg.output(
@@ -215,7 +231,8 @@ def normalize_text(file_path):
 
 
 def get_chapters(text: List[str]):
-    print("Finding chapters...")
+    print("📖 Finding chapters...")
+    sub_exts = ["." + extension for extension in SUBTITLE_FORMATS]
     chapters = []
     for file_path in text:
         file_name = basename(file_path)
@@ -223,7 +240,7 @@ def get_chapters(text: List[str]):
 
         if file_ext == ".epub":
             chapters.append((file_name, Epub.from_file(file_path)))
-        elif file_ext == ".ass":
+        elif file_ext in sub_exts:
             try:
                 txt_path = normalize_text(file_path)
             except ffmpeg.Error as e:
@@ -281,26 +298,13 @@ def get_output_full_paths(audio, output_dir, output_format):
     return [Path(output_dir) / f"{Path(a).stem}.{output_format}" for a in audio]
 
 
-def write_sub(output_format, segments, output_full_path):
-    with output_full_path.open("w", encoding="utf8") as o:
-        print(f"Writing to '{output_full_path}'")
-        if output_format == "srt":
-            return write_srt(segments, o)
-        elif output_format == "vtt":
-            return write_vtt(segments, o)
-
-
-def get_writer(output_format):
-    return partial(write_sub, output_format)
-
-
 def get_sources_from_dirs(input):
     sources = []
     working_folders = get_working_folders(input.dirs)
     for folder in working_folders:
         audio = get_audio(folder)
         output_full_paths = get_output_full_paths(audio, folder, input.output_format)
-        writer = get_writer(input.output_format)
+        writer = Writer(input.output_format)
         text = get_text(folder)
         chapters = get_chapters(text)
         streams = get_streams(audio)
@@ -327,7 +331,7 @@ def setup_sources(input):
         output_full_paths = get_output_full_paths(
             input.audio, input.output_dir, input.output_format
         )
-        writer = get_writer(input.output_format)
+        writer = Writer(input.output_format)
         chapters = get_chapters(input.text)
         streams = get_streams(input.audio)
         sources = [
@@ -350,31 +354,59 @@ def setup_sources(input):
 def get_sources(input):
     sources = setup_sources(input)
     valid_sources = []
+    invalid_sources = []
     for source in sources:
         paths = source.output_full_paths
         for fp in paths:
-            if not source.overwrite and fp.exists():
-                print(f"{fp.name} already exists, skipping.")
+            cache_file = get_sub_cache_path(fp)
+            if cache_file.exists() and not source.overwrite and fp.exists():
+                print(f"🤔 {cache_file.name} already exists, skipping.")
+                invalid_sources.append(source)
                 continue
             if not source.audio:
-                print(f"{fp.name}'s audio is missing, skipping.")
+                print(f"❗ {fp.name}'s audio is missing, skipping.")
+                invalid_sources.append(source)
                 continue
             if not source.text:
-                print(f"{source.audio}'s text is missing, skipping.")
+                print(f"❗ {source.audio}'s text is missing, skipping.")
+                invalid_sources.append(source)
                 continue
             if not source.chapters:
-                print(f"{source.text}'s couldn't, skipping.")
+                print(f"❗ {source.text}'s couldn't be parsed, skipping.")
+                invalid_sources.append(source)
                 continue
             valid_sources.append(source)
 
     for source in valid_sources:
-        print(f"'{pformat(source.audio)}' will be matched to {pformat(source.text)}...")
+        print(f"🎧 {pformat(source.audio)}' --> 📖 {pformat(source.text)}...")
+    cleanup(invalid_sources)
     return valid_sources
 
-def cleanup(sources):
+
+def cleanup(sources: List[sourceData]):
     tmp_files = []
     for source in sources:
         tmp_files += grab_files(source.output_dir, ["*.tmp.*"], False)
         for file in tmp_files:
             Path(file).unlink()
 
+
+def get_sub_cache_path(output_path: Path) -> str:
+    cache_file = output_path.parent / f".{output_path.stem}.subplz"
+    return cache_file
+
+def write_sub_cache(source: sourceData):
+    for file in source.output_full_paths:
+        cache_file = get_sub_cache_path(file)
+        cache_file.touch()  # Create an empty file
+        # print(f"Created cache file: {cache_file}") #log
+
+def post_process(sources: List[sourceData]):
+    cleanup(sources)
+    for source in sources:
+        if source.writer.written:
+            write_sub_cache(source)
+            output_paths = [str(o) for o in source.output_full_paths]
+            print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
+        else:
+            print(f"❗❗❗ No text was extracted for '{source.text}'. Your audio didn't match the text. It could be cached or the audio and text file matching might not have been ordered correctly.")
