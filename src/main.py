@@ -89,6 +89,7 @@ class Cache:
         return filename + '.' + str(chid) +  '.' + self.model_name + ".subs"
 
     def get(self, filename, chid): # TODO Fix this crap
+        if not self.enabled: return
         fn = self.get_name(filename, chid)
         fn2 = filename + '.' + str(chid) +  '.' + 'small' + ".subs"
         fn3 = filename + '.' + str(chid) +  '.' + 'base' + ".subs"
@@ -101,7 +102,7 @@ class Cache:
             return eval(q.read_bytes().decode("utf-8"))
 
     def put(self, filename, chid, content):
-        # if not self.enabled: return content
+        if not self.enabled: return content
         cd = Path(self.cache_dir)
         cd.mkdir(parents=True, exist_ok=True)
         fn =  self.get_name(filename, chid)
@@ -445,9 +446,8 @@ def main():
             for j, c in enumerate(a.chapters):
                 if cache.get(a.path.name, c.id): # Cache the result here and not in the class?
                     in_cache.append((i, j))
-        if not cache.enabled or overwrite_cache or not len(in_cache):
-            overwrite = set(in_cache)
-        else:
+
+        if cache.ask and len(in_cache):
             for i, v in enumerate(in_cache):
                 name = audio[v[0]].title+'/'+audio[v[0]].chapters[v[1]].title
                 print(('{0: >' + str(len(str(len(in_cache))))+ '} {1}').format(i, name))
@@ -457,6 +457,8 @@ def main():
                 if (indices := parse_indices(inp, len(in_cache))) is None:
                     print("Parsing failed")
             overwrite = {in_cache[i] for i in indices}
+        else:
+            overwrite = set(in_cache) if overwrite_cache else set()
 
         fs = []
         for i, a in enumerate(audio):
