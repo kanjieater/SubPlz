@@ -202,6 +202,7 @@ def print_batches(batches, audio, text, spacing=2, sep1='=', sep2='-'):
         if use_audio_header or use_text_header:
             rows.append(1)
             rows.append([audio[ai].title, '', ''])
+            use_audio_header = True
             if text_unique:
                 rows[-1][1] = text[batch[0][1][0]].title
                 use_text_header = True
