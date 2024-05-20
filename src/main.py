@@ -306,6 +306,23 @@ def faster_transcribe(self, audio, **args):
     return {'segments': segments, 'language': args['language'] if 'language' in args else info.language}
 
 
+def parse_indices(s, l):
+    ss, r = s.split(), set()
+    for a in ss:
+        try:
+            if a[0] == '^':
+                val = int(a[1:])
+                r = r.union(range(l)) - {val}
+            elif len(k := a.split('-')) > 1:
+                val1 = min(int(k[0]), l)
+                val2 = min(int(k[1]), l)
+                r = r.union(range(val1, val2+1))
+            else:
+                r.add(int(a))
+        except ValueError:
+            return
+    return r
+
 def main():
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
     parser.add_argument("--audio", nargs="+", type=Path, required=True, help="list of audio files to process (in the correct order)")
@@ -444,17 +461,23 @@ def main():
         if overwrite_cache:
             overwrite = set(in_cache)
         else:
-            # TODO ask the user for which ones to override
-            overwrite = set()
+            for i, v in enumerate(in_cache):
+                name = audio[v[0]].title+'/'+audio[v[0]].chapters[v[1]].title
+                print(('{0: >' + str(len(str(len(in_cache))))+ '} {1}').format(i, name))
+            overwrite = None
+            while overwrite is None:
+                inp = input('Choose cache files to overwrite: (eg: "1 2 3", "1-3", "^4" (empty for none)\n>> ') # Taken from yay
+                if (overwrite := parse_indices(inp, len(in_cache))) is None:
+                    print("Parsing failed")
 
-        fs = [], []
+        fs = []
         for i, a in enumerate(audio):
             cf = []
             for j, c in enumerate(a.chapters):
                 if (i, j) not in overwrite and (t := cache.get(a.path.name, c.id)):
                     l = lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)
                 else:
-                    l = lambda c=c: TranscribedAudioStream.from_map(c, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args))
+                    l = lambda c=c: cache.put(TranscribedAudioStream.from_map(c, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
                 cf.append(p.submit(l))
             fs.append(cf)
 
