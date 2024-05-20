@@ -43,6 +43,7 @@ SUPPORTED_AUDIO_FORMATS = [
 SUPPORTED_TEXT_FORMATS = [
     "*." + extension for extension in TEXT_FORMATS + SUBTITLE_FORMATS
 ]
+SUPPORTED_SUBTITLE_FORMATS = ["*." + extension for extension in SUBTITLE_FORMATS]
 
 
 def get_video_duration(stream, file_path):
@@ -104,8 +105,7 @@ class AudioSub(AudioStream):
         try:
             info = ffmpeg.probe(path, show_chapters=None)
         except ffmpeg.Error as e:
-            print(e.stderr.decode("utf8"))
-            exit(1)
+            raise RuntimeError(f"'{path}' ffmpeg error: {e.stderr.decode('utf-8')}")
 
         title = info.get("format", {}).get("tags", {}).get("title", basename(path))
 
@@ -161,7 +161,7 @@ def grab_files(folder, types, sort=True):
 
 
 def get_streams(audio):
-    print("🎧 Loading streams...")
+    # print("🎧 Loading streams...") #log
     streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
     return streams
 
@@ -195,11 +195,17 @@ def remove_timing_and_metadata(srt_path, txt_path):
     return str(txt_path)
 
 
+def get_tmp_path(file_path):
+    file_path = Path(file_path)
+    filename = file_path.stem
+    return file_path.parent / f"{filename}.tmp{file_path.suffix}"
+
+
 def normalize_text(file_path):
     file_path = Path(file_path)
     filename = file_path.stem
-    srt_path = file_path.parent / f"{filename}.tmp.srt"
-    txt_path = file_path.parent / f"{filename}.tmp.txt"
+    srt_path = get_tmp_path(file_path.parent / f"{filename}.srt")
+    txt_path = get_tmp_path(file_path.parent / f"{filename}.txt")
     convert_to_srt(file_path, srt_path)
     txt_path = remove_timing_and_metadata(srt_path, txt_path)
     srt_path.unlink()
@@ -207,7 +213,7 @@ def normalize_text(file_path):
 
 
 def get_chapters(text: List[str]):
-    print("📖 Finding chapters...")
+    # print("📖 Finding chapters...") #log
     sub_exts = ["." + extension for extension in SUBTITLE_FORMATS]
     chapters = []
     for file_path in text:
@@ -256,8 +262,9 @@ def get_audio(folder):
 
 
 def get_text(folder):
-    text = grab_files(folder, SUPPORTED_TEXT_FORMATS)
-    return text
+    text = set(grab_files(folder, SUPPORTED_TEXT_FORMATS))
+    text = [file_path for file_path in text if not file_path.endswith('.tmp.txt')]
+    return os_sorted(text)
 
 
 def get_output_dir(folder, output_format):
@@ -274,33 +281,50 @@ def get_output_full_paths(audio, output_dir, output_format):
     return [Path(output_dir) / f"{Path(a).stem}.{output_format}" for a in audio]
 
 
+def match_files(audios, texts):
+    if len(audios) > 1 and len(texts) == 1:
+        print("🤔 Multiple audio files found, but only one text...")
+        return [audios], [[t] for t in texts]
+
+    if len(audios) != len(texts):
+        print(
+            "🤔 The number of text files didn't match the number of audio files... Matching them based on sort order. You should probably double-check this."
+        )
+    return [[a] for a in audios], [[t] for t in texts]
+
+
 def get_sources_from_dirs(input):
     sources = []
     working_folders = get_working_folders(input.dirs)
     for folder in working_folders:
-        audio = get_audio(folder)
-        output_full_paths = get_output_full_paths(audio, folder, input.output_format)
-        writer = Writer(input.output_format)
-        text = get_text(folder)
-        chapters = get_chapters(text)
-        streams = get_streams(audio)
-        s = sourceData(
-            dirs=input.dirs,
-            audio=audio,
-            text=text,
-            output_dir=setup_output_dir(folder),
-            output_format=input.output_format,
-            overwrite=input.overwrite,
-            output_full_paths=output_full_paths,
-            writer=writer,
-            chapters=chapters,
-            streams=streams,
-        )
-        sources.append(s)
+        audios = get_audio(folder)
+        texts = get_text(folder)
+        a, t = match_files(audios, texts)
+        for matched_audio, matched_text in zip(a, t):
+            output_full_paths = get_output_full_paths(
+                matched_audio, folder, input.output_format
+            )
+            writer = Writer(input.output_format)
+
+            streams = get_streams(matched_audio)
+            chapters = get_chapters(matched_text)
+            s = sourceData(
+                dirs=input.dirs,
+                audio=matched_audio,
+                text=matched_text,
+                output_dir=setup_output_dir(folder),
+                output_format=input.output_format,
+                overwrite=input.overwrite,
+                output_full_paths=output_full_paths,
+                writer=writer,
+                chapters=chapters,
+                streams=streams,
+            )
+            sources.append(s)
     return sources
 
 
-def setup_sources(input)->List[sourceData]:
+def setup_sources(input) -> List[sourceData]:
     if input.dirs:
         sources = get_sources_from_dirs(input)
     else:
@@ -333,47 +357,60 @@ def get_sources(input):
     invalid_sources = []
     for source in sources:
         paths = source.output_full_paths
+        is_valid = True
         for fp in paths:
             cache_file = get_sub_cache_path(fp)
             if not source.overwrite and fp.exists():
                 print(f"🤔 SubPlz file '{fp.name}' already exists, skipping.")
                 invalid_sources.append(source)
-                continue
+                is_valid = False
+                break
             if cache_file.exists() and fp.exists():
-                print(f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping.")
+                print(
+                    f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping."
+                )
                 invalid_sources.append(source)
-                continue
+                is_valid = False
+                break
             if not source.audio:
                 print(f"❗ {fp.name}'s audio is missing, skipping.")
                 invalid_sources.append(source)
-                continue
+                is_valid = False
+                break
             if not source.text:
                 print(f"❗ {source.audio}'s text is missing, skipping.")
                 invalid_sources.append(source)
-                continue
+                is_valid = False
+                break
             if not source.chapters:
                 print(f"❗ {source.text}'s couldn't be parsed, skipping.")
                 invalid_sources.append(source)
-                continue
+                is_valid = False
+                break
+
+        if is_valid:
             valid_sources.append(source)
 
     for source in valid_sources:
-        print(f"🎧 {pformat(source.audio)}' --> 📖 {pformat(source.text)}...")
+        print(f"🎧 {pformat(source.audio)}' ⟹  📖 {pformat(source.text)}...")
     cleanup(invalid_sources)
     return valid_sources
 
 
 def cleanup(sources: List[sourceData]):
-    tmp_files = []
     for source in sources:
-        tmp_files += grab_files(source.output_dir, ["*.tmp.*"], False)
-        for file in tmp_files:
-            Path(file).unlink()
+        for file in source.text:
+            tmp_file = get_tmp_path(file).with_suffix('.txt')
+            tmp_file_path = Path(tmp_file)
+            if tmp_file_path.exists():
+                tmp_file_path.unlink()
 
 
 def get_sub_cache_path(output_path: Path) -> str:
-    cache_file = output_path.parent / f".{output_path.stem}.subplz"
+    cache_file = output_path.parent / f"{output_path.stem}{output_path.suffix}.subplz"
     return cache_file
+
+
 
 def write_sub_cache(source: sourceData):
     for file in source.output_full_paths:
@@ -381,14 +418,31 @@ def write_sub_cache(source: sourceData):
         cache_file.touch()  # Create an empty file
         # print(f"Created cache file: {cache_file}") #log
 
+
+def rename_old_subs(source: sourceData):
+    remaining_subs = []
+    for sub in source.text:
+        sub_ext= Path(sub)
+        if sub_ext in SUBTITLE_FORMATS and sub_ext != source.output_format:
+            remaining_subs.append(sub)
+
+    for sub in remaining_subs:
+        sub_path = Path(sub)
+        new_filename = sub_path.with_suffix(sub_path.suffix + ".old")
+        sub_path.rename(new_filename)
+
+
 def post_process(sources: List[sourceData]):
     cleanup(sources)
     complete_success = True
-    sorted_sources = sorted(sources, key=lambda source: source.writer.written, reverse=True)
+    sorted_sources = sorted(
+        sources, key=lambda source: source.writer.written, reverse=True
+    )
     for source in sorted_sources:
         if source.writer.written:
-            write_sub_cache(source)
             output_paths = [str(o) for o in source.output_full_paths]
+            rename_old_subs(source)
+            write_sub_cache(source)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         else:
             complete_success = False
@@ -399,9 +453,11 @@ def post_process(sources: List[sourceData]):
     elif complete_success:
         print("🎉 Everything went great!")
     else:
-        print("""😭 At least one of the files failed to sync.
+        print(
+            """😭 At least one of the files failed to sync.
             Possible reasons:
             1. The audio didn't match the text.
             2. The audio and text file matching might not have been ordered correctly.
-            3. It could be cached - You could try running with `--overwrite-cache` if you've already run a file with this filepath and name before.
-              """)
+            3. It could be cached - You could try running with `--overwrite-cache` if you've renamed another file to the exact same file path that you've run with the tool before.
+              """
+        )
