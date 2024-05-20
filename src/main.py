@@ -478,7 +478,7 @@ def main():
                 if (i, j) not in overwrite and (t := cache.get(a.path.name, c.id)):
                     l = lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)
                 else:
-                    l = lambda c=c: cache.put(TranscribedAudioStream.from_map(c, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
+                    l = lambda c=c: TranscribedAudioStream.from_map(c, cache.put(model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
                 cf.append(p.submit(l))
             fs.append(cf)
 
