@@ -144,6 +144,7 @@ def match_start(audio, text, cache):
     textcache = {}
     for ai, afile in enumerate(tqdm(audio)):
         for i, ach in enumerate(tqdm(afile.chapters)):
+            tqdm.write(str(i))
             if (ai, i) in ats: continue
 
             lang = get_lang(ach.language)
@@ -155,6 +156,7 @@ def match_start(audio, text, cache):
                     if (ti, j) in sta: continue
 
                     if (ti, j) not in textcache:
+                        print(tfile.chapters[j].idx, tch.title, tfile.chapters[j] == tch)
                         textcache[ti, j] = lang.normalize(lang.clean(''.join(p.text() for p in tfile.chapters[j].text())))
                     tcontent = textcache[ti, j]
                     if len(acontent) < 100 or len(tcontent) < 100: continue
@@ -305,7 +307,8 @@ def faster_transcribe(self, audio, **args):
 
     return {'segments': segments, 'language': args['language'] if 'language' in args else info.language}
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
     parser.add_argument("--audio", nargs="+", type=Path, required=True, help="list of audio files to process (in the correct order)")
     parser.add_argument("--text", nargs="+", type=Path, required=True, help="path to the script file")
@@ -441,7 +444,7 @@ if __name__ == "__main__":
         if overwrite_cache:
             overwrite = set(in_cache)
         else:
-            pprint(in_cache)
+            # TODO ask the user for which ones to override
             overwrite = set()
 
         fs = []
@@ -488,3 +491,6 @@ if __name__ == "__main__":
                     write_srt(segments, o)
                 elif output_format == 'vtt':
                     write_vtt(segments, o)
+
+if __name__ == "__main__":
+    main()
