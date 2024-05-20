@@ -17,14 +17,14 @@ class TextParagraph:
 
 @dataclass(eq=True, frozen=True)
 class Txt:
-    path: str
+    path: Path
     @property
     def chapters(self): return [self]
     @property
-    def title(self): return path.name
+    def title(self): return self.path.name
 
     def text(self, *args, **kwargs):
-        return [TextParagraph(path=self.path, idx=i, content=o, references=[])
+        return [TextParagraph(idx=i, content=o, references=[])
                 for i, v in enumerate(self.path.read_text().split('\n'))
                 if (o := v.strip())]
 

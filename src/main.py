@@ -84,18 +84,14 @@ class Cache:
     enabled: bool
     ask: bool
     overwrite: bool
-    memcache: dict
 
     def get_name(self, filename, chid):
         return filename + '.' + str(chid) +  '.' + self.model_name + ".subs"
 
-    def get(self, filename, chid):
+    def get(self, filename, chid): # TODO Fix this crap
         fn = self.get_name(filename, chid)
         fn2 = filename + '.' + str(chid) +  '.' + 'small' + ".subs"
         fn3 = filename + '.' + str(chid) +  '.' + 'base' + ".subs"
-        if fn in self.memcache: return self.memcache[fn]
-        if fn2 in self.memcache: return self.memcache[fn2]
-        if fn3 in self.memcache: return self.memcache[fn2]
         if not self.enabled: return
         if (q := Path(self.cache_dir) / fn).exists():
             return eval(q.read_bytes().decode("utf-8"))
@@ -110,13 +106,6 @@ class Cache:
         cd.mkdir(parents=True, exist_ok=True)
         fn =  self.get_name(filename, chid)
         p = cd / fn
-        if p.exists():
-            if self.ask:
-                prompt = f"Cache for file {filename}, chapter id {chid} already exists. Overwrite?  [y/n/Y/N] (yes, no, yes/no and don't ask again) "
-                while (k := input(prompt).strip()) not in ['y', 'n', 'Y', 'N']: pass
-                self.ask = not (k == 'N' or k == 'Y')
-                self.overwrite = k == 'Y' or k == 'y'
-            if not self.overwrite: return content
 
         if 'text' in content:
             del content['text']
@@ -135,7 +124,6 @@ class Cache:
             del i['compression_ratio']
             del i['no_speech_prob']
 
-        self.memcache[fn] = content
         p.write_bytes(repr(content).encode('utf-8'))
         return content
 
@@ -208,7 +196,7 @@ def print_batches(batches, audio, text, spacing=2, sep1='=', sep2='-'):
         asuf = afn + '::'
         idk = [b[1][0] for b in batch if b[1][0] != -1]
         tsuf = all([i == idk[0] for i in idk]) and sum([len(b[1][1]) for b in batch]) > 3
-        if tsuf or len(audio.chapters) > 1:
+        if tsuf or len(audio[ai].chapters) > 1:
                rows.append(1)
                rows.append([afn, '', ''])
                width[0] = max(width[0], wcswidth(rows[-1][0]))
@@ -224,7 +212,7 @@ def print_batches(batches, audio, text, spacing=2, sep1='=', sep2='-'):
                     row[0] = asuf + a[i].title
                     width[0] = max(width[0], wcswidth(row[0]))
                 if i < len(t):
-                    row[1] = (t[i].title if not tsuf else '') + t[i].title.strip()
+                    row[1] = ((t[i].title + "::") if not tsuf else '') + t[i].title.strip()
                     width[1] = max(width[1], wcswidth(row[1]))
                 if i == 0:
                     row[2] = format(score/100, '.2%') if score is not None else '?'
@@ -391,8 +379,7 @@ def main():
 
     file_overwrite, overwrite_cache = args.pop('overwrite'), args.pop('overwrite_cache')
     cache = Cache(model_name=model, enabled=args.pop("use_cache"), cache_dir=args.pop("cache_dir"),
-                  ask=not overwrite_cache, overwrite=overwrite_cache,
-                  memcache={})
+                  ask=not overwrite_cache, overwrite=overwrite_cache)
 
     faster_whisper, local_only, quantize = args.pop('faster_whisper'), args.pop('local_only'), args.pop('quantize')
     fast_decoder, overlap, batches = args.pop('fast_decoder'), args.pop("fast_decoder_overlap"), args.pop("fast_decoder_batches")
@@ -458,7 +445,7 @@ def main():
             for j, c in enumerate(a.chapters):
                 if cache.get(a.path.name, c.id): # Cache the result here and not in the class?
                     in_cache.append((i, j))
-        if not cache.enabled or overwrite_cache:
+        if not cache.enabled or overwrite_cache or not len(in_cache):
             overwrite = set(in_cache)
         else:
             for i, v in enumerate(in_cache):
@@ -469,7 +456,7 @@ def main():
                 inp = input('Choose cache files to overwrite: (eg: "1 2 3", "1-3", "^4" (empty for none)\n>> ') # Taken from yay
                 if (indices := parse_indices(inp, len(in_cache))) is None:
                     print("Parsing failed")
-            overwrite = {in_cache[i][:-1] for i in indices}
+            overwrite = {in_cache[i] for i in indices}
 
         fs = []
         for i, a in enumerate(audio):
@@ -478,7 +465,7 @@ def main():
                 if (i, j) not in overwrite and (t := cache.get(a.path.name, c.id)):
                     l = lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)
                 else:
-                    l = lambda c=c: TranscribedAudioStream.from_map(c, cache.put(c.path.name, c.id, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
+                    l = lambda c=c: TranscribedAudioStream.from_map(c, cache.put(a.path.name, c.id, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
                 cf.append(p.submit(l))
             fs.append(cf)
 
