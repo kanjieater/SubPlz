@@ -66,8 +66,7 @@ class TranscribedAudioStream:
     segments: list
 
     @classmethod
-    def from_map(cls, stream, transcript):
-        return cls(stream=stream, language=transcript['language'], segments=transcript['segments'])
+    def from_map(cls, stream, transcript): return cls(stream=stream, language=transcript['language'], segments=transcript['segments'])
 
 @dataclass(eq=True, frozen=True)
 class TranscribedAudioFile:

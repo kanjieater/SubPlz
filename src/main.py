@@ -271,13 +271,13 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
     acontent = []
     boff = 0
     for a in ach:
-        for p in a[0]['segments']:
+        for p in a[0].segments:
             p['start'] += boff
             p['end'] += boff
             acontent.append(p)
         boff += a[1]
 
-    language = get_lang(ach[0][0]['language'])
+    language = get_lang(ach[0][0].language)
 
     tcontent = [p for t in tch for p in t.text()]
     alignment, references = align.align(None, language, [p['text'] for p in acontent], [p.text() for p in  tcontent], [], prepend, append, nopend)
@@ -389,7 +389,7 @@ def main():
         device = 'cpu'
     print(f"Using device: {device}")
 
-    overwrite, overwrite_cache = args.pop('overwrite'), args.pop('overwrite_cache')
+    file_overwrite, overwrite_cache = args.pop('overwrite'), args.pop('overwrite_cache')
     cache = Cache(model_name=model, enabled=args.pop("use_cache"), cache_dir=args.pop("cache_dir"),
                   ask=not overwrite_cache, overwrite=overwrite_cache,
                   memcache={})
@@ -478,7 +478,7 @@ def main():
                 if (i, j) not in overwrite and (t := cache.get(a.path.name, c.id)):
                     l = lambda c=c, t=t: TranscribedAudioStream.from_map(c, t)
                 else:
-                    l = lambda c=c: TranscribedAudioStream.from_map(c, cache.put(model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
+                    l = lambda c=c: TranscribedAudioStream.from_map(c, cache.put(c.path.name, c.id, model.transcribe(c.audio(), name=c.title, temperature=temperature, **args)))
                 cf.append(p.submit(l))
             fs.append(cf)
 
@@ -493,16 +493,16 @@ def main():
     print('Syncing...')
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
-            out = output_dir / (splitext(basename(streams[ai][2][0].path))[0] + '.' + output_format)
-            if not overwrite and out.exists():
+            out = output_dir / (audio[ai].path.stem + '.' + output_format)
+            if not file_overwrite and out.exists():
                 bar.write(f"{out.name} already exists, skipping.")
                 continue
 
-            bar.set_description(basename(streams[ai][2][0].path))
+            bar.set_description(audio[ai].path.name)
             offset, segments = 0, []
             for ajs, (chi, chjs), _ in tqdm(batches):
-                ach = [(streams[ai][2][aj].transcribe(model, cache, temperature=temperature, **args), streams[ai][2][aj].duration) for aj in ajs]
-                tch = [chapters[chi][1][chj] for chj in chjs]
+                ach = [(transcribed_audio[ai].chapters[aj], audio[ai].chapters[aj].duration) for aj in ajs]
+                tch = [text[chi].chapters[chj] for chj in chjs]
                 if tch:
                     segments.extend(do_batch(ach, tch, set(args['prepend_punctuations']), set(args['append_punctuations']), nopend, offset))
 
