@@ -171,3 +171,8 @@ https://github.com/gsingh93/anki-csv-importer
 https://github.com/kanjieater/subs2cia
 
 https://github.com/ym1234/audiobooktextsync
+
+# Other Cool Projects
+
+A cool tool to turn these audiobook subs into Visual Novels's
+- https://github.com/asayake-b5/audiobooksync2renpy
