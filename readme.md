@@ -60,9 +60,9 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 - Users with a modern CPU with lots of threads won't notice much of a difference between using CUDA/GPU & CPU
 
 # Overwrite
-By default the tool will write an srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
+By default the tool will overwrite any existing srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
 
-`subplz sync -d "/mnt/v/somefolder" --overwrite=False`
+`subplz sync -d "/mnt/v/somefolder" --no-overwrite`
 
 # Only Running for the Files It Needs
 SubPlz writes a file in the same folder to the audio with the `<audiofile>.subplz` extension. It starts with a `.` so you may need to enable hidden files if you want to see it. This ensures that subplz runs once and only once per directory for your content. If you want to rerun the SubPlz syncing, delete the file.

@@ -392,7 +392,7 @@ def get_sources(input):
             valid_sources.append(source)
 
     for source in valid_sources:
-        print(f"🎧 {pformat(source.audio)}' ⟹  📖 {pformat(source.text)}...")
+        print(f"🎧 {pformat(source.audio)}' ⟹ 📖 {pformat(source.text)}...")
     cleanup(invalid_sources)
     return valid_sources
 
@@ -420,11 +420,11 @@ def write_sub_cache(source: sourceData):
 
 
 def rename_old_subs(source: sourceData):
-    remaining_subs = []
+    subs = []
     for sub in source.text:
-        sub_ext= Path(sub)
-        if sub_ext in SUBTITLE_FORMATS and sub_ext != source.output_format:
-            remaining_subs.append(sub)
+        if Path(sub).suffix[1:] in SUBTITLE_FORMATS:
+            subs.append(sub)
+    remaining_subs = set(subs) - set(source.output_full_paths)
 
     for sub in remaining_subs:
         sub_path = Path(sub)
