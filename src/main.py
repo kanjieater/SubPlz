@@ -187,22 +187,26 @@ def expand_matches(audio, text, ats, sta):
         audio_batches.append(batch)
     return audio_batches
 
-# Takes in the original not the transcribed classss
+# Takes in the original not the transcribed classes
 def print_batches(batches, audio, text, spacing=2, sep1='=', sep2='-'):
     rows = [1, ["Audio", "Text", "Score"]]
     width = [wcswidth(h) for h in rows[-1]]
 
     for ai, batch in enumerate(batches):
-        afn = basename(audio[ai].title)
-        asuf = afn + '::'
-        idk = [b[1][0] for b in batch if b[1][0] != -1]
-        tsuf = all([i == idk[0] for i in idk]) and sum([len(b[1][1]) for b in batch]) > 3
-        if tsuf or len(audio[ai].chapters) > 1:
-               rows.append(1)
-               rows.append([afn, '', ''])
-               width[0] = max(width[0], wcswidth(rows[-1][0]))
-               width[1] = max(width[1], wcswidth(rows[-1][1]))
-               asuf = ''
+        use_audio_header = len(audio[ai].chapters) > 1
+
+        texts = [chi for _, (chi, _), _ in batch if chi != -1]
+        text_unique = all([i == texts[0] for i in texts])
+        use_text_header = text_unique and len(batch[0][1][1]) > 3
+
+        if use_audio_header or use_text_header:
+            rows.append(1)
+            rows.append([audio[ai].title, '', ''])
+            if text_unique:
+                rows[-1][1] = text[batch[0][1][0]].title
+                use_text_header = True
+            width[0] = max(width[0], wcswidth(rows[-1][0]))
+            width[1] = max(width[1], wcswidth(rows[-1][1]))
         rows.append(1)
         for ajs, (chi, chjs), score in batch:
             a = [audio[ai].chapters[aj] for aj in ajs]
@@ -210,10 +214,10 @@ def print_batches(batches, audio, text, spacing=2, sep1='=', sep2='-'):
             for i in range(max(len(a), len(t))):
                 row = ['', '' if t else '?', '']
                 if i < len(a):
-                    row[0] = asuf + a[i].title
+                    row[0] = (audio[ai].title + "::" if not use_audio_header else '') + a[i].title
                     width[0] = max(width[0], wcswidth(row[0]))
                 if i < len(t):
-                    row[1] = ((t[i].title + "::") if not tsuf else '') + t[i].title.strip()
+                    row[1] = (text[chi].title + "::" if not use_text_header else '') + t[i].title.strip()
                     width[1] = max(width[1], wcswidth(row[1]))
                 if i == 0:
                     row[2] = format(score/100, '.2%') if score is not None else '?'
@@ -307,7 +311,8 @@ def parse_indices(s, l):
                 val2 = min(int(k[1]), l)
                 r = r.union(range(val1, val2+1))
             else:
-                r.add(int(a))
+                if (val1 := int(a)) < l:
+                    r.add(val1)
         except ValueError:
             return
     return r
