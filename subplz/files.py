@@ -300,7 +300,7 @@ def get_sources_from_dirs(input):
     return sources
 
 
-def setup_sources(input):
+def setup_sources(input)->List[sourceData]:
     if input.dirs:
         sources = get_sources_from_dirs(input)
     else:
@@ -336,11 +336,11 @@ def get_sources(input):
         for fp in paths:
             cache_file = get_sub_cache_path(fp)
             if not source.overwrite and fp.exists():
-                print(f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping.")
+                print(f"🤔 SubPlz file '{fp.name}' already exists, skipping.")
                 invalid_sources.append(source)
                 continue
-            if cache_file.exists():
-                print(f"🤔 SubPlz file '{cache_file.name}' already exists, skipping.")
+            if cache_file.exists() and fp.exists():
+                print(f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping.")
                 invalid_sources.append(source)
                 continue
             if not source.audio:
