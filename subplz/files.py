@@ -150,32 +150,6 @@ class sourceData:
     streams: List
 
 
-# @dataclass(eq=True, frozen=True)
-# class TextSub:
-#     path: str
-#     title: str
-
-#     def name(self):
-#         return self.title
-
-#     def text(self, *args, **kwargs):
-#         # Read the file and split it into lines
-#         lines = Path(self.path).read_text().split('\n')
-#         paragraphs = []
-
-#         for i, line in enumerate(lines):
-#             stripped_line = line.strip()
-#             if stripped_line and not self._is_timing_line(stripped_line):
-#                 paragraphs.append(TextParagraph(path=self.path, idx=i, content=stripped_line, references=[]))
-
-#         return paragraphs
-
-#     def _is_timing_line(self, line: str) -> bool:
-#         # Regex pattern to match timing lines in SRT format
-#         timing_pattern = r'^\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}$'
-#         return re.match(timing_pattern, line) is not None
-
-
 def grab_files(folder, types, sort=True):
     files = []
     for type in types:
@@ -215,6 +189,8 @@ def remove_timing_and_metadata(srt_path, txt_path):
             if line.strip() and not line.strip().isdigit() and "-->" not in line:
                 clean_line = re.sub(r"<[^>]+>", "", line.strip())  # Remove HTML tags
                 clean_line = re.sub(r"{[^}]+}", "", clean_line)  # Remove Aegisub tags
+                clean_line = re.sub(r"m\s\d+\s\d+\s.+?$", "", clean_line)
+
                 txt_file.write(clean_line + "\n")
     return str(txt_path)
 
@@ -359,8 +335,12 @@ def get_sources(input):
         paths = source.output_full_paths
         for fp in paths:
             cache_file = get_sub_cache_path(fp)
-            if cache_file.exists() and not source.overwrite and fp.exists():
-                print(f"🤔 {cache_file.name} already exists, skipping.")
+            if not source.overwrite and fp.exists():
+                print(f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping.")
+                invalid_sources.append(source)
+                continue
+            if cache_file.exists():
+                print(f"🤔 SubPlz file '{cache_file.name}' already exists, skipping.")
                 invalid_sources.append(source)
                 continue
             if not source.audio:
@@ -403,15 +383,25 @@ def write_sub_cache(source: sourceData):
 
 def post_process(sources: List[sourceData]):
     cleanup(sources)
-    complete_success = False
-    for source in sources:
+    complete_success = True
+    sorted_sources = sorted(sources, key=lambda source: source.writer.written, reverse=True)
+    for source in sorted_sources:
         if source.writer.written:
             write_sub_cache(source)
             output_paths = [str(o) for o in source.output_full_paths]
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         else:
-            print(f"❗ No text was extracted for '{source.text}'. Your audio didn't match the text. It could be cached or the audio and text file matching might not have been ordered correctly.")
-    if complete_success:
+            complete_success = False
+            print(f"❗ No text matched for '{source.text}'")
+
+    if not sources:
+        print("""😐 We didn't do anything. This may or may not be intentional""")
+    elif complete_success:
         print("🎉 Everything went great!")
     else:
-        print("🙁 At least one of the files failed to sync. ")
+        print("""😭 At least one of the files failed to sync.
+            Possible reasons:
+            1. The audio didn't match the text.
+            2. The audio and text file matching might not have been ordered correctly.
+            3. It could be cached - You could try running with `--overwrite-cache` if you've already run a file with this filepath and name before.
+              """)
