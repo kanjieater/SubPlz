@@ -150,5 +150,5 @@ class TextFile:
         for root, _, files in os.walk(str(path)): # TODO path.walk is python3.12
             for f in files:
                 p = Path(root)/f
-                if f.suffix in cls.exts:
+                if p.suffix in cls.exts:
                     yield cls.from_file(p)
