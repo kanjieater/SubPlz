@@ -57,7 +57,11 @@ If you can't contribute monetarily please consider following on a social platfor
 Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 22.04 on WSL2. Primarily supports Japanese, but other languages may work as well with limited dev support.
 
 ## Run from Colab
-Community help wanted - reach out to KanjiEater on discord
+1. Open this [Colab](https://colab.research.google.com/drive/1LOu6tffvYiOqzrSMH6Pe91Eka55uOuT3?usp=sharing)
+1. In Google Drive, create a folder named `sync` on the root of MyDrive
+1. Upload the audio/video file and supported text to your `sync` folder
+1. Open the colab, you can change the last line if you want, like `-d "/content/drive/MyDrive/sync/Harry Potter 1/"` for the quick guide example
+1. In the upper menu, click Runtime > run all, give the necessary permissions and wait for it to finish, should take some 30 min for your average book
 
 ## Running from Docker
 
