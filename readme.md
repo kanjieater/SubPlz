@@ -69,13 +69,15 @@ Community help wanted - reach out to KanjiEater on discord
    kanjieater/subplz:latest \
    sync -d "/sync/<content folder>/"
    ```
+
    Example:
+
    ```bash
    /mnt/d/sync/
             └── /変な家/
                   ├── 変な家.m4b
                   └── 変な家.epub
-
+   ```
    ```bash
    docker run -it --rm --name subplz \
    --gpus all \
