@@ -80,6 +80,7 @@ def align_sub(coords, text, subs, thing=2):
     return segments[:len(text)]
 
 # """"""Heuristics"""""""
+# Move to lang?
 def fix_punc(text, segments, prepend, append, nopend):
     for l, s in enumerate(segments):
         if not s: continue

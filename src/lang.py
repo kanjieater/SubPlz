@@ -3,7 +3,7 @@ import unicodedata
 from functools import cache
 
 class Language:
-    def __init__(self, prepend, append, nopend):
+    def __init__(self, prepend, append, nopend): # Should each language have its own *pend defaults?
         self.translations = {}
         self.prepend, self.append, self.nopend = prepend, append, nopend
 
@@ -44,5 +44,5 @@ _languages = {
 }
 
 @cache
-def get_lang(lang, prepend='', append='', nopend=''):
+def get_lang(lang, prepend=None, append=None, nopend=None):
     return _languages.get(lang, _languages['en'])(prepend, append, nopend)

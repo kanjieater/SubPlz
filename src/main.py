@@ -128,14 +128,14 @@ class Cache:
         p.write_bytes(repr(content).encode('utf-8'))
         return content
 
-def match_start(audio, text, cache):
+def match_start(audio, text, prepend, append, nopend):
     ats, sta = {}, {}
     textcache = {}
     for ai, afile in enumerate(tqdm(audio)):
         for i, ach in enumerate(tqdm(afile.chapters)):
             if (ai, i) in ats: continue
 
-            lang = get_lang(ach.language)
+            lang = get_lang(ach.language, prepend, append, nopend)
             acontent = lang.normalize(lang.clean(''.join(seg['text'] for seg in ach.segments)))
 
             best = (-1, -1, 0)
@@ -271,10 +271,10 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
             acontent.append(p)
         boff += a[1]
 
-    language = get_lang(ach[0][0].language)
+    language = get_lang(ach[0][0].language, prepend, append, nopend)
 
     tcontent = [p for t in tch for p in t.text()]
-    alignment, references = align.align(None, language, [p['text'] for p in acontent], [p.text() for p in  tcontent], [], prepend, append, nopend)
+    alignment, references = align.align(None, language, [p['text'] for p in acontent], [p.text() for p in  tcontent], [], set(prepend), set(append), set(nopend))
     return to_subs(tcontent, acontent, alignment, offset, None)
 
 def faster_transcribe(self, audio, **args):
@@ -432,7 +432,7 @@ def main():
     writer_args = {arg: args.pop(arg) for arg in word_options}
     word_timestamps = args.pop("word_timestamps")
 
-    nopend = set(args.pop('nopend_punctuations'))
+    prepend, append, nopend = [args.pop(i+'_punctuations') for i in ['prepend', 'append', 'nopend']]
 
     print("Loading...")
 
@@ -459,7 +459,7 @@ def main():
                 print(('{0: >' + str(len(str(len(in_cache))))+ '} {1}').format(i, name))
             indices = None
             while indices is None:
-                inp = input('Choose cache files to overwrite: (eg: "1 2 3", "1-3", "^4" (empty for none)\n>> ') # Taken from yay
+                inp = input('Choose cache files to overwrite: (eg: "1 2 3", "1-3", "^4" (empty for none))\n>> ') # Taken from yay
                 if (indices := parse_indices(inp, len(in_cache))) is None:
                     print("Parsing failed")
             overwrite = {in_cache[i] for i in indices}
@@ -481,7 +481,7 @@ def main():
     print(f"Transcribing took: {time.monotonic()-s:.2f}s")
 
     print('Fuzzy matching chapters...')
-    ats, sta = match_start(transcribed_audio, text, cache)
+    ats, sta = match_start(transcribed_audio, text, prepend, append, nopend)
     audio_batches = expand_matches(transcribed_audio, text, ats, sta)
     print_batches(audio_batches, audio, text)
 
@@ -499,7 +499,7 @@ def main():
                 ach = [(transcribed_audio[ai].chapters[aj], audio[ai].chapters[aj].duration) for aj in ajs]
                 tch = [text[chi].chapters[chj] for chj in chjs]
                 if tch:
-                    segments.extend(do_batch(ach, tch, set(args['prepend_punctuations']), set(args['append_punctuations']), nopend, offset))
+                    segments.extend(do_batch(ach, tch, prepend, append, nopend, offset))
 
                 offset += sum(a[1] for a in ach)
 
