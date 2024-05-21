@@ -35,7 +35,7 @@ class AudioFile:
         except ffmpeg.Error as e:
             raise Exception(e.stderr.decode('utf8'))
 
-        ftitle, fduration = info.get('format', {}).get('tags', {}).get('title', path.name), float(info['format']['duration'])
+        ftitle = info.get('format', {}).get('tags', {}).get('title', path.name)
         fduration = info['duration'] if 'duration' in info else info['format']['duration'] if 'duration' in info['format'] else None
         if fduration is None:
             raise Exception("Couldn't determine duration")
