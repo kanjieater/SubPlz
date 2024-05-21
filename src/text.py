@@ -32,7 +32,7 @@ class Txt:
 @dataclass(eq=True, frozen=True)
 class SubFile(Txt):
     def text(self):
-        ext = self.path.suffix
+        ext = self.path.suffix[1:]
         content = self.path.read_text()
         if ext == 'srt': # Split multiline subtitles? leave them as is?
             return [TextParagraph(idx=i, content=o, references=[]) for i, n in enumerate(content.split('\n\n')) if (o := '\n'.join(n.split('\n')[2:]))]

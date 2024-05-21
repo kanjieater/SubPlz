@@ -149,7 +149,7 @@ def match_start(audio, text, prepend, append, nopend):
 
                     limit = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:limit], tcontent[:limit])
-                    if score > 20 and score > best[-1]:
+                    if score > 40 and score > best[-1]:
                         best = (ti, j, score)
 
             if best[:-1] in sta:
@@ -436,7 +436,7 @@ def main():
     whole = args.pop('whole')
 
     print("Loading...")
-    audio = list(chain.from_iterable(AudioFile.from_dir(f, whole=whole) for f in args.pop('audio')))
+    audio = list(chain.from_iterable(AudioFile.from_dir(f, track=args['language'], whole=whole) for f in args.pop('audio')))
     text = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
 
     print('Transcribing...')
