@@ -26,6 +26,7 @@ def transcribe(streams, model, cache, be):
 
     s = time.monotonic()
     with futures.ThreadPoolExecutor(max_workers) as p:
+    # with futures.ThreadPoolExecutor(1) as p:
         r = []
         for i in range(len(streams)):
             for j, v in enumerate(streams[i][2]):

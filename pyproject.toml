@@ -7,7 +7,7 @@ name = "SubPlz"
 version = "2.0.0"
 description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.12"
 license = {file = "LICENSE"}
 
 # Optional metadata

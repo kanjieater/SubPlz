@@ -424,7 +424,7 @@ def rename_old_subs(source: sourceData):
     for sub in source.text:
         if Path(sub).suffix[1:] in SUBTITLE_FORMATS:
             subs.append(sub)
-    remaining_subs = set(subs) - set(source.output_full_paths)
+    remaining_subs = set(subs) - set([str(p) for p in source.output_full_paths])
 
     for sub in remaining_subs:
         sub_path = Path(sub)
