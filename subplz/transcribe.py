@@ -26,19 +26,22 @@ def transcribe(streams, model, cache, be):
 
     s = time.monotonic()
     with futures.ThreadPoolExecutor(max_workers) as p:
-    # with futures.ThreadPoolExecutor(1) as p:
+        # with futures.ThreadPoolExecutor(1) as p:
         r = []
         for i in range(len(streams)):
             for j, v in enumerate(streams[i][2]):
                 # TODO add **args back in
-                future = p.submit(lambda x: x.transcribe(model, cache, **args), v)
+                future = p.submit(
+                    lambda x: x.transcribe(
+                        model, cache, cache_overwrite=cache.overwrite, **args
+                    ),
+                    v,
+                )
                 r.append(future)
         futures.wait(r)
 
         for future in r:
-            future.result() # try to raise errors if they occurred
-
+            future.result()  # try to raise errors if they occurred
 
     print(f"⏱️  Transcribing took: {time.monotonic()-s:.2f}s")
     return streams
-

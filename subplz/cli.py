@@ -58,7 +58,7 @@ def setup_advanced_cli(parser):
 
     # General Whisper
     main_group.add_argument(
-        "--language", default=None, help="language of the script and audio"
+        "--language", default='ja', help="language of the script and audio"
     )
     optional_group.add_argument(
         "--model",

@@ -67,10 +67,13 @@ def get_matching_audio_stream(streams, lang):
     audio_streams = [
         stream for stream in streams if stream.get("codec_type", None) == "audio"
     ]
+    audio_lang = lang
+    if lang == 'ja': # TODO support other languages
+        audio_lang = 'jpn'
     target_streams = [
         stream
         for stream in audio_streams
-        if stream.get("tags", {}).get("language", None) == lang
+        if stream.get("tags", {}).get("language", None) == audio_lang
     ]
     return next((stream for stream in target_streams + audio_streams), None)
 
@@ -99,6 +102,14 @@ class AudioSub(AudioStream):
     duration: float
     cn: str
     cid: int
+
+    def transcribe(self, model, cache, cache_overwrite=False, **kwargs):
+        transcription = cache.get(os.path.basename(self.path), self.cid)
+        if not cache_overwrite:
+            if transcription is not None:
+                return transcription
+        transcription = model.transcribe(self.audio(), name=self.cn, **kwargs)
+        return cache.put(os.path.basename(self.path), self.cid, transcription)
 
     @classmethod
     def from_file(cls, path, whole=False, lang="ja"):
@@ -265,7 +276,7 @@ def get_audio(folder):
 
 def get_text(folder):
     text = set(grab_files(folder, SUPPORTED_TEXT_FORMATS))
-    text = [file_path for file_path in text if not file_path.endswith('.tmp.txt')]
+    text = [file_path for file_path in text if not file_path.endswith(".tmp.txt")]
     return os_sorted(text)
 
 
@@ -292,20 +303,13 @@ def match_files(audios, texts, folder):
         removed_second_stem = Path(arPath.stem).stem
         already_run_audio_paths.append(str(arPath.parent / removed_second_stem))
         already_run_text_paths.append(str(arPath.parent / arPath.stem))
-    destemed_audio = []
-    for audio in audios:
-        a = Path(audio)
-        destemed_audio.append(str(a.parent / a.stem))
-
+    destemed_audio = [str(Path(audio).parent / Path(audio).stem) for audio in audios]
     audios_unique = list(set(destemed_audio) - set(already_run_audio_paths))
     texts_filtered = list(set(texts) - set(already_run_text_paths))
     texts_filtered.sort(key=lambda x: texts.index(x))
-
-    audios_filtered = []
-    for a in audios:
-        if str(Path(a).parent / Path(a).stem) in audios_unique:
-            audios_filtered.append(a)
-
+    audios_filtered = [
+        a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
+    ]
     if len(audios_filtered) > 1 and len(texts_filtered) == 1 and len(already_run) == 0:
         print("🤔 Multiple audio files found, but only one text...")
         return [audios_filtered], [[t] for t in texts_filtered]
@@ -429,7 +433,7 @@ def get_sources(input):
 def cleanup(sources: List[sourceData]):
     for source in sources:
         for file in source.text:
-            tmp_file = get_tmp_path(file).with_suffix('.txt')
+            tmp_file = get_tmp_path(file).with_suffix(".txt")
             tmp_file_path = Path(tmp_file)
             if tmp_file_path.exists():
                 tmp_file_path.unlink()
@@ -442,7 +446,6 @@ def get_existing_rerun_files(dir: str) -> List[str]:
 def get_rerun_file_path(output_path: Path) -> Path:
     cache_file = output_path.parent / f"{output_path.stem}{output_path.suffix}.subplz"
     return cache_file
-
 
 
 def write_rerun_files(source: sourceData):
