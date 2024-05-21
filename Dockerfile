@@ -1,5 +1,5 @@
 # Use the LinuxServer.io base image
-FROM ghcr.io/linuxserver/faster-whisper:gpu
+FROM ghcr.io/linuxserver/faster-whisper:2.0.0-gpu
 
 # Set environment variables
 ENV PUID=1000 \
@@ -20,7 +20,10 @@ RUN apt-get update \
 COPY pyproject.toml /tmp/
 RUN pip install --no-cache-dir /tmp/
 
-# Copy application files
+# https://github.com/linuxserver/docker-faster-whisper/issues/15
+# https://github.com/SYSTRAN/faster-whisper/issues/516
+ENV LD_LIBRARY_PATH="/lsiopy/lib/python3.10/site-packages/nvidia/cublas/lib:/lsiopy/lib/python3.10/site-packages/nvidia/cudnn/lib"
+
 COPY . /app
 
 # Set work directory

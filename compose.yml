@@ -13,6 +13,8 @@ services:
       - WHISPER_LANG=ja #optional
     volumes:
       - ./:/app
+      - /home/ke/code/subplz/SyncCache:/app/SyncCache
+      - /home/ke/code/subplz/SyncCache/config:/config
       - /mnt/d/sync:/sync
     ports:
       - 10300:10300

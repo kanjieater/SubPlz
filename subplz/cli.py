@@ -90,6 +90,19 @@ def setup_advanced_cli(parser):
         action=argparse.BooleanOptionalAction,
         help="Always overwrite the cache",
     )
+    optional_group.add_argument(
+        "--rerun",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Align files even if file is marked as having run",
+    )
+    optional_group.add_argument(
+        "--rerun-files",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Don't write subplz files to prevent files that have already been run",
+    )
+
 
     # Hardware Inputs
     optional_group.add_argument(
@@ -393,6 +406,8 @@ def get_inputs():
             output_dir=args.output_dir,
             output_format=args.output_format,
             overwrite=args.overwrite,
+            rerun=args.rerun,
+            rerun_files=args.rerun_files,
         ),
     )
     validate_source_inputs(inputs.sources)

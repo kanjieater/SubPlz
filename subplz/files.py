@@ -144,6 +144,8 @@ class sourceData:
     output_dir: str
     output_format: str
     overwrite: bool
+    rerun: bool
+    rerun_files: bool
     output_full_paths: List[Path]
     writer: Writer
     chapters: List
@@ -315,6 +317,8 @@ def get_sources_from_dirs(input):
                 output_dir=setup_output_dir(folder),
                 output_format=input.output_format,
                 overwrite=input.overwrite,
+                rerun=input.rerun,
+                rerun_files=input.rerun_files,
                 output_full_paths=output_full_paths,
                 writer=writer,
                 chapters=chapters,
@@ -342,6 +346,8 @@ def setup_sources(input) -> List[sourceData]:
                 output_dir=setup_output_dir(input.output_dir),
                 output_format=input.output_format,
                 overwrite=input.overwrite,
+                rerun=input.rerun,
+                rerun_files=input.rerun_files,
                 output_full_paths=output_full_paths,
                 writer=writer,
                 streams=streams,
@@ -365,7 +371,7 @@ def get_sources(input):
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if cache_file.exists() and fp.exists():
+            if cache_file.exists() and fp.exists() and not source.rerun:
                 print(
                     f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping."
                 )
@@ -415,7 +421,8 @@ def get_sub_cache_path(output_path: Path) -> str:
 def write_sub_cache(source: sourceData):
     for file in source.output_full_paths:
         cache_file = get_sub_cache_path(file)
-        cache_file.touch()  # Create an empty file
+        if source.rerun_files:
+            cache_file.touch()
         # print(f"Created cache file: {cache_file}") #log
 
 
