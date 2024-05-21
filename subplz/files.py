@@ -283,16 +283,39 @@ def get_output_full_paths(audio, output_dir, output_format):
     return [Path(output_dir) / f"{Path(a).stem}.{output_format}" for a in audio]
 
 
-def match_files(audios, texts):
-    if len(audios) > 1 and len(texts) == 1:
-        print("🤔 Multiple audio files found, but only one text...")
-        return [audios], [[t] for t in texts]
+def match_files(audios, texts, folder):
+    already_run = get_existing_rerun_files(folder)
+    already_run_text_paths = []
+    already_run_audio_paths = []
+    for ar in already_run:
+        arPath = Path(ar)
+        removed_second_stem = Path(arPath.stem).stem
+        already_run_audio_paths.append(str(arPath.parent / removed_second_stem))
+        already_run_text_paths.append(str(arPath.parent / arPath.stem))
+    destemed_audio = []
+    for audio in audios:
+        a = Path(audio)
+        destemed_audio.append(str(a.parent / a.stem))
 
-    if len(audios) != len(texts):
+    audios_unique = list(set(destemed_audio) - set(already_run_audio_paths))
+    texts_filtered = list(set(texts) - set(already_run_text_paths))
+    texts_filtered.sort(key=lambda x: texts.index(x))
+
+    audios_filtered = []
+    for a in audios:
+        if str(Path(a).parent / Path(a).stem) in audios_unique:
+            audios_filtered.append(a)
+
+    if len(audios_filtered) > 1 and len(texts_filtered) == 1 and len(already_run) == 0:
+        print("🤔 Multiple audio files found, but only one text...")
+        return [audios_filtered], [[t] for t in texts_filtered]
+
+    if len(audios_filtered) != len(texts_filtered):
         print(
             "🤔 The number of text files didn't match the number of audio files... Matching them based on sort order. You should probably double-check this."
         )
-    return [[a] for a in audios], [[t] for t in texts]
+
+    return [[a] for a in audios_filtered], [[t] for t in texts_filtered]
 
 
 def get_sources_from_dirs(input):
@@ -301,7 +324,7 @@ def get_sources_from_dirs(input):
     for folder in working_folders:
         audios = get_audio(folder)
         texts = get_text(folder)
-        a, t = match_files(audios, texts)
+        a, t = match_files(audios, texts, folder)
         for matched_audio, matched_text in zip(a, t):
             output_full_paths = get_output_full_paths(
                 matched_audio, folder, input.output_format
@@ -365,7 +388,7 @@ def get_sources(input):
         paths = source.output_full_paths
         is_valid = True
         for fp in paths:
-            cache_file = get_sub_cache_path(fp)
+            cache_file = get_rerun_file_path(fp)
             if not source.overwrite and fp.exists():
                 print(f"🤔 SubPlz file '{fp.name}' already exists, skipping.")
                 invalid_sources.append(source)
@@ -412,15 +435,19 @@ def cleanup(sources: List[sourceData]):
                 tmp_file_path.unlink()
 
 
-def get_sub_cache_path(output_path: Path) -> str:
+def get_existing_rerun_files(dir: str) -> List[str]:
+    return grab_files(dir, ["*.subplz"])
+
+
+def get_rerun_file_path(output_path: Path) -> Path:
     cache_file = output_path.parent / f"{output_path.stem}{output_path.suffix}.subplz"
     return cache_file
 
 
 
-def write_sub_cache(source: sourceData):
+def write_rerun_files(source: sourceData):
     for file in source.output_full_paths:
-        cache_file = get_sub_cache_path(file)
+        cache_file = get_rerun_file_path(file)
         if source.rerun_files:
             cache_file.touch()
         # print(f"Created cache file: {cache_file}") #log
@@ -449,7 +476,7 @@ def post_process(sources: List[sourceData]):
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
             rename_old_subs(source)
-            write_sub_cache(source)
+            write_rerun_files(source)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         else:
             complete_success = False
