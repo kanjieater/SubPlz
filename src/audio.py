@@ -3,6 +3,7 @@ import ffmpeg
 import numpy as np
 from dataclasses import dataclass
 from pathlib import Path
+import mimetypes
 
 @dataclass(eq=True, frozen=True)
 class AudioStream:

@@ -22,7 +22,6 @@ if is_notebook():
 else:
     from tqdm import tqdm, trange
 
-import mimetypes
 from functools import partialmethod, reduce
 from itertools import groupby, takewhile, chain
 from dataclasses import dataclass
@@ -327,6 +326,7 @@ def main():
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu", help="device to do inference on")
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
     parser.add_argument("--language", default=None, help="language of the script and audio")
+    parser.add_argument("--whole", default=False, help="Do the alignment on whole files, don't split into chapters", action=argparse.BooleanOptionalAction)
     parser.add_argument("--local-only", default=False, help="Don't download outside models", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--progress", default=True,  help="progress bar on/off", action=argparse.BooleanOptionalAction)
@@ -433,10 +433,10 @@ def main():
     word_timestamps = args.pop("word_timestamps")
 
     prepend, append, nopend = [args.pop(i+'_punctuations') for i in ['prepend', 'append', 'nopend']]
+    whole = args.pop('whole')
 
     print("Loading...")
-
-    audio = list(chain.from_iterable(AudioFile.from_dir(f) for f in args.pop('audio')))
+    audio = list(chain.from_iterable(AudioFile.from_dir(f, whole=whole) for f in args.pop('audio')))
     text = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
 
     print('Transcribing...')

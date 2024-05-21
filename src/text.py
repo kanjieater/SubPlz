@@ -1,3 +1,4 @@
+# All of this kind of needs a better design
 from pathlib import Path
 from bs4 import element
 from bs4 import BeautifulSoup
@@ -27,6 +28,20 @@ class Txt:
         return [TextParagraph(idx=i, content=o, references=[])
                 for i, v in enumerate(self.path.read_text().split('\n'))
                 if (o := v.strip())]
+
+@dataclass(eq=True, frozen=True)
+class SubFile(Txt):
+    def text(self):
+        ext = self.path.suffix
+        content = self.path.read_text()
+        if ext == 'srt': # Split multiline subtitles? leave them as is?
+            return [TextParagraph(idx=i, content=o, references=[]) for i, n in enumerate(content.split('\n\n')) if (o := '\n'.join(n.split('\n')[2:]))]
+        elif ext == 'vtt':
+            return [TextParagraph(idx=i, content=o, references=[]) for i, n in enumerate(content.split('\n\n')[1:]) if (o := '\n'.join(n.split('\n')[1:]))]
+        elif ext == 'ass':
+            raise Exception(f'ASS is currently not supported: {self.path.name}')
+        else:
+            raise Exception(f'Unknown file format: {self.path.name}')
 
 @dataclass(eq=True, frozen=True)
 class EpubParagraph:
@@ -109,14 +124,21 @@ class Epub:
             chapters.append(chapter)
         return cls(epub=file, path=path, title=file.title.strip() or path.name, chapters=chapters)
 
-@dataclass(eq=True, frozen=True)
 class TextFile:
+    exts: list = set(['txt', 'epub', 'srt', 'vtt'])
     @classmethod
     def from_file(cls, path):
-        if 'txt' in path.name:
+        ext = path.suffix
+        if 'txt' == ext:
             return Txt(path)
-        elif 'epub' in path.name:
+        elif 'srt' == ext or 'vtt' == ext:
+            return SubFile(path)
+        elif 'epub' in ext:
             return Epub.from_file(path)
+        elif ext in cls.exts:
+            raise NotImplementationError(f"filetype {ext} not implemented yet")
+        else:
+            raise NotImplementationError(f"filetype {ext} not implemented")
 
     @classmethod
     def from_dir(cls, path):
@@ -124,8 +146,9 @@ class TextFile:
             yield cls.from_file(path)
             return
 
+        extensions = ['txt' ]
         for root, _, files in os.walk(str(path)): # TODO path.walk is python3.12
             for f in files:
                 p = Path(root)/f
-                if 'txt' in f or 'epub' in f:
+                if f.suffix in cls.exts:
                     yield cls.from_file(p)
