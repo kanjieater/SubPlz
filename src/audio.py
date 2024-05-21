@@ -41,14 +41,14 @@ class AudioFile:
             raise Exception(f"Couldn't determine duration {path.name}")
 
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
-            chapters = chapters=[AudioStream(stream=ffmpeg.input(path), duration=fduration, title=ftitle, id=-1)]
+            chapters = chapters=[AudioStream(stream=ffmpeg.input(path), duration=float(fduration), title=ftitle, id=-1)]
         else:
             chapters = [AudioStream(stream=ffmpeg.input(path, ss=float(chapter['start_time']), to=float(chapter['end_time'])),
                                     duration=float(chapter['end_time']) - float(chapter['start_time']),
                                     title=chapter.get('tags', {}).get('title', str(i)),
                                     id=chapter['id'])
                         for i, chapter in enumerate(info['chapters'])]
-        return cls(title=ftitle, path=path, duration=fduration, chapters=chapters)
+        return cls(title=ftitle, path=path, duration=float(fduration), chapters=chapters)
 
     @classmethod
     def from_dir(cls, path, whole=False):
