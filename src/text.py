@@ -147,10 +147,8 @@ class TextFile:
             yield cls.from_file(path)
             return
 
-        extensions = ['txt' ]
         for root, _, files in os.walk(str(path)): # TODO path.walk is python3.12
             for f in files:
                 p = Path(root)/f
-                print(p.suffix)
                 if p.suffix[1:] in TEXT_EXTENSIONS:
                     yield cls.from_file(p)
