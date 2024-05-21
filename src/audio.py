@@ -35,7 +35,7 @@ class AudioFile:
         except ffmpeg.Error as e:
             raise Exception(e.stderr.decode('utf8'))
 
-        ftitle, fduration = info.get('format', {}).get('tags', {}).get('title', path.name), float(info['streams'][0]['duration'])
+        ftitle, fduration = info.get('format', {}).get('tags', {}).get('title', path.name), float(info['format']['duration'])
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
             chapters = chapters=[AudioStream(stream=ffmpeg.input(path), duration=fduration, title=ftitle, id=-1)]
         else:
