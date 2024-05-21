@@ -149,7 +149,7 @@ def match_start(audio, text, prepend, append, nopend):
 
                     limit = min(len(tcontent), len(acontent), 2000)
                     score = fuzz.ratio(acontent[:limit], tcontent[:limit])
-                    if score > 40 and score > best[-1]:
+                    if score > 20 and score > best[-1]:
                         best = (ti, j, score)
 
             if best[:-1] in sta:
