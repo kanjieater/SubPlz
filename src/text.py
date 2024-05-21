@@ -124,21 +124,22 @@ class Epub:
             chapters.append(chapter)
         return cls(epub=file, path=path, title=file.title.strip() or path.name, chapters=chapters)
 
+TEXT_EXTENSIONS: list = set(['txt', 'epub', 'srt', 'vtt'])
+@dataclass(eq=True, frozen=True)
 class TextFile:
-    exts: list = set(['txt', 'epub', 'srt', 'vtt'])
     @classmethod
     def from_file(cls, path):
-        ext = path.suffix
+        ext = path.suffix[1:]
         if 'txt' == ext:
             return Txt(path)
         elif 'srt' == ext or 'vtt' == ext:
             return SubFile(path)
         elif 'epub' == ext:
             return Epub.from_file(path)
-        elif ext in cls.exts:
-            raise NotImplementationError(f"filetype {ext} not implemented yet")
+        elif ext in TEXT_EXTENSIONS:
+            raise NotImplementedError(f"filetype {ext} not implemented yet")
         else:
-            raise NotImplementationError(f"filetype {ext} not implemented")
+            raise NotImplementedError(f"filetype {ext} not implemented")
 
     @classmethod
     def from_dir(cls, path):
@@ -150,5 +151,6 @@ class TextFile:
         for root, _, files in os.walk(str(path)): # TODO path.walk is python3.12
             for f in files:
                 p = Path(root)/f
-                if p.suffix in cls.exts:
+                print(p.suffix)
+                if p.suffix[1:] in TEXT_EXTENSIONS:
                     yield cls.from_file(p)
