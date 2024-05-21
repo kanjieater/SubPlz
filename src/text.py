@@ -133,7 +133,7 @@ class TextFile:
             return Txt(path)
         elif 'srt' == ext or 'vtt' == ext:
             return SubFile(path)
-        elif 'epub' in ext:
+        elif 'epub' == ext:
             return Epub.from_file(path)
         elif ext in cls.exts:
             raise NotImplementationError(f"filetype {ext} not implemented yet")

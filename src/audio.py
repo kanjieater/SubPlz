@@ -38,7 +38,7 @@ class AudioFile:
         ftitle = info.get('format', {}).get('tags', {}).get('title', path.name)
         fduration = info['duration'] if 'duration' in info else info['format']['duration'] if 'duration' in info['format'] else None
         if fduration is None:
-            raise Exception("Couldn't determine duration")
+            raise Exception(f"Couldn't determine duration {path.name}")
 
         if whole or 'chapters' not in info or len(info['chapters']) < 1:
             chapters = chapters=[AudioStream(stream=ffmpeg.input(path), duration=fduration, title=ftitle, id=-1)]
