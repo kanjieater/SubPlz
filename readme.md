@@ -231,5 +231,5 @@ https://github.com/ym1234/audiobooktextsync
 
 # Other Cool Projects
 
-A cool tool to turn these audiobook subs into Visual Novels's
+A cool tool to turn these audiobook subs into Visual Novels
 - https://github.com/asayake-b5/audiobooksync2renpy
