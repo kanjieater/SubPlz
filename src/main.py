@@ -1,5 +1,7 @@
 import os
 import argparse
+import subprocess
+import tempfile
 from pprint import pprint
 from types import MethodType
 from lang import get_lang
@@ -48,7 +50,7 @@ from os.path import basename, splitext
 import time
 
 from audio import AudioFile, TranscribedAudioStream, TranscribedAudioFile
-from text import TextFile
+from text import TextFile, SubFile
 
 
 def sexagesimal(secs, use_comma=False):
@@ -317,6 +319,34 @@ def parse_indices(s, l):
             return
     return r
 
+
+def alass(output_dir, args):
+    audio = list(chain.from_iterable(AudioFile.from_dir(f, track=args['language'], whole=True) for f in args.pop('audio')))
+    text = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
+    if not all(isinstance(t, SubFile) for t in text):
+        print('--alass inputs should be subtitle files')
+        return
+    if len(audio) != len(text):
+        print("len(audio) != len(text), input needs to be in order for alass alignment")
+
+    model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad')
+    (get_speech_timestamps, _, _, *_) = utils
+
+    with tqdm(zip(audio, text), total=len(audio)) as bar:
+        for a, t in bar:
+            bar.set_description(f'Running VAD on {a.title}')
+            v = get_speech_timestamps(a.audio(), model, sampling_rate=16000, return_seconds=True)
+            bar.set_description(f'Aligning {t.title} with {a.title}')
+            segments = [Segment(text='h', start=s['start'], end=s['end']) for s in v]
+            with tempfile.NamedTemporaryFile(mode="w", suffix='.srt') as f:
+                print(f.name)
+                write_srt(segments, f)
+                cmd = ['alass', '-O0', f.name, str(t.path), str(output_dir / (a.path.stem + ''.join(t.path.suffixes)))]
+                try:
+                    subprocess.run(cmd)
+                except CalledProcessError as e:
+                    raise RuntimeError(f"Alass command failed: {e.stderr.decode()}\n args: {' '.join(cmd)}") from e
+
 def main():
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
     parser.add_argument("--audio", nargs="+", type=Path, required=True, help="list of audio files to process (in the correct order)")
@@ -327,6 +357,7 @@ def main():
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
     parser.add_argument("--language", default=None, help="language of the script and audio")
     parser.add_argument("--whole", default=False, help="Do the alignment on whole files, don't split into chapters", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--alass", default=False, help="Use vad+alass to realign, inputs need to be in-order, this is temporary until I figure out something better (implies --whole)", action=argparse.BooleanOptionalAction)
     parser.add_argument("--local-only", default=False, help="Don't download outside models", action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--progress", default=True,  help="progress bar on/off", action=argparse.BooleanOptionalAction)
@@ -368,16 +399,20 @@ def main():
     parser.add_argument("--max_line_count", type=int, default=None, help="(requires --word_timestamps True) the maximum number of lines in a segment")
     parser.add_argument("--max_words_per_line", type=int, default=None, help="(requires --word_timestamps True, no effect with --max_line_width) the maximum number of words in a segment")
 
-    parser.add_argument("--output-dir", default=None, help="Output directory, default uses the directory for the first audio file")
+    parser.add_argument("--output-dir", default=u'.', type=Path, help="Output directory, default uses the directory for the first audio file")
     parser.add_argument("--output-format", default='srt', help="Output format, currently only supports vtt and srt")
 
     args = parser.parse_args().__dict__
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=not args.pop('progress'))
     if (threads := args.pop("threads")) > 0: torch.set_num_threads(threads)
 
-    output_dir = Path(k) if (k := args.pop('output_dir')) else Path('.')#os.path.dirname(args['audio'][0]))
+    output_dir = args.pop('output_dir')
     output_dir.mkdir(parents=True, exist_ok=True)
     output_format = args.pop('output_format')
+
+    if args['alass']:
+        alass(output_dir, args)
+        exit(0)
 
     model, device = args.pop("model"), args.pop('device')
     if device == 'cuda' and not torch.cuda.is_available():
@@ -506,7 +541,7 @@ def main():
             if not segments:
                 continue
 
-            with out.open("w", encoding="utf8") as o:
+            with out.open("w") as o:
                 if output_format == 'srt':
                     write_srt(segments, o)
                 elif output_format == 'vtt':

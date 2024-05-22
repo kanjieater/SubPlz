@@ -30,14 +30,35 @@ class Txt:
                 if (o := v.strip())]
 
 @dataclass(eq=True, frozen=True)
+class SubLine(TextParagraph):
+    start: float
+    end: float
+
+def parse_timing(timing):
+    start, end = timing.replace(',', '.').split("-->")
+    conv = lambda f: sum([float(n) * (60**i) for i, n in enumerate(f.split(':')[::-1])])
+    return conv(start), conv(end)
+
+def parse_srt_style(content, content_start, timing_idx):
+    ps = []
+    for i, n in enumerate(content.split('\n\n')[content_start:]):
+        if not n.strip(): continue
+        l = n.split('\n')
+        timing, content = l[timing_idx], '\n'.join(l[timing_idx+1:])
+        start, end = parse_timing(timing)
+        ps.append(SubLine(idx=i, content=content, start=start, end=end, references=[]))
+    return ps
+
+@dataclass(eq=True, frozen=True)
 class SubFile(Txt):
     def text(self):
         ext = self.path.suffix[1:]
         content = self.path.read_text()
+        ps = []
         if ext == 'srt': # Split multiline subtitles? leave them as is?
-            return [TextParagraph(idx=i, content=o, references=[]) for i, n in enumerate(content.split('\n\n')) if (o := '\n'.join(n.split('\n')[2:]))]
+            return parse_srt_style(content, 0, 1)
         elif ext == 'vtt':
-            return [TextParagraph(idx=i, content=o, references=[]) for i, n in enumerate(content.split('\n\n')[1:]) if (o := '\n'.join(n.split('\n')[1:]))]
+            return parse_srt_style(content, 1, 0)
         elif ext == 'ass':
             raise Exception(f'ASS is currently not supported: {self.path.name}')
         else:

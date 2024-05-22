@@ -28,11 +28,14 @@ class Japanese(Language):
 
         self.r1 = re.compile(r'(?![。])[\p{C}\p{M}\p{P}\p{S}\p{Z}\sー々ゝ'+nopend+r']+')
         self.r2 = re.compile(r'(.)(?=\1+)')
+        # self.r3 = re.compile(r'（.*?）')
 
     def clean(self, s):
         s = self.translate(s)
         s = self.r1.sub('', s)
-        return self.r2.sub('', s)
+        s = self.r2.sub('', s)
+        return s
+        # return self.r3.sub('', self.r2.sub('', s))
 
 class English(Language):
     def __init__(self, prepend, append, nopend):
