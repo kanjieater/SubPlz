@@ -47,7 +47,7 @@ def setup_advanced_cli(parser):
     )
     main_group.add_argument(
         "--output-dir",
-        default=Path('.'),
+        default=None,
         help="Output directory, default uses the directory for the first audio file",
     )
     main_group.add_argument(
@@ -302,7 +302,7 @@ def get_args():
 
 
 def validate_source_inputs(sources):
-    has_explicit_params = sources.audio or sources.text or (sources.output_dir != Path("."))
+    has_explicit_params = sources.audio or sources.text or sources.output_dir
     error_text = "You must specify --dirs/-d, or alternatively all three of --audio --text --output_dir or which; not both"
     if sources.dirs:
         if has_explicit_params:

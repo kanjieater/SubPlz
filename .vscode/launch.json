@@ -48,6 +48,23 @@
         // "/mnt/d/sync/変な家/変な家.epub",
       ],
     },
+    {
+      "name": "Explicit files",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "sync",
+        "--audio ",
+        "'/mnt/v/test/single/1.mkv'",
+        "--text",
+        "'/mnt/v/test/single/1.srt'",
+        // "--audio",
+        // "/mnt/d/sync/変な家/変な家.m4b",
+        // "--text",
+        // "/mnt/d/sync/変な家/変な家.epub",
+      ],
+    },
 
     {
       "name": "Python: align vtt",

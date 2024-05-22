@@ -240,7 +240,7 @@ def get_chapters(text: List[str]):
                 txt_path = normalize_text(file_path)
             except ffmpeg.Error as e:
                 print(
-                    f"Failed to normalize the subs. Can't process them, get's subs from a different source and try again: {e}"
+                    f"Failed to normalize the subs. We can't process them. Try to get subs from a different source and try again: {e}"
                 )
                 return []
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
@@ -284,9 +284,10 @@ def get_output_dir(folder, output_format):
     pass
 
 
-def setup_output_dir(output_dir):
-    output_dir = Path(o) if (o := output_dir) else Path(".")
-    output_dir.mkdir(parents=True, exist_ok=True)
+def setup_output_dir(output_dir, first_audio=None):
+    if(not output_dir and first_audio):
+        output_dir = Path(first_audio).parent
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     return output_dir
 
 
@@ -359,8 +360,9 @@ def setup_sources(input) -> List[sourceData]:
     if input.dirs:
         sources = get_sources_from_dirs(input)
     else:
+        output_dir = setup_output_dir(input.output_dir, input.audio[0])
         output_full_paths = get_output_full_paths(
-            input.audio, input.output_dir, input.output_format
+            input.audio, output_dir, input.output_format
         )
         writer = Writer(input.output_format)
         chapters = get_chapters(input.text)
@@ -370,7 +372,7 @@ def setup_sources(input) -> List[sourceData]:
                 dirs=[],
                 audio=input.audio,
                 text=input.text,
-                output_dir=setup_output_dir(input.output_dir),
+                output_dir=output_dir,
                 output_format=input.output_format,
                 overwrite=input.overwrite,
                 rerun=input.rerun,
