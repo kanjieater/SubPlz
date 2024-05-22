@@ -128,6 +128,8 @@ SubPlz writes a file in the same folder to the audio with the `<audiofile>.subpl
 
 Alternatively you can use the flag `--rerun` to ignore these files. If you want to prevent them from being created, you can run the tool with `--no-rerun-files`.
 
+# Respect Transcript Grouping
+By default, the `sync` command will trust the original transcript and group lines based on it. If you want to allow the tool to break lines up into smaller chunks, you can use this flag. `--no-respect-grouping`
 
 # Split m4b by chapter
 `./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
