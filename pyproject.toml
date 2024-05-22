@@ -41,6 +41,11 @@ anki = [
   "requests==2.26.0",
   "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=2391f40"
 ]
+nc = [
+  "fuzzywuzzy==0.18.0",
+  "pysbd==0.3.4",
+  "python-Levenshtein==0.12.2"
+]
 
 [project.scripts]
 subplz = "subplz.__main__:main"

@@ -6,11 +6,11 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs.
 
-This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. You can also just generate subtitles for videos with it, without needing any existing subtitles. Soon, it will support syncronizing existing subs as well. Currently I am only developing this tool for Japanese use.
+This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. It supports syncronizing existing subs as well. Soon, You can also just generate subtitles for videos with it, without needing any existing subtitles. Currently I am only developing this tool for Japanese use, though rumor has it, the `language` flag can be used for other languages too.
 
-It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a communty built Google Colab notebook available on discord.
+It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a community built Google Colab notebook available on discord.
 
-Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect.
+Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
 
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 

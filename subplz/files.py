@@ -178,18 +178,12 @@ def get_streams(audio):
     streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
     return streams
 
-
-def convert_to_srt(file_path, output_path):
-
-    stream = ffmpeg.input(str(file_path))
-    stream = ffmpeg.output(
-        stream,
-        str(output_path),
-        vn=None,
-        loglevel="error",
-    ).global_args("-hide_banner")
-
-    return ffmpeg.run(stream, overwrite_output=True)
+def convert_sub_format(full_original_path, full_sub_path):
+    stream = ffmpeg.input(full_original_path)
+    stream = ffmpeg.output(stream, full_sub_path, loglevel="error").global_args(
+        "-hide_banner"
+    )
+    ffmpeg.run(stream, overwrite_output=True)
 
 
 def remove_timing_and_metadata(srt_path, txt_path):
@@ -219,7 +213,7 @@ def normalize_text(file_path):
     filename = file_path.stem
     srt_path = get_tmp_path(file_path.parent / f"{filename}.srt")
     txt_path = get_tmp_path(file_path.parent / f"{filename}.txt")
-    convert_to_srt(file_path, srt_path)
+    convert_sub_format(str(file_path), str(srt_path))
     txt_path = remove_timing_and_metadata(srt_path, txt_path)
     srt_path.unlink()
     return str(txt_path)
