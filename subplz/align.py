@@ -1,4 +1,4 @@
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 import re
 from datetime import datetime
 from tqdm import tqdm
@@ -6,7 +6,7 @@ from ats.main import Segment
 from subplz.files import get_tmp_path
 
 MAX_MERGE_COUNT = (
-    6
+    25
 )  # Larger gives better results, but takes longer to process.
 MAX_SEARCH_CONTEXT = MAX_MERGE_COUNT * 2
 
@@ -157,10 +157,12 @@ def test_sub_pos(script, subs, script_pos, last_script_pos, first_sub_to_test, l
         calc_best_score(script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test)
 
 
-def recursively_find_match(script, subs, result, first_script, last_script, first_sub, last_sub, bar):
-    bar.total += 1
-    bar.refresh()
+def recursively_find_match(script, subs, result, first_script, last_script, first_sub, last_sub, bar=None):
+    if bar is None:
+        bar = tqdm(total=1, position=0, leave=True)
+
     if first_script == last_script or first_sub == last_sub:
+        bar.close()
         return
 
     memo.clear()
@@ -170,8 +172,7 @@ def recursively_find_match(script, subs, result, first_script, last_script, firs
     start = max(first_script, mid - MAX_SEARCH_CONTEXT)
     end = min(mid + MAX_SEARCH_CONTEXT, last_script)
 
-    # print('testing first %d last %d mid %d' % (first_script, last_script, mid))
-    for script_pos in range(end - 1, start - 1, -1):
+    for script_pos in tqdm(range(end - 1, start - 1, -1), position=1, leave=False):
         test_sub_pos(script, subs, script_pos, end, first_sub, last_sub)
 
     best_path = get_best_sub_path(start, end - start, end, last_sub)
@@ -187,33 +188,20 @@ def recursively_find_match(script, subs, result, first_script, last_script, firs
         num_used_script = mid_memo[2]
         num_used_sub = mid_memo[1]
 
-        # Recurse before
         recursively_find_match(
             script, subs, result, first_script, script_pos, first_sub, sub_pos, bar
         )
-        bar.update(1)
-        scr = get_script(script, script_pos, num_used_script, " ‖ ")
+
         scr_out = get_script(script, script_pos, num_used_script, "")
+        scr = get_script(script, script_pos, num_used_script, " ‖ ")
         base = get_base(subs, sub_pos, num_used_sub, " ‖ ")
 
-        # print((script_pos, num_used_script, sub_pos, num_used_sub), scr, '==', base)
         result.append((script_pos, num_used_script, sub_pos, num_used_sub))
 
-        # Recurse after
         recursively_find_match(
-            script,
-            subs,
-            result,
-            script_pos + num_used_script,
-            last_script,
-            sub_pos + num_used_sub,
-            last_sub,
-            bar,
+            script, subs, result, script_pos + num_used_script, last_script, sub_pos + num_used_sub, last_sub, bar
         )
-        bar.update(1)
-    bar.update(1)
-    # t.total = new_total
-    # t.refresh()
+    bar.close()
 
 def remove_tags(line):
     return re.sub("<[^>]*>", "", line)
@@ -222,59 +210,52 @@ def get_lines(file):
     for line in file:
         yield line.rstrip("\n")
 
-# class Subtitle:
-#     def __init__(self, start, end, line):
-#         self.start = start
-#         self.end = end
-#         self.text = line
-
-# TODO kill this off
-def read_vtt(file):
+def read_subtitles(file):
     lines = get_lines(file)
-
     subs = []
-    header = next(lines)
-    assert header == "WEBVTT"
-    # assert next(lines) == "Kind: captions"
-    # assert next(lines).startswith("Language:")
-    assert next(lines) == ""
-
+    first_line = next(lines)
+    is_vtt = first_line == "WEBVTT"
+    if is_vtt:
+        assert next(lines) == ""
     last_sub = " "
-
     while True:
-        # for t in range(0, 10):
         line = next(lines, None)
-        if line == None:  # EOF
+        if line is None:  # EOF
             break
-        # print(line)
+        # Match timestamp lines for both VTT and SRT formats
         m = re.findall(
-            r"(\d\d:\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)",
+            r"(\d\d:\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d.\d\d\d)|(\d\d:\d\d.\d\d\d) --> (\d\d:\d\d:\d\d.\d\d\d)|(\d\d:\d\d:\d\d,\d\d\d) --> (\d\d:\d\d:\d\d,\d\d\d)|(\d\d:\d\d,\d\d\d) --> (\d\d:\d\d,\d\d\d)|(\d\d:\d\d,\d\d\d) --> (\d\d:\d\d:\d\d,\d\d\d)",
             line,
         )
         if not m:
-            print(
-                f'Warning: Line "{line}" did not look like a valid VTT input. There could be issues parsing this sub'
-            )
+            if not line.isdigit() and line:
+                print(
+                    f'Warning: Line "{line}" did not look like a valid VTT/SRT input. There could be issues parsing this sub'
+                )
             continue
 
-        matchPair = [list(filter(None, x)) for x in m][0]
-        sub_start = matchPair[0]  # .replace('.', ',')
-        sub_end = matchPair[1]
+        match_pair = [list(filter(None, x)) for x in m][0]
+        sub_start = match_pair[0].replace(',', '.')  # Convert SRT to VTT format
+        sub_end = match_pair[1].replace(',', '.')
 
+        # Read the subtitle text
         line = next(lines)
+        sub_text = []
         while line:
-            sub = remove_tags(line)
-            if last_sub != sub and sub not in [" ", "[音楽]"]:
-                last_sub = sub
-                # print("sub:", sub_start, sub_end, sub)
-                subs.append(Segment(sub, sub_start, sub_end))
-            elif last_sub == sub and subs:
-                subs[-1].end = sub_end
-                # print("Update sub:", subs[-1].start, subs[-1].end, subs[-1].text)
+            sub_text.append(remove_tags(line))
             try:
                 line = next(lines)
             except StopIteration:
                 line = None
+            if line == "":
+                break
+
+        sub = ' '.join(sub_text).strip()
+        if sub and last_sub != sub and sub not in [" ", "[音楽]"]:
+            last_sub = sub
+            subs.append(Segment(sub, sub_start, sub_end))
+        elif last_sub == sub and subs:
+            subs[-1].end = sub_end
 
     return subs
 
@@ -292,7 +273,7 @@ def nc_align(split_script, subs_file):
         script = [ScriptLine(line.strip()) for line in read_script(s)]
     print(subs_file)
     with open(subs_file, encoding='utf-8') as vtt:
-        subs = read_vtt(vtt)
+        subs = read_subtitles(vtt)
     new_subs = []
 
     result = []

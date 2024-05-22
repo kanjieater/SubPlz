@@ -68,12 +68,12 @@ def get_matching_audio_stream(streams, lang):
         stream for stream in streams if stream.get("codec_type", None) == "audio"
     ]
     audio_lang = lang
-    if lang == 'ja': # TODO support other languages
-        audio_lang = 'jpn'
+    if lang == "ja":  # TODO support other languages
+        audio_lang = "jpn"
     target_streams = [
         stream
         for stream in audio_streams
-        if stream.get("tags", {}).get("language", None) == audio_lang
+        if stream.get("tags", {}).get("language", '').lower() == audio_lang.lower()
     ]
     return next((stream for stream in target_streams + audio_streams), None)
 
@@ -178,6 +178,7 @@ def get_streams(audio):
     streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
     return streams
 
+
 def convert_sub_format(full_original_path, full_sub_path):
     stream = ffmpeg.input(full_original_path)
     stream = ffmpeg.output(stream, full_sub_path, loglevel="error").global_args(
@@ -279,7 +280,7 @@ def get_output_dir(folder, output_format):
 
 
 def setup_output_dir(output_dir, first_audio=None):
-    if(not output_dir and first_audio):
+    if not output_dir and first_audio:
         output_dir = Path(first_audio).parent
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     return output_dir
@@ -482,7 +483,9 @@ def post_process(sources: List[sourceData]):
             print(f"❗ No text matched for '{source.text}'")
 
     if not sources:
-        print("""😐 We didn't do anything. This may or may not be intentional""")
+        print(
+            """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if you had a .subplz file preventing rerun"""
+        )
     elif complete_success:
         print("🎉 Everything went great!")
     else:
