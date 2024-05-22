@@ -37,7 +37,7 @@ class AudioFile:
 
         if track is not None:
             langcode = pycountry.languages.get(alpha_2=track).alpha_3
-            args = {'map': f'0:m:language:{langcode}'}
+            args = {'map': f'0:m:language:{langcode}?'}
         else:
             args = {}
 

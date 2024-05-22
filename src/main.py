@@ -309,8 +309,8 @@ def parse_indices(s, l):
                 val = int(a[1:])
                 r = r.union(range(l)) - {val}
             elif len(k := a.split('-')) > 1:
-                val1 = min(int(k[0]), l)
-                val2 = min(int(k[1]), l)
+                val1 = min(int(k[0]), l-1)
+                val2 = min(int(k[1]), l-1)
                 r = r.union(range(val1, val2+1))
             else:
                 if (val1 := int(a)) < l:
