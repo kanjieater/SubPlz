@@ -320,7 +320,7 @@ def parse_indices(s, l):
     return r
 
 
-def alass(output_dir, args):
+def alass(output_dir, alass_path, alass_args, args):
     audio = list(chain.from_iterable(AudioFile.from_dir(f, track=args['language'], whole=True) for f in args.pop('audio')))
     text = list(chain.from_iterable(TextFile.from_dir(f) for f in args.pop('text')))
     if not all(isinstance(t, SubFile) for t in text):
@@ -329,7 +329,7 @@ def alass(output_dir, args):
     if len(audio) != len(text):
         print("len(audio) != len(text), input needs to be in order for alass alignment")
 
-    model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad')
+    model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', onnx=True) # onnx is much faster
     (get_speech_timestamps, _, _, *_) = utils
 
     with tqdm(zip(audio, text), total=len(audio)) as bar:
@@ -339,9 +339,9 @@ def alass(output_dir, args):
             bar.set_description(f'Aligning {t.title} with {a.title}')
             segments = [Segment(text='h', start=s['start'], end=s['end']) for s in v]
             with tempfile.NamedTemporaryFile(mode="w", suffix='.srt') as f:
-                print(f.name)
                 write_srt(segments, f)
-                cmd = ['alass', '-O0', f.name, str(t.path), str(output_dir / (a.path.stem + ''.join(t.path.suffixes)))]
+                cmd = [alass_path, *['-'+h for h in alass_args], f.name, str(t.path), str(output_dir / (a.path.stem + ''.join(t.path.suffixes)))]
+                print(' '.join(cmd))
                 try:
                     subprocess.run(cmd)
                 except CalledProcessError as e:
@@ -357,8 +357,11 @@ def main():
     parser.add_argument("--threads", type=int, default=multiprocessing.cpu_count(), help=r"number of threads")
     parser.add_argument("--language", default=None, help="language of the script and audio")
     parser.add_argument("--whole", default=False, help="Do the alignment on whole files, don't split into chapters", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--alass", default=False, help="Use vad+alass to realign, inputs need to be in-order, this is temporary until I figure out something better (implies --whole)", action=argparse.BooleanOptionalAction)
     parser.add_argument("--local-only", default=False, help="Don't download outside models", action=argparse.BooleanOptionalAction)
+
+    parser.add_argument("--alass", default=False, help="Use vad+alass to realign, inputs need to be in-order, this is temporary until I figure out something better (implies --whole)", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--alass-path", default='alass', help="path to alass")
+    parser.add_argument("--alass-args", default=['O0'], nargs="+", help="additional arguments to alass (pass without the dash, eg: O1)")
 
     parser.add_argument("--progress", default=True,  help="progress bar on/off", action=argparse.BooleanOptionalAction)
     parser.add_argument("--overwrite", default=False,  help="Overwrite any destination files", action=argparse.BooleanOptionalAction)
@@ -410,8 +413,9 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     output_format = args.pop('output_format')
 
-    if args['alass']:
-        alass(output_dir, args)
+    alass_path, alass_args = args.pop('alass_path'), args.pop('alass_args')
+    if args.pop('alass'):
+        alass(output_dir, alass_path, alass_args, args)
         exit(0)
 
     model, device = args.pop("model"), args.pop('device')
