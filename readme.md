@@ -37,7 +37,7 @@ If you can't contribute monetarily please consider following on a social platfor
 
 1. Put an audio/video file and a text file in a folder.
    1. Audio / Video files: `m4b`, `mkv` or any other audio/video file
-   2. Text files: `srt`, `vtt`(soon), `ass`, `txt`, or `epub`
+   2. Text files: `srt`, `vtt`, `ass`, `txt`, or `epub`
 ```bash
 /sync/
 └── /Harry Potter 1/
