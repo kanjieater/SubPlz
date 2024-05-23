@@ -10,7 +10,6 @@ from glob import glob, escape
 from pprint import pformat
 from ats.main import (
     TextFile,
-    Epub,
     AudioStream,
     TextFile,
     TextParagraph,
@@ -18,7 +17,7 @@ from ats.main import (
     write_vtt,
 )
 import ffmpeg
-from subplz.text import split_sentences
+from subplz.text import split_sentences, split_sentences_from_input, Epub
 
 AUDIO_FORMATS = [
     "aac",
@@ -230,7 +229,12 @@ def get_chapters(text: List[str], lang):
         file_ext = splitext(file_name)[-1].lower()
 
         if file_ext == ".epub":
-            chapters.append((file_name, Epub.from_file(file_path)))
+            txt_path = get_tmp_path(Path(file_path).parent / f"{Path(file_path).stem}.txt")
+            epub = Epub.from_file(file_path)
+            chapters.append((txt_path, epub.chapters))
+            split_sentences_from_input([p.text() for p in epub.text()], txt_path, lang)
+            # chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
+
         elif file_ext in sub_exts:
             try:
                 txt_path = normalize_text(file_path)
@@ -243,7 +247,7 @@ def get_chapters(text: List[str], lang):
                 return []
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
         else:
-            txt_path = get_tmp_path(file_path.parent / f"{file_name}.txt")
+            txt_path = get_tmp_path(Path(file_path).parent / f"{Path(file_path).stem}.txt")
             split_sentences(file_path, txt_path, lang)
             chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
     return chapters
