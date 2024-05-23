@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
     "natsort ~= 8.2.0",
     "tqdm~=4.66.3",
-    "pysbd-0.3.4",
+    "pysbd~=0.3.4",
     "ats@git+https://github.com/kanjieater/AudiobookTextSync#egg=master"
     # "ats @ file:///home/ke/code/AudiobookTextSync"
 ]
