@@ -55,10 +55,12 @@
       "module": "subplz",
       "args": [
         "sync",
-        "--audio ",
-        "'/mnt/v/test/single/1.mkv'",
+        "--audio",
+        "/mnt/v/test/single/1.mkv",
         "--text",
-        "'/mnt/v/test/single/1.srt'",
+        "/mnt/v/test/single/1.srt",
+        "--output-format",
+        "vtt"
         // "--audio",
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",

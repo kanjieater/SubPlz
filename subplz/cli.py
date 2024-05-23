@@ -68,6 +68,12 @@ def setup_advanced_cli(parser):
 
     # Behaviors
     optional_group.add_argument(
+        "--respect-grouping",
+        default=True,
+        help="Keep the lines in the same subtitle together, instead of breaking them apart",
+        action=argparse.BooleanOptionalAction,
+    )
+    optional_group.add_argument(
         "--overwrite",
         default=True,
         help="Overwrite any destination files",
@@ -318,6 +324,8 @@ class backendParams:
     device: str
     # UI
     progress: bool
+    # Behavior
+    respect_grouping: bool
     # General Whisper
     language: str
     model_name: str
@@ -393,6 +401,7 @@ def get_inputs():
             fast_decoder=args.fast_decoder,
             fast_decoder_overlap=args.fast_decoder_overlap,
             fast_decoder_batches=args.fast_decoder_batches,
+            respect_grouping=args.respect_grouping,
         ),
         cache=SimpleNamespace(
             overwrite_cache=args.overwrite_cache,
@@ -408,6 +417,7 @@ def get_inputs():
             overwrite=args.overwrite,
             rerun=args.rerun,
             rerun_files=args.rerun_files,
+            lang=args.language,
         ),
     )
     validate_source_inputs(inputs.sources)

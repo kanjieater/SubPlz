@@ -7,8 +7,9 @@ from ats.main import (
 )
 import warnings
 from ats import align
-
 from ats.lang import get_lang
+
+from subplz.align import nc_align
 from subplz.files import sourceData
 from subplz.utils import get_tqdm
 
@@ -107,3 +108,8 @@ def sync(source: sourceData, model, streams, cache, be):
             if not segments:
                 continue
             source.writer.write_sub(segments, source.output_full_paths[ai])
+            if(len(source.chapters) == 1 and be.respect_grouping):
+                new_segments = nc_align(chapters[0][0], source.output_full_paths[ai])
+                source.writer.write_sub(new_segments, source.output_full_paths[ai])
+
+
