@@ -109,7 +109,7 @@ def sync(source: sourceData, model, streams, cache, be):
                 continue
             source.writer.write_sub(segments, source.output_full_paths[ai])
             if(len(source.chapters) == 1 and be.respect_grouping):
-                new_segments = nc_align(chapters[0][0], source.output_full_paths[ai])
+                new_segments = nc_align(chapters[0][0], source.output_full_paths[ai], be.respect_grouping_count)
                 source.writer.write_sub(new_segments, source.output_full_paths[ai])
 
 

@@ -70,7 +70,7 @@ def setup_advanced_cli(parser):
     optional_group.add_argument(
         "--respect-grouping",
         default=False,
-        help="Keep the lines in the same subtitle together, instead of breaking them apart",
+        help="Keep the lines in the same subtitle together, instead of breaking them apart. ",
         action=argparse.BooleanOptionalAction,
     )
     optional_group.add_argument(
@@ -157,6 +157,14 @@ def setup_advanced_cli(parser):
         default=True,
         help="Don't download outside models",
         action=argparse.BooleanOptionalAction,
+    )
+
+    # No-compo algo
+    optional_group.add_argument(
+        "--respect-grouping-count",
+        type=int,
+        help="Affects how deep to search for matching groups with the respect-grouping flag; Default 6 is good for audiobooks, 15 for subs with animated themes",
+        default=6,
     )
 
     # Advanced Model Inputs
@@ -340,6 +348,7 @@ class backendParams:
     progress: bool
     # Behavior
     respect_grouping: bool
+    respect_grouping_count: int
     # General Whisper
     language: str
     model_name: str
@@ -420,6 +429,7 @@ def get_inputs():
             fast_decoder_overlap=args.fast_decoder_overlap,
             fast_decoder_batches=args.fast_decoder_batches,
             respect_grouping=args.respect_grouping,
+            respect_grouping_count=args.respect_grouping_count,
             stable_ts=args.stable_ts,
             vad=args.vad,
         ),
