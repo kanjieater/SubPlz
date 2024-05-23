@@ -1,14 +1,9 @@
 from rapidfuzz import fuzz
 import re
-from datetime import datetime
+
 from tqdm import tqdm
 from ats.main import Segment
-from subplz.files import get_tmp_path
 
-MAX_MERGE_COUNT = (
-    25
-)  # Larger gives better results, but takes longer to process.
-MAX_SEARCH_CONTEXT = MAX_MERGE_COUNT * 2
 
 # Trim script for quick testing
 # script = script[:500]
@@ -46,7 +41,15 @@ def get_base(subs, sub_pos, num_used, sep=""):
 
 
 def get_best_sub_n(
-    script, subs, script_pos, num_used_script, last_script_pos, sub_pos, max_subs, last_sub_to_test
+    script,
+    subs,
+    script_pos,
+    num_used_script,
+    last_script_pos,
+    sub_pos,
+    max_subs,
+    last_sub_to_test,
+    max_merge_count
 ):
     t_best_score = 0
     t_best_used_sub = 1
@@ -65,6 +68,7 @@ def get_best_sub_n(
             last_script_pos,
             sub_pos + num_used_sub,
             last_sub_to_test,
+            max_merge_count,
         )
         if tot_score > t_best_score:
             t_best_score = tot_score
@@ -76,7 +80,9 @@ def get_best_sub_n(
 best_script_score_and_sub = {}
 
 
-def calc_best_score(script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test):
+def calc_best_score(
+    script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test, max_merge_count
+):
     if script_pos >= len(script) or sub_pos >= len(subs):
         return 0
 
@@ -90,8 +96,8 @@ def calc_best_score(script, subs, script_pos, last_script_pos, sub_pos, last_sub
 
     remaining_script = last_script_pos - script_pos
 
-    for num_used_script in range(1, min(MAX_MERGE_COUNT, remaining_script) + 1):
-        max_subs = MAX_MERGE_COUNT if num_used_script == 1 else 1
+    for num_used_script in range(1, min(max_merge_count, remaining_script) + 1):
+        max_subs = max_merge_count if num_used_script == 1 else 1
         t_best_score, t_best_used_sub = get_best_sub_n(
             script,
             subs,
@@ -101,6 +107,7 @@ def calc_best_score(script, subs, script_pos, last_script_pos, sub_pos, last_sub
             sub_pos,
             max_subs,
             last_sub_to_test,
+            max_merge_count,
         )
 
         if t_best_score > best_score:
@@ -117,8 +124,9 @@ def calc_best_score(script, subs, script_pos, last_script_pos, sub_pos, last_sub
             best_used_script,
             last_script_pos,
             sub_pos,
-            MAX_MERGE_COUNT,
+            max_merge_count,
             last_sub_to_test,
+            max_merge_count,
         )
         if t_best_score > best_score:
             best_score = t_best_score
@@ -152,12 +160,18 @@ def get_best_sub_path(script_pos, n, last_script_pos, last_sub_to_test):
     return ret
 
 
-def test_sub_pos(script, subs, script_pos, last_script_pos, first_sub_to_test, last_sub_to_test):
+def test_sub_pos(
+    script, subs, script_pos, last_script_pos, first_sub_to_test, last_sub_to_test, max_merge_count
+):
     for sub_pos in range(last_sub_to_test - 1, first_sub_to_test - 1, -1):
-        calc_best_score(script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test)
+        calc_best_score(
+            script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test, max_merge_count
+        )
 
 
-def recursively_find_match(script, subs, result, first_script, last_script, first_sub, last_sub, bar=None):
+def recursively_find_match(
+    script, subs, result, first_script, last_script, first_sub, last_sub, max_merge_count, bar=None
+):
     if bar is None:
         bar = tqdm(total=1, position=0, leave=True)
 
@@ -167,13 +181,13 @@ def recursively_find_match(script, subs, result, first_script, last_script, firs
 
     memo.clear()
     best_script_score_and_sub.clear()
-
+    max_search_context = max_merge_count * 2
     mid = (first_script + last_script) // 2
-    start = max(first_script, mid - MAX_SEARCH_CONTEXT)
-    end = min(mid + MAX_SEARCH_CONTEXT, last_script)
+    start = max(first_script, mid - max_search_context)
+    end = min(mid + max_search_context, last_script)
 
     for script_pos in tqdm(range(end - 1, start - 1, -1), position=1, leave=False):
-        test_sub_pos(script, subs, script_pos, end, first_sub, last_sub)
+        test_sub_pos(script, subs, script_pos, end, first_sub, last_sub, max_merge_count)
 
     best_path = get_best_sub_path(start, end - start, end, last_sub)
     if len(best_path) > 0:
@@ -189,7 +203,7 @@ def recursively_find_match(script, subs, result, first_script, last_script, firs
         num_used_sub = mid_memo[1]
 
         recursively_find_match(
-            script, subs, result, first_script, script_pos, first_sub, sub_pos, bar
+            script, subs, result, first_script, script_pos, first_sub, sub_pos, max_merge_count, bar
         )
 
         scr_out = get_script(script, script_pos, num_used_script, "")
@@ -199,16 +213,27 @@ def recursively_find_match(script, subs, result, first_script, last_script, firs
         result.append((script_pos, num_used_script, sub_pos, num_used_sub))
 
         recursively_find_match(
-            script, subs, result, script_pos + num_used_script, last_script, sub_pos + num_used_sub, last_sub, bar
+            script,
+            subs,
+            result,
+            script_pos + num_used_script,
+            last_script,
+            sub_pos + num_used_sub,
+            last_sub,
+            max_merge_count,
+            bar,
         )
     bar.close()
+
 
 def remove_tags(line):
     return re.sub("<[^>]*>", "", line)
 
+
 def get_lines(file):
     for line in file:
         yield line.rstrip("\n")
+
 
 def read_subtitles(file):
     lines = get_lines(file)
@@ -235,8 +260,8 @@ def read_subtitles(file):
             continue
 
         match_pair = [list(filter(None, x)) for x in m][0]
-        sub_start = match_pair[0].replace(',', '.')  # Convert SRT to VTT format
-        sub_end = match_pair[1].replace(',', '.')
+        sub_start = match_pair[0].replace(",", ".")  # Convert SRT to VTT format
+        sub_end = match_pair[1].replace(",", ".")
 
         # Read the subtitle text
         line = next(lines)
@@ -250,7 +275,7 @@ def read_subtitles(file):
             if line == "":
                 break
 
-        sub = ' '.join(sub_text).strip()
+        sub = " ".join(sub_text).strip()
         if sub and last_sub != sub and sub not in [" ", "[音楽]"]:
             last_sub = sub
             subs.append(Segment(sub, sub_start, sub_end))
@@ -259,27 +284,26 @@ def read_subtitles(file):
 
     return subs
 
-
 def to_float(time_str):
-    time_obj = datetime.strptime(time_str, '%H:%M:%S.%f')
-    time_delta = time_obj - datetime(1900, 1, 1)
-    float_time = time_delta.total_seconds()
-    return float_time
+    time_components = time_str.split(":")[::-1]
+    total_seconds = 0
+    for i, component in enumerate(time_components):
+        total_seconds += float(component) * (60 ** i)
+    return total_seconds
 
 
-
-def nc_align(split_script, subs_file):
-    with open(split_script, encoding='utf-8') as s:
+def nc_align(split_script, subs_file, max_merge_count):
+    with open(split_script, encoding="utf-8") as s:
         script = [ScriptLine(line.strip()) for line in read_script(s)]
     print(subs_file)
-    with open(subs_file, encoding='utf-8') as vtt:
+    with open(subs_file, encoding="utf-8") as vtt:
         subs = read_subtitles(vtt)
     new_subs = []
 
     result = []
     print("🤝 Grouping based on transcript...")
     bar = tqdm(total=0)
-    recursively_find_match(script, subs, result, 0, len(script), 0, len(subs), bar)
+    recursively_find_match(script, subs, result, 0, len(script), 0, len(subs), max_merge_count, bar)
     bar.close()
     for i, (script_pos, num_used_script, sub_pos, num_used_sub) in enumerate(
         tqdm(result)
@@ -301,7 +325,11 @@ def nc_align(split_script, subs_file):
 
         # print('Record:', script_pos, scr, '==', base)
         new_subs.append(
-            Segment(scr_out, to_float(subs[sub_pos].start), to_float(subs[sub_pos + num_used_sub - 1].end))
+            Segment(
+                scr_out,
+                to_float(subs[sub_pos].start),
+                to_float(subs[sub_pos + num_used_sub - 1].end),
+            )
         )
 
     return new_subs
