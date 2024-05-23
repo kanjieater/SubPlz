@@ -417,6 +417,7 @@ def get_inputs():
             overwrite=args.overwrite,
             rerun=args.rerun,
             rerun_files=args.rerun_files,
+            lang=args.language,
         ),
     )
     validate_source_inputs(inputs.sources)

@@ -17,8 +17,8 @@ from ats.main import (
     write_srt,
     write_vtt,
 )
-from functools import partial
 import ffmpeg
+from subplz.text import split_sentences
 
 AUDIO_FORMATS = [
     "aac",
@@ -73,7 +73,7 @@ def get_matching_audio_stream(streams, lang):
     target_streams = [
         stream
         for stream in audio_streams
-        if stream.get("tags", {}).get("language", '').lower() == audio_lang.lower()
+        if stream.get("tags", {}).get("language", "").lower() == audio_lang.lower()
     ]
     return next((stream for stream in target_streams + audio_streams), None)
 
@@ -161,6 +161,7 @@ class sourceData:
     writer: Writer
     chapters: List
     streams: List
+    lang: str
 
 
 def grab_files(folder, types, sort=True):
@@ -220,7 +221,7 @@ def normalize_text(file_path):
     return str(txt_path)
 
 
-def get_chapters(text: List[str]):
+def get_chapters(text: List[str], lang):
     # print("📖 Finding chapters...") #log
     sub_exts = ["." + extension for extension in SUBTITLE_FORMATS]
     chapters = []
@@ -233,6 +234,8 @@ def get_chapters(text: List[str]):
         elif file_ext in sub_exts:
             try:
                 txt_path = normalize_text(file_path)
+                split_sentences(txt_path, txt_path, lang)
+
             except ffmpeg.Error as e:
                 print(
                     f"Failed to normalize the subs. We can't process them. Try to get subs from a different source and try again: {e}"
@@ -240,7 +243,9 @@ def get_chapters(text: List[str]):
                 return []
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
         else:
-            chapters.append((file_name, [TextFile(path=file_path, title=file_name)]))
+            txt_path = get_tmp_path(file_path.parent / f"{file_name}.txt")
+            split_sentences(file_path, txt_path, lang)
+            chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
     return chapters
 
 
@@ -250,15 +255,6 @@ def get_working_folders(dirs):
         if not isdir(dir):
             raise Exception(f"{dir} is not a valid directory")
         full_folder = join(dir, "")
-        # content_name = get_content_name(dir)
-        # split_folder = path.join(full_folder, f"{content_name}_splitted")
-
-        # if path.exists(split_folder) and path.isdir(split_folder):
-        #     working_folder = split_folder
-        #     print(
-        #         f"Warning: Using split files causes a fixed delay for every split file. This is a known bug. Use the single file method instead"
-        #     )
-        # else:
         working_folder = full_folder
         working_folders.append(working_folder)
     return working_folders
@@ -275,10 +271,6 @@ def get_text(folder):
     return os_sorted(text)
 
 
-def get_output_dir(folder, output_format):
-    pass
-
-
 def setup_output_dir(output_dir, first_audio=None):
     if not output_dir and first_audio:
         output_dir = Path(first_audio).parent
@@ -290,22 +282,28 @@ def get_output_full_paths(audio, output_dir, output_format):
     return [Path(output_dir) / f"{Path(a).stem}.{output_format}" for a in audio]
 
 
-def match_files(audios, texts, folder):
-    already_run = get_existing_rerun_files(folder)
-    already_run_text_paths = []
-    already_run_audio_paths = []
-    for ar in already_run:
-        arPath = Path(ar)
-        removed_second_stem = Path(arPath.stem).stem
-        already_run_audio_paths.append(str(arPath.parent / removed_second_stem))
-        already_run_text_paths.append(str(arPath.parent / arPath.stem))
-    destemed_audio = [str(Path(audio).parent / Path(audio).stem) for audio in audios]
-    audios_unique = list(set(destemed_audio) - set(already_run_audio_paths))
-    texts_filtered = list(set(texts) - set(already_run_text_paths))
-    texts_filtered.sort(key=lambda x: texts.index(x))
-    audios_filtered = [
-        a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
-    ]
+def match_files(audios, texts, folder, rerun):
+    if rerun:
+        audios_filtered = audios
+        texts_filtered = texts
+    else:
+        already_run = get_existing_rerun_files(folder)
+        already_run_text_paths = []
+        already_run_audio_paths = []
+        for ar in already_run:
+            arPath = Path(ar)
+            removed_second_stem = Path(arPath.stem).stem
+            already_run_audio_paths.append(str(arPath.parent / removed_second_stem))
+            already_run_text_paths.append(str(arPath.parent / arPath.stem))
+        destemed_audio = [
+            str(Path(audio).parent / Path(audio).stem) for audio in audios
+        ]
+        audios_unique = list(set(destemed_audio) - set(already_run_audio_paths))
+        texts_filtered = list(set(texts) - set(already_run_text_paths))
+        texts_filtered.sort(key=lambda x: texts.index(x))
+        audios_filtered = [
+            a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
+        ]
     if len(audios_filtered) > 1 and len(texts_filtered) == 1 and len(already_run) == 0:
         print("🤔 Multiple audio files found, but only one text...")
         return [audios_filtered], [[t] for t in texts_filtered]
@@ -324,7 +322,7 @@ def get_sources_from_dirs(input):
     for folder in working_folders:
         audios = get_audio(folder)
         texts = get_text(folder)
-        a, t = match_files(audios, texts, folder)
+        a, t = match_files(audios, texts, folder, input.rerun)
         for matched_audio, matched_text in zip(a, t):
             output_full_paths = get_output_full_paths(
                 matched_audio, folder, input.output_format
@@ -332,7 +330,7 @@ def get_sources_from_dirs(input):
             writer = Writer(input.output_format)
 
             streams = get_streams(matched_audio)
-            chapters = get_chapters(matched_text)
+            chapters = get_chapters(matched_text, input.lang)
             s = sourceData(
                 dirs=input.dirs,
                 audio=matched_audio,
@@ -346,6 +344,7 @@ def get_sources_from_dirs(input):
                 writer=writer,
                 chapters=chapters,
                 streams=streams,
+                lang=input.lang,
             )
             sources.append(s)
     return sources
@@ -360,7 +359,7 @@ def setup_sources(input) -> List[sourceData]:
             input.audio, output_dir, input.output_format
         )
         writer = Writer(input.output_format)
-        chapters = get_chapters(input.text)
+        chapters = get_chapters(input.text, input.lang)
         streams = get_streams(input.audio)
         sources = [
             sourceData(
@@ -376,6 +375,7 @@ def setup_sources(input) -> List[sourceData]:
                 writer=writer,
                 streams=streams,
                 chapters=chapters,
+                lang=input.lang,
             )
         ]
     return sources
