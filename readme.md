@@ -69,7 +69,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 2. ```bash
    docker run -it --rm --name subplz \
    -v <full path to up to content folder>:/sync \
-   -v /mnt/d/SyncCache:/SyncCache \
+   -v <your folder path>:/SyncCache \
    kanjieater/subplz:latest \
    sync -d "/sync/<content folder>/"
    ```
@@ -118,34 +118,34 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 - This can be GPU intense, RAM intense, and CPU intense script part. `subplz sync -d "<full folder path>"` eg `subplz sync -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a character level transcript. It then creates a sub format that can be matched to the `script.txt`. Each character level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file. The video or audio file then can be watched with `MPV`, playing audio in time with the subtitle.
 - Users with a modern CPU with lots of threads won't notice much of a difference between using CUDA/GPU & CPU
 
-# Sort Order
+## Sort Order
 By default, the `-d` parameter will pick up the supported files in the directory(s) given. Ensure that your OS sorts them in an order that you would want them to be patched together in. Sort them by name, and as long as all of the audio files are in order and the all of the text files are in the same order, they'll be "zipped" up individually with each other.
 
 The exception to this, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub` or `txt`.
 
-# Overwrite
+## Overwrite
 By default the tool will overwrite any existing srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
 
 `subplz sync -d "/mnt/v/somefolder" --no-overwrite`
 
-# Only Running for the Files It Needs
+## Only Running for the Files It Needs
 SubPlz writes a file in the same folder to the audio with the `<audiofile>.subplz` extension. This ensures that subplz runs once and only once per directory for your content. If you want to rerun the SubPlz syncing, delete the file.
 
 Alternatively you can use the flag `--rerun` to ignore these files. If you want to prevent them from being created, you can run the tool with `--no-rerun-files`.
 
-# Respect Transcript Grouping
+## Respect Transcript Grouping
 If you want to allow the tool to break lines up into smaller chunks, you can use this flag. `--no-respect-grouping`
 
-# Tuning Recommendations
+## Tuning Recommendations
 For different use cases, different parameters may be optimal.
 
-## For Audiobooks
+### For Audiobooks
 - A chapter `m4b` file will allow us to split up the audio and do things in parallel
 - There can be slight variations between `epub` and `txt` files, like where full character spaces aren't pickedup in `epub` but are in `txt`. A chaptered `epub` may be faster, but you can have more control over what text gets synced from a `txt` file if you need to manually remove things (but `epub` is still probably the easier option, and very reliable)
 - If the audio and the text differ greatly - like full sections of the book are read in different order, you will want to use `--no-respect-grouping` to let the algorithm remove content for you
 - The default `--model "tiny"` seems to work well, and is much faster than other models. If your transcript is inaccurate, consider using a larger model to compensate
 
-## For Realigning Subtitles
+### For Realigning Subtitles
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
 
