@@ -121,7 +121,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 # Sort Order
 By default, the `-d` parameter will pick up the supported files in the directory(s) given. Ensure that your OS sorts them in an order that you would want them to be patched together in. Sort them by name, and as long as all of the audio files are in order and the all of the text files are in the same order, they'll be "zipped" up individually with each other.
 
-The exception to this, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub` or `txt`. 
+The exception to this, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub` or `txt`.
 
 # Overwrite
 By default the tool will overwrite any existing srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
@@ -134,7 +134,7 @@ SubPlz writes a file in the same folder to the audio with the `<audiofile>.subpl
 Alternatively you can use the flag `--rerun` to ignore these files. If you want to prevent them from being created, you can run the tool with `--no-rerun-files`.
 
 # Respect Transcript Grouping
-By default, the `sync` command will trust the original transcript and group lines based on it. If you want to allow the tool to break lines up into smaller chunks, you can use this flag. `--no-respect-grouping`
+If you want to allow the tool to break lines up into smaller chunks, you can use this flag. `--no-respect-grouping`
 
 # Tuning Recommendations
 For different use cases, different parameters may be optimal.
@@ -147,7 +147,7 @@ For different use cases, different parameters may be optimal.
 
 ## For Realigning Subtitles
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
-- Subs can be cut off in strange ways if you have an unreliable transcript, so by default `--respect-grouping` is on. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
+- Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
 
 # Thanks
 

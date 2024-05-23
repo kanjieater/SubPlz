@@ -107,7 +107,7 @@ class AudioSub(AudioStream):
         if not cache_overwrite:
             if transcription is not None:
                 return transcription
-        transcription = model.transcribe(self.audio(), name=self.cn, **kwargs)
+        transcription = model.faster_transcribe(self.audio(), self.cn, **kwargs)
         return cache.put(os.path.basename(self.path), self.cid, transcription)
 
     @classmethod
