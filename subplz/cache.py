@@ -12,33 +12,40 @@ class Cache:
     memcache: dict
 
     def get_name(self, filename, chid):
-        return filename + '.' + str(chid) +  '.' + self.model_name + ".subs"
+        return filename + "." + str(chid) + "." + self.model_name + ".subs"
 
     def get(self, filename, chid):
         fn = self.get_name(filename, chid)
-        if fn in self.memcache: return self.memcache[fn]
-        if not self.enabled: return
+        if fn in self.memcache:
+            return self.memcache[fn]
+        if not self.enabled:
+            return
         if (q := Path(self.cache_dir) / fn).exists():
+            if not self.overwrite:
+                # Find a less noisy & accurate way to do this
+                print(f"💾 Cache hit for '{fn}' found on disk.")
             return eval(q.read_bytes().decode("utf-8"))
 
     def put(self, filename, chid, content):
         # if not self.enabled: return content
         cd = Path(self.cache_dir)
         cd.mkdir(parents=True, exist_ok=True)
-        fn =  self.get_name(filename, chid)
+        fn = self.get_name(filename, chid)
         p = cd / fn
         if p.exists():
             if self.ask:
                 prompt = f"Cache for file {filename}, chapter id {chid} already exists. Overwrite?  [y/n/Y/N] (yes, no, yes/no and don't ask again) "
-                while (k := input(prompt).strip()) not in ['y', 'n', 'Y', 'N']: pass
-                self.ask = not (k == 'N' or k == 'Y')
-                self.overwrite = k == 'Y' or k == 'y'
-            if not self.overwrite: return content
+                while (k := input(prompt).strip()) not in ["y", "n", "Y", "N"]:
+                    pass
+                self.ask = not (k == "N" or k == "Y")
+                self.overwrite = k == "Y" or k == "y"
+            if not self.overwrite:
+                return content
 
-        if 'text' in content:
-            del content['text']
-        if 'ori_dict' in content:
-            del content['ori_dict']
+        if "text" in content:
+            del content["text"]
+        if "ori_dict" in content:
+            del content["ori_dict"]
 
         # Some of these may be useful but they just take so much space
         # for i in content['segments']:
@@ -53,9 +60,8 @@ class Cache:
         #     del i['no_speech_prob']
 
         self.memcache[fn] = content
-        p.write_bytes(repr(content).encode('utf-8'))
+        p.write_bytes(repr(content).encode("utf-8"))
         return content
-
 
 
 def get_cache(backend, cache_inputs):
@@ -73,4 +79,3 @@ def get_cache(backend, cache_inputs):
         memcache={},
     )
     return cache
-
