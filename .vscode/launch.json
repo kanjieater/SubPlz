@@ -24,7 +24,9 @@
       "args": [
         "sync",
         "-d",
-        "/mnt/v/test",
+        "/mnt/v/test/single",
+        "--model",
+        "large-v3",
         // "--no-overwrite",
         // "--audio",
         // "/mnt/d/sync/変な家/変な家.m4b",

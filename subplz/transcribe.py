@@ -1,5 +1,4 @@
 import time
-import concurrent.futures as futures
 
 
 def transcribe(streams, model, cache, be):
@@ -20,28 +19,20 @@ def transcribe(streams, model, cache, be):
         "condition_on_previous_text": be.condition_on_previous_text,
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
+        "vad": be.vad,
+        "vad_onnx": True,
     }
     # TODO: not faster-whisper
     # logprob_threshold
 
-    s = time.monotonic()
-    with futures.ThreadPoolExecutor(max_workers) as p:
-        # with futures.ThreadPoolExecutor(1) as p:
-        r = []
-        for i in range(len(streams)):
-            for j, v in enumerate(streams[i][2]):
-                # TODO add **args back in
-                future = p.submit(
-                    lambda x: x.transcribe(
-                        model, cache, cache_overwrite=cache.overwrite, **args
-                    ),
-                    v,
-                )
-                r.append(future)
-        futures.wait(r)
+    start_time = time.monotonic()
 
-        for future in r:
-            future.result()  # try to raise errors if they occurred
+    for stream_index, stream in enumerate(streams):
+        for segment_index, audio in enumerate(stream[2]):
+            try:
+                audio.transcribe(model, cache, cache_overwrite=cache.overwrite, **args)
+            except Exception as e:
+                print(f"Error transcribing stream {stream_index}, segment {segment_index}: {e}")
 
-    print(f"⏱️  Transcribing took: {time.monotonic()-s:.2f}s")
+    print(f"⏱️  Transcribing took: {time.monotonic() - start_time:.2f}s")
     return streams

@@ -69,7 +69,7 @@ def setup_advanced_cli(parser):
     # Behaviors
     optional_group.add_argument(
         "--respect-grouping",
-        default=True,
+        default=False,
         help="Keep the lines in the same subtitle together, instead of breaking them apart",
         action=argparse.BooleanOptionalAction,
     )
@@ -134,13 +134,27 @@ def setup_advanced_cli(parser):
     # Faster Whisper
     optional_group.add_argument(
         "--faster-whisper",
-        default=True,
+        default=False,
         help="Use faster_whisper, doesn't work with hugging face's decoding method currently",
         action=argparse.BooleanOptionalAction,
     )
     optional_group.add_argument(
         "--local-only",
         default=False,
+        help="Don't download outside models",
+        action=argparse.BooleanOptionalAction,
+    )
+
+    # stable-ts
+    optional_group.add_argument(
+        "--stable-ts",
+        default=True,
+        help="Use stable-ts",
+        action=argparse.BooleanOptionalAction,
+    )
+    optional_group.add_argument(
+        "--vad",
+        default=True,
         help="Don't download outside models",
         action=argparse.BooleanOptionalAction,
     )
@@ -228,8 +242,8 @@ def setup_advanced_cli(parser):
         help="if the probability of the <|nospeech|> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence",
     )
     advanced_group.add_argument(
-        "--word_timestamps",
-        default=False,
+        "--word-timestamps",
+        default=True,
         help="(experimental) extract word-level timestamps and refine the results based on them",
         action=argparse.BooleanOptionalAction,
     )
@@ -332,6 +346,9 @@ class backendParams:
     # Faster Whisper
     faster_whisper: bool
     local_only: bool
+    # stable-ts
+    stable_ts: bool
+    vad: bool
     # Advanced Whisper
     initial_prompt: str
     length_penalty: float
@@ -361,6 +378,7 @@ class backendParams:
     fast_decoder: bool
     fast_decoder_overlap: int
     fast_decoder_batches: int
+
 
 
 # args.progress
@@ -402,6 +420,8 @@ def get_inputs():
             fast_decoder_overlap=args.fast_decoder_overlap,
             fast_decoder_batches=args.fast_decoder_batches,
             respect_grouping=args.respect_grouping,
+            stable_ts=args.stable_ts,
+            vad=args.vad,
         ),
         cache=SimpleNamespace(
             overwrite_cache=args.overwrite_cache,
