@@ -26,8 +26,17 @@ ENV LD_LIBRARY_PATH="/lsiopy/lib/python3.10/site-packages/nvidia/cublas/lib:/lsi
 
 COPY . /app
 
+# Create a non-root user and switch to that user
+RUN adduser --disabled-password --gecos "" myuser
+
+# Change ownership of the /app directory to the new user
+RUN mkdir -p /config/ && chown -R myuser:myuser /config && chown -R myuser:myuser /app
+
 # Set work directory
 WORKDIR /app
+
+# Switch to the non-root user
+USER myuser
 
 # # Expose port for Wyoming connection
 # EXPOSE 10300

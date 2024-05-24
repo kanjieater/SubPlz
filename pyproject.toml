@@ -24,7 +24,7 @@ dependencies = [
     "tqdm~=4.66.3",
     "pysbd~=0.3.4",
     "stable-ts~=2.17.2",
-    "ats@git+https://github.com/kanjieater/AudiobookTextSync#egg=master"
+    "ats@git+https://github.com/kanjieater/ats#egg=master"
     # "ats @ file:///home/ke/code/AudiobookTextSync"
 ]
 
