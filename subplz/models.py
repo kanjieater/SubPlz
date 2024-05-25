@@ -6,6 +6,7 @@ from copy import copy
 import numpy as np
 from copy import deepcopy
 from subplz.utils import get_tqdm
+
 tqdm = get_tqdm()
 # from huggingface import modify_model
 # from quantization import ptdq_linear
@@ -16,26 +17,31 @@ tqdm = get_tqdm()
 def faster_transcribe(self, audio, name, **args):
     # name = args.pop('name')
 
-    args['log_prob_threshold'] = args.pop('logprob_threshold')
-    args['beam_size'] = args['beam_size'] if args['beam_size'] else 1
-    args['patience'] = args['patience'] if args['patience'] else 1
-    args['length_penalty'] = args['length_penalty'] if args['length_penalty'] else 1
+    args["log_prob_threshold"] = args.pop("logprob_threshold")
+    args["beam_size"] = args["beam_size"] if args["beam_size"] else 1
+    args["patience"] = args["patience"] if args["patience"] else 1
+    args["length_penalty"] = args["length_penalty"] if args["length_penalty"] else 1
     result = self.transcribe_stable(audio, best_of=1, **args)
     segments, prev_end = [], 0
     with tqdm(total=result.duration, unit_scale=True, unit=" seconds") as pbar:
-        pbar.set_description(f'{name}')
+        pbar.set_description(f"{name}")
         for segment in result.segments:
-            segments.append({
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text,
-            })
+            segments.append(
+                {
+                    "start": segment.start,
+                    "end": segment.end,
+                    "text": segment.text,
+                }
+            )
             pbar.update(segment.end - prev_end)
             prev_end = segment.end
         pbar.update(result.duration - prev_end)
         pbar.refresh()
 
-    return {'segments': segments, 'language': args['language'] if 'language' in args else result.language}
+    return {
+        "segments": segments,
+        "language": args["language"] if "language" in args else result.language,
+    }
 
 
 def get_temperature(inputs):
@@ -74,9 +80,17 @@ def get_model(backend):
         model.faster_transcribe = MethodType(faster_transcribe, model)
     elif stable_ts:
         import stable_whisper
-        model = stable_whisper.load_faster_whisper(model_name)
+
+        model = stable_whisper.load_faster_whisper(
+            model_name,
+            device=device,
+            local_files_only=local_files_only,
+            compute_type=compute_type,
+            num_workers=num_workers,
+        )
         # model.transcribe2 = model.transcribe_stable
         # model.transcribe2 = model.transcribe
+        # TODO: Don't monkeypatch this - unnecessary
         model.faster_transcribe = MethodType(faster_transcribe, model)
 
     else:
