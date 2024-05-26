@@ -129,9 +129,7 @@ By default the tool will overwrite any existing srt named after the audio file's
 `subplz sync -d "/mnt/v/somefolder" --no-overwrite`
 
 ## Only Running for the Files It Needs
-SubPlz writes a file in the same folder to the audio with the `<audiofile>.subplz` extension. This ensures that subplz runs once and only once per directory for your content. If you want to rerun the SubPlz syncing, delete the file.
-
-Alternatively you can use the flag `--rerun` to ignore these files. If you want to prevent them from being created, you can run the tool with `--no-rerun-files`.
+For subtitles, SubPlz renames matching sub files to the audio with the `<audiofile>.old.<sub ext>` naming. This ensures that subplz runs once and only once per directory for your content. If you want to rerun the SubPlz syncing, you can use the flag `--rerun` to use the matching `.old` file and ignore all subs that aren't `.old`.
 
 ## Respect Transcript Grouping
 If you want to allow the tool to break lines up into smaller chunks, you can use this flag. `--no-respect-grouping`

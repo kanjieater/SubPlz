@@ -155,7 +155,6 @@ class sourceData:
     output_format: str
     overwrite: bool
     rerun: bool
-    rerun_files: bool
     output_full_paths: List[Path]
     writer: Writer
     chapters: List
@@ -229,7 +228,9 @@ def get_chapters(text: List[str], lang):
         file_ext = splitext(file_name)[-1].lower()
 
         if file_ext == ".epub":
-            txt_path = get_tmp_path(Path(file_path).parent / f"{Path(file_path).stem}.txt")
+            txt_path = get_tmp_path(
+                Path(file_path).parent / f"{Path(file_path).stem}.txt"
+            )
             epub = Epub.from_file(file_path)
             chapters.append((txt_path, epub.chapters))
             split_sentences_from_input([p.text() for p in epub.text()], txt_path, lang)
@@ -247,7 +248,9 @@ def get_chapters(text: List[str], lang):
                 return []
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
         else:
-            txt_path = get_tmp_path(Path(file_path).parent / f"{Path(file_path).stem}.txt")
+            txt_path = get_tmp_path(
+                Path(file_path).parent / f"{Path(file_path).stem}.txt"
+            )
             split_sentences(file_path, txt_path, lang)
             chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
     return chapters
@@ -288,8 +291,9 @@ def get_output_full_paths(audio, output_dir, output_format):
 
 def match_files(audios, texts, folder, rerun):
     if rerun:
+        already_run = get_existing_rerun_files(folder)
         audios_filtered = audios
-        texts_filtered = texts
+        texts_filtered = already_run
     else:
         already_run = get_existing_rerun_files(folder)
         already_run_text_paths = []
@@ -343,7 +347,6 @@ def get_sources_from_dirs(input):
                 output_format=input.output_format,
                 overwrite=input.overwrite,
                 rerun=input.rerun,
-                rerun_files=input.rerun_files,
                 output_full_paths=output_full_paths,
                 writer=writer,
                 chapters=chapters,
@@ -374,7 +377,6 @@ def setup_sources(input) -> List[sourceData]:
                 output_format=input.output_format,
                 overwrite=input.overwrite,
                 rerun=input.rerun,
-                rerun_files=input.rerun_files,
                 output_full_paths=output_full_paths,
                 writer=writer,
                 streams=streams,
@@ -441,32 +443,30 @@ def cleanup(sources: List[sourceData]):
 
 
 def get_existing_rerun_files(dir: str) -> List[str]:
-    return grab_files(dir, ["*.subplz"])
+    return grab_files(dir, ["*.old." + ext for ext in SUBTITLE_FORMATS])
 
 
 def get_rerun_file_path(output_path: Path) -> Path:
-    cache_file = output_path.parent / f"{output_path.stem}{output_path.suffix}.subplz"
+    cache_file = output_path.parent / f"{output_path.stem}.old{output_path.suffix}"
     return cache_file
-
-
-def write_rerun_files(source: sourceData):
-    for file in source.output_full_paths:
-        cache_file = get_rerun_file_path(file)
-        if source.rerun_files:
-            cache_file.touch()
-        # print(f"Created cache file: {cache_file}") #log
 
 
 def rename_old_subs(source: sourceData):
     subs = []
     for sub in source.text:
-        if Path(sub).suffix[1:] in SUBTITLE_FORMATS:
+        if (
+            Path(sub).suffix[1:] in SUBTITLE_FORMATS
+            and ".old" not in Path(Path(sub).stem).suffix
+        ):
             subs.append(sub)
     remaining_subs = set(subs) - set([str(p) for p in source.output_full_paths])
-
-    for sub in remaining_subs:
+    for i, sub in enumerate(remaining_subs):
         sub_path = Path(sub)
-        new_filename = sub_path.with_suffix(sub_path.suffix + ".old")
+
+        if len(source.text) == len(source.audio):
+            new_filename = Path(source.audio[i]).with_suffix(".old" + sub_path.suffix)
+        else:
+            new_filename = sub_path.with_suffix(".old" + sub_path.suffix)
         sub_path.rename(new_filename)
 
 
@@ -480,7 +480,6 @@ def post_process(sources: List[sourceData]):
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
             rename_old_subs(source)
-            write_rerun_files(source)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         else:
             complete_success = False
@@ -488,7 +487,7 @@ def post_process(sources: List[sourceData]):
 
     if not sources:
         print(
-            """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if you had a .subplz file preventing rerun"""
+            """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if you had a .old file preventing rerun"""
         )
     elif complete_success:
         print("🎉 Everything went great!")
