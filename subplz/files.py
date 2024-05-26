@@ -424,8 +424,6 @@ def get_sources(input, cache_inputs):
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if op.exists():
-                rename_existing_file_to_old(op)
             if not source.audio:
                 print(f"❗ {op.name}'s audio is missing, skipping.")
                 invalid_sources.append(source)
@@ -441,6 +439,8 @@ def get_sources(input, cache_inputs):
                 invalid_sources.append(source)
                 is_valid = False
                 break
+            if op.exists() and not old_file.exists():
+                rename_existing_file_to_old(op)
 
         if is_valid:
             valid_sources.append(source)
