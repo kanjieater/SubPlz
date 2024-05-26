@@ -427,9 +427,10 @@ def get_inputs():
             vad=args.vad,
         ),
         cache=SimpleNamespace(
-            overwrite_cache=args.overwrite_cache,
-            use_cache=args.use_cache,
+            overwrite=args.overwrite_cache,
+            enabled=args.use_cache,
             cache_dir=args.cache_dir,
+            model_name=args.model,
         ),
         sources=SimpleNamespace(
             dirs=args.dirs,

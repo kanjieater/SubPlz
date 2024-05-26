@@ -5,6 +5,7 @@ from os import path
 from os.path import basename, splitext, dirname, isdir, join
 from typing import List, Callable
 from dataclasses import dataclass
+import ffmpeg
 from natsort import os_sorted
 from glob import glob, escape
 from pprint import pformat
@@ -16,7 +17,7 @@ from ats.main import (
     write_srt,
     write_vtt,
 )
-import ffmpeg
+from subplz.cache import Cache
 from subplz.text import split_sentences, split_sentences_from_input, Epub
 
 AUDIO_FORMATS = [
@@ -101,17 +102,18 @@ class AudioSub(AudioStream):
     duration: float
     cn: str
     cid: int
+    cache: Cache
 
-    def transcribe(self, model, cache, cache_overwrite=False, **kwargs):
-        transcription = cache.get(os.path.basename(self.path), self.cid)
-        if not cache_overwrite:
-            if transcription is not None:
-                return transcription
+    def transcribe(self, model={}, **kwargs):
+        transcription = self.cache.get(os.path.basename(self.path), self.cid)
+        if transcription is not None:
+            return transcription
         transcription = model.faster_transcribe(self.audio(), self.cn, **kwargs)
-        return cache.put(os.path.basename(self.path), self.cid, transcription)
+        return self.cache.put(os.path.basename(self.path), self.cid, transcription)
 
     @classmethod
-    def from_file(cls, path, whole=False, lang="ja"):
+    def from_file(cls, path, cache_inputs={}, whole=False, lang="ja"):
+        cache = Cache(**vars(cache_inputs))
         try:
             info = ffmpeg.probe(path, show_chapters=None)
         except ffmpeg.Error as e:
@@ -129,6 +131,7 @@ class AudioSub(AudioStream):
                     path=path,
                     cn=title,
                     cid=0,
+                    cache=cache,
                 )
             ]
 
@@ -141,6 +144,7 @@ class AudioSub(AudioStream):
                 path=path,
                 cn=chapter.get("tags", {}).get("title", ""),
                 cid=chapter["id"],
+                cache=cache,
             )
             for chapter in info["chapters"]
         ]
@@ -172,9 +176,9 @@ def grab_files(folder, types, sort=True):
     return files
 
 
-def get_streams(audio):
+def get_streams(audio, cache_inputs):
     # print("🎧 Loading streams...") #log
-    streams = [(basename(f), *AudioSub.from_file(f)) for f in audio]
+    streams = [(basename(f), *AudioSub.from_file(f, cache_inputs)) for f in audio]
     return streams
 
 
@@ -324,7 +328,7 @@ def match_files(audios, texts, folder, rerun):
     return [[a] for a in audios_filtered], [[t] for t in texts_filtered]
 
 
-def get_sources_from_dirs(input):
+def get_sources_from_dirs(input, cache_inputs):
     sources = []
     working_folders = get_working_folders(input.dirs)
     for folder in working_folders:
@@ -337,7 +341,7 @@ def get_sources_from_dirs(input):
             )
             writer = Writer(input.output_format)
 
-            streams = get_streams(matched_audio)
+            streams = get_streams(matched_audio, cache_inputs)
             chapters = get_chapters(matched_text, input.lang)
             s = sourceData(
                 dirs=input.dirs,
@@ -357,9 +361,9 @@ def get_sources_from_dirs(input):
     return sources
 
 
-def setup_sources(input) -> List[sourceData]:
+def setup_sources(input, cache_inputs) -> List[sourceData]:
     if input.dirs:
-        sources = get_sources_from_dirs(input)
+        sources = get_sources_from_dirs(input, cache_inputs)
     else:
         output_dir = setup_output_dir(input.output_dir, input.audio[0])
         output_full_paths = get_output_full_paths(
@@ -367,7 +371,7 @@ def setup_sources(input) -> List[sourceData]:
         )
         writer = Writer(input.output_format)
         chapters = get_chapters(input.text, input.lang)
-        streams = get_streams(input.audio)
+        streams = get_streams(input.audio, cache_inputs)
         sources = [
             sourceData(
                 dirs=[],
@@ -387,23 +391,23 @@ def setup_sources(input) -> List[sourceData]:
     return sources
 
 
-def get_sources(input):
-    sources = setup_sources(input)
+def get_sources(input, cache_inputs):
+    sources = setup_sources(input, cache_inputs)
     valid_sources = []
     invalid_sources = []
     for source in sources:
         paths = source.output_full_paths
         is_valid = True
         for fp in paths:
-            cache_file = get_rerun_file_path(fp)
+            old_file = get_rerun_file_path(fp)
             if not source.overwrite and fp.exists():
                 print(f"🤔 SubPlz file '{fp.name}' already exists, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if cache_file.exists() and fp.exists() and not source.rerun:
+            if old_file.exists() and fp.exists() and not source.rerun:
                 print(
-                    f"🤔 {cache_file.name} already exists but you don't want it overwritten, skipping."
+                    f"🤔 {old_file.name} already exists but you don't want it overwritten, skipping."
                 )
                 invalid_sources.append(source)
                 is_valid = False

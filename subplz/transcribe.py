@@ -1,7 +1,8 @@
 import time
+import traceback
 
 
-def transcribe(streams, model, cache, be):
+def transcribe(streams, model, be):
     max_workers = be.threads
     print("📝 Transcribing...")
     args = {
@@ -30,9 +31,11 @@ def transcribe(streams, model, cache, be):
     for stream_index, stream in enumerate(streams):
         for segment_index, audio in enumerate(stream[2]):
             try:
-                audio.transcribe(model, cache, cache_overwrite=cache.overwrite, **args)
+                audio.transcribe(model, **args)
             except Exception as e:
                 print(f"Error transcribing stream {stream_index}, segment {segment_index}: {e}")
+                traceback.print_exc()
+
 
     print(f"⏱️  Transcribing took: {time.monotonic() - start_time:.2f}s")
     return streams

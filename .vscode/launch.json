@@ -25,9 +25,9 @@
         "sync",
         "-d",
         "/mnt/v/test",
-        // "--rerun",
+        "--rerun",
 
-        // "--no-overwrite",
+        "--overwrite-cache",
         // "--audio",
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",

@@ -26,7 +26,9 @@ def get_tqdm(progress=True):
 
         t = tqdm
     t.__init__ = partialmethod(tqdm.__init__, disable=not progress)
-    return t
+    trange.__init__ = partialmethod(trange.__init__, disable=not progress)
+
+    return t, trange
 
 
 def get_threads(inputs):

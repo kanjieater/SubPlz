@@ -7,7 +7,7 @@ import numpy as np
 from copy import deepcopy
 from subplz.utils import get_tqdm
 
-tqdm = get_tqdm()
+tqdm = get_tqdm()[0]
 # from huggingface import modify_model
 # from quantization import ptdq_linear
 

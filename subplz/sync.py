@@ -1,6 +1,4 @@
-
 from ats.main import (
-    match_start,
     expand_matches,
     print_batches,
     to_subs,
@@ -8,20 +6,74 @@ from ats.main import (
 import warnings
 from ats import align
 from ats.lang import get_lang
+from rapidfuzz import fuzz
 
 from subplz.align import nc_align
 from subplz.files import sourceData
 from subplz.utils import get_tqdm
 
-tqdm = get_tqdm()
+tqdm, trange = get_tqdm()
 
 # Filter out the specific warning
-warnings.filterwarnings("ignore", category=FutureWarning, message="This search incorrectly ignores the root element")
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="This search incorrectly ignores the root element",
+)
 
 
-def fuzzy_match_chapters(streams, chapters, cache):
+def match_start(audio, text, model):
+    ats, sta = {}, {}
+    textcache = {}
+    for ai in trange(len(audio)):
+        afn, at, ac = audio[ai]
+        for i in trange(len(ac)):
+            if (ai, i) in ats:
+                continue
+            try:
+                l = ac[i].transcribe(None)
+            except AttributeError as e:
+                print(f"🥺 Transcript not found! Attribute error occurred: {e}")
+
+            lang = get_lang(l["language"])
+            acontent = lang.normalize(
+                lang.clean("".join(seg["text"] for seg in l["segments"]))
+            )
+            best = (-1, -1, 0)
+            for ti in range(len(text)):
+                tfn, tc = text[ti]
+
+                for j in range(len(tc)):
+                    if (ti, j) in sta:
+                        continue
+
+                    if (ti, j) not in textcache:
+                        textcache[ti, j] = lang.normalize(
+                            lang.clean("".join(p.text() for p in tc[j].text()))
+                        )
+                    tcontent = textcache[ti, j]
+                    if len(acontent) < 100 or len(tcontent) < 100:
+                        continue
+
+                    l = min(len(tcontent), len(acontent), 2000)
+                    score = fuzz.ratio(acontent[:l], tcontent[:l])
+                    # title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
+                    # tqdm.write(ac[i].cn + ' ' + title + ' ' + str(j) + ' ' + str(score))
+                    if score > 40 and score > best[-1]:
+                        best = (ti, j, score)
+
+            if best[:-1] in sta:
+                tqdm.write("match_start")
+            elif best != (-1, -1, 0):
+                ats[ai, i] = best
+                sta[best[:-1]] = (ai, i, best[-1])
+
+    return ats, sta
+
+
+def fuzzy_match_chapters(streams, chapters, model):
     print("🔍 Fuzzy matching chapters...")
-    ats, sta = match_start(streams, chapters, cache)
+    ats, sta = match_start(streams, chapters, model)
     audio_batches = expand_matches(streams, chapters, ats, sta)
     # print_batches(audio_batches)
     return audio_batches
@@ -53,7 +105,7 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
     return to_subs(tcontent, acontent, alignment, offset, None)
 
 
-def sync(source: sourceData, model, streams, cache, be):
+def sync(source: sourceData, model, streams, be):
     nopend = set(be.nopend_punctuations)
     chapters = source.chapters
     args = {
@@ -73,7 +125,7 @@ def sync(source: sourceData, model, streams, cache, be):
         "word_timestamps": be.word_timestamps,
     }
 
-    audio_batches = fuzzy_match_chapters(streams, chapters, cache)
+    audio_batches = fuzzy_match_chapters(streams, chapters, model)
     print("🔄 Syncing...")
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
@@ -83,9 +135,7 @@ def sync(source: sourceData, model, streams, cache, be):
             for ajs, (chi, chjs), _ in tqdm(batches):
                 ach = [
                     (
-                        streams[ai][2][aj].transcribe(
-                            model, cache, **args
-                        ),
+                        streams[ai][2][aj].transcribe(model, **args),
                         streams[ai][2][aj].duration,
                     )
                     for aj in ajs
@@ -108,8 +158,10 @@ def sync(source: sourceData, model, streams, cache, be):
             if not segments:
                 continue
             source.writer.write_sub(segments, source.output_full_paths[ai])
-            if(len(source.chapters) == 1 and be.respect_grouping):
-                new_segments = nc_align(chapters[0][0], source.output_full_paths[ai], be.respect_grouping_count)
+            if len(source.chapters) == 1 and be.respect_grouping:
+                new_segments = nc_align(
+                    chapters[0][0],
+                    source.output_full_paths[ai],
+                    be.respect_grouping_count,
+                )
                 source.writer.write_sub(new_segments, source.output_full_paths[ai])
-
-
