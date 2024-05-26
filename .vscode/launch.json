@@ -24,10 +24,10 @@
       "args": [
         "sync",
         "-d",
-        "/mnt/v/test",
-        "--rerun",
+        "/mnt/v/test/2",
+        // "--rerun",
 
-        "--overwrite-cache",
+        // "--overwrite-cache",
         // "--audio",
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",

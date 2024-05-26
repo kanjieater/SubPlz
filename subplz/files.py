@@ -310,9 +310,15 @@ def match_files(audios, texts, folder, rerun):
         destemed_audio = [
             str(Path(audio).parent / Path(audio).stem) for audio in audios
         ]
+        destemed_text = [
+            str(Path(text).parent / Path(text).stem) for text in texts
+        ]
         audios_unique = list(set(destemed_audio) - set(already_run_audio_paths))
-        texts_filtered = list(set(texts) - set(already_run_text_paths))
-        texts_filtered.sort(key=lambda x: texts.index(x))
+        texts_unique = list(set(destemed_text) - set(already_run_audio_paths) - set(already_run_text_paths))
+
+        texts_filtered = [
+            t for t in texts if str(Path(t).parent / Path(t).stem) in texts_unique
+        ]
         audios_filtered = [
             a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
         ]
@@ -390,30 +396,38 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
         ]
     return sources
 
+def rename_existing_file_to_old(p):
+    path_obj = Path(p)
+    new_filename = path_obj.with_suffix(".old" + path_obj.suffix)
+    path_obj.rename(new_filename)
+    return new_filename
+
 
 def get_sources(input, cache_inputs):
     sources = setup_sources(input, cache_inputs)
     valid_sources = []
     invalid_sources = []
     for source in sources:
-        paths = source.output_full_paths
+        output_paths = source.output_full_paths
         is_valid = True
-        for fp in paths:
-            old_file = get_rerun_file_path(fp)
-            if not source.overwrite and fp.exists():
-                print(f"🤔 SubPlz file '{fp.name}' already exists, skipping.")
+        for op in output_paths:
+            old_file = get_rerun_file_path(op)
+            if not source.overwrite and op.exists():
+                print(f"🤔 SubPlz file '{op.name}' already exists, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if old_file.exists() and fp.exists() and not source.rerun:
+            if old_file.exists() and op.exists() and not source.rerun:
                 print(
                     f"🤔 {old_file.name} already exists but you don't want it overwritten, skipping."
                 )
                 invalid_sources.append(source)
                 is_valid = False
                 break
+            if op.exists():
+                rename_existing_file_to_old(op)
             if not source.audio:
-                print(f"❗ {fp.name}'s audio is missing, skipping.")
+                print(f"❗ {op.name}'s audio is missing, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
@@ -447,7 +461,10 @@ def cleanup(sources: List[sourceData]):
 
 
 def get_existing_rerun_files(dir: str) -> List[str]:
-    return grab_files(dir, ["*.old." + ext for ext in SUBTITLE_FORMATS])
+    old = grab_files(dir, ["*.old." + ext for ext in SUBTITLE_FORMATS])
+    text = grab_files(dir, ["*." + ext for ext in TEXT_FORMATS])
+    return os_sorted(list(set(text + old)))
+
 
 
 def get_rerun_file_path(output_path: Path) -> Path:
