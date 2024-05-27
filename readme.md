@@ -10,7 +10,13 @@ This tool allows you to use AI models to generate subtitles from only audio, the
 
 It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a community built Google Colab notebook available on discord.
 
-Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
+Current State: 
+- The subtitle timings will be 99.99% accurate for most intended use cases.
+- The timings will be mostly accurate, but may come late or leave early. 
+- Occassionally, the first word of the next line will show up in the next subtitle.
+- Occassionally, non-spoken things like sound effects in subtitles will be combined with other lines
+- Known Issues: RAM usage. 5+ hr audiobooks can take more than 12 GB of RAM. I can't run a 19 hr one with 48GB of RAM. The current work around is to use an epub + chaptered m4b audiobook. Then we can automatically split the ebook text and audiobook chapters to sync in smaller chunks accurately. Alternatively you could use multiple text files and mp3 files to achieve a similar result.
+Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
 
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 
