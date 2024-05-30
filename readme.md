@@ -10,7 +10,13 @@ This tool allows you to use AI models to generate subtitles from only audio, the
 
 It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a community built Google Colab notebook available on discord.
 
-Current State: The transcript will be extremely accurate. The timings will be mostly accurate, but may come late or leave early. Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
+Current State: 
+- The subtitle timings will be 99.99% accurate for most intended use cases.
+- The timings will be mostly accurate, but may come late or leave early. 
+- Occassionally, the first word of the next line will show up in the next subtitle.
+- Occassionally, non-spoken things like sound effects in subtitles will be combined with other lines
+- Known Issues: RAM usage. 5+ hr audiobooks can take more than 12 GB of RAM. I can't run a 19 hr one with 48GB of RAM. The current work around is to use an epub + chaptered m4b audiobook. Then we can automatically split the ebook text and audiobook chapters to sync in smaller chunks accurately. Alternatively you could use multiple text files and mp3 files to achieve a similar result.
+Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
 
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 
@@ -138,12 +144,14 @@ If you want to allow the tool to break lines up into smaller chunks, you can use
 For different use cases, different parameters may be optimal.
 
 ### For Audiobooks
+- Recommended: `subplz sync -d "/mnt/d/sync/Harry Potter"`
 - A chapter `m4b` file will allow us to split up the audio and do things in parallel
 - There can be slight variations between `epub` and `txt` files, like where full character spaces aren't pickedup in `epub` but are in `txt`. A chaptered `epub` may be faster, but you can have more control over what text gets synced from a `txt` file if you need to manually remove things (but `epub` is still probably the easier option, and very reliable)
 - If the audio and the text differ greatly - like full sections of the book are read in different order, you will want to use `--no-respect-grouping` to let the algorithm remove content for you
 - The default `--model "tiny"` seems to work well, and is much faster than other models. If your transcript is inaccurate, consider using a larger model to compensate
 
 ### For Realigning Subtitles
+- Recommended: `subplz sync --model large-v3 -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
 
