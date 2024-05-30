@@ -156,7 +156,11 @@ For different use cases, different parameters may be optimal.
 # FAQ
 ## Can I run this with multiple Audio files and _One_ script?
 It's not recommended. You will have a bad time.
-Please use m4b for audiobooks. I know you may have gotten them in mp3 and it's an extra step, but it's _the_ audiobook format. You can use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
+Please use m4b for audiobooks. I know you may have gotten them in mp3 and it's an extra step, but it's _the_ audiobook format. 
+
+I've heard of people using https://github.com/yermak/AudioBookConverter
+
+Personally, I use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
 
 Alternatively you could use ChatGPT to help you combine them. Something like this:
 ```
