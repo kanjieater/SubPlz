@@ -156,6 +156,12 @@ For different use cases, different parameters may be optimal.
 # FAQ
 ## Can I run this with multiple Audio files and _One_ script?
 It's not recommended. You will have a bad time.
+
+If your audiobook is huge (eg 38 hours long & 31 audio files), then break up each section into an m4b or audio file with a text file for it: one text file per one audio file. This will work fine.
+
+But it _can_ work in very specific circumstances. The exception to the Sort Order rule, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub`. This only works if the `epub` chapters and the `mp3` match. `Txt ` files don't work very well for this case currently. I still don't recommend it.
+
+## How do I get things into one file then?
 Please use m4b for audiobooks. I know you may have gotten them in mp3 and it's an extra step, but it's _the_ audiobook format. 
 
 I've heard of people using https://github.com/yermak/AudioBookConverter
@@ -167,7 +173,7 @@ Alternatively you could use ChatGPT to help you combine them. Something like thi
 !for f in "/content/drive/MyDrive/name/成瀬は天下を取りに行く/"*.mp3; do echo "file '$f'" >> mylist.txt; done
 !ffmpeg -f concat -safe 0 -i mylist.txt -c copy output.mp3
 ```
-But it _can_ work in very specific circumstances. The exception to the Sort Order rule, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub`. This only works if the `epub` chapters and the `mp3` match. `Txt ` files don't work very well for this case currently.
+
 
 # Thanks
 
