@@ -127,8 +127,6 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 ## Sort Order
 By default, the `-d` parameter will pick up the supported files in the directory(s) given. Ensure that your OS sorts them in an order that you would want them to be patched together in. Sort them by name, and as long as all of the audio files are in order and the all of the text files are in the same order, they'll be "zipped" up individually with each other.
 
-The exception to this, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub` or `txt`.
-
 ## Overwrite
 By default the tool will overwrite any existing srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
 
@@ -154,6 +152,18 @@ For different use cases, different parameters may be optimal.
 - Recommended: `subplz sync --model large-v3 -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
+
+# FAQ
+## Can I run this with multiple Audio files and _One_ script?
+It's not recommended. You will have a bad time.
+Please use m4b for audiobooks. I know you may have gotten them in mp3 and it's an extra step, but it's _the_ audiobook format. You can use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
+
+Alternatively you could use ChatGPT to help you combine them. Something like this:
+```
+!for f in "/content/drive/MyDrive/name/成瀬は天下を取りに行く/"*.mp3; do echo "file '$f'" >> mylist.txt; done
+!ffmpeg -f concat -safe 0 -i mylist.txt -c copy output.mp3
+```
+But it _can_ work in very specific circumstances. The exception to the Sort Order rule, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub`. This only works if the `epub` chapters and the `mp3` match. `Txt ` files don't work very well for this case currently.
 
 # Thanks
 
