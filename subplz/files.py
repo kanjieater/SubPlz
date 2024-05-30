@@ -295,7 +295,9 @@ def get_output_full_paths(audio, output_dir, output_format):
 
 def match_files(audios, texts, folder, rerun):
     if rerun:
-        already_run = get_existing_rerun_files(folder)
+        old = get_existing_rerun_files(folder)
+        text = grab_files(dir, ["*." + ext for ext in TEXT_FORMATS])
+        already_run =os_sorted(list(set(text + old)))
         audios_filtered = audios
         texts_filtered = already_run
     else:
@@ -323,7 +325,7 @@ def match_files(audios, texts, folder, rerun):
             a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
         ]
     if len(audios_filtered) > 1 and len(texts_filtered) == 1 and len(already_run) == 0:
-        print("🤔 Multiple audio files found, but only one text...")
+        print("🤔 Multiple audio files found, but only one text... If you use an epub, each chapter will be mapped to a single audio file")
         return [audios_filtered], [[t] for t in texts_filtered]
 
     if len(audios_filtered) != len(texts_filtered):
@@ -462,9 +464,7 @@ def cleanup(sources: List[sourceData]):
 
 def get_existing_rerun_files(dir: str) -> List[str]:
     old = grab_files(dir, ["*.old." + ext for ext in SUBTITLE_FORMATS])
-    text = grab_files(dir, ["*." + ext for ext in TEXT_FORMATS])
-    return os_sorted(list(set(text + old)))
-
+    return old
 
 
 def get_rerun_file_path(output_path: Path) -> Path:

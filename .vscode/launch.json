@@ -17,6 +17,17 @@
       ],
     },
     {
+      "name": "Multiple MP3s",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "sync",
+        "-d",
+        "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/test"
+      ],
+    },
+    {
       "name": "Video file",
       "type": "debugpy",
       "request": "launch",
