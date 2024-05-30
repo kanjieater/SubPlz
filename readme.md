@@ -166,7 +166,7 @@ Please use m4b for audiobooks. I know you may have gotten them in mp3 and it's a
 
 I've heard of people using https://github.com/yermak/AudioBookConverter
 
-Personally, I use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality.
+Personally, I use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). If you go down this route, make sure you use the docker version of m4b-tool as the improved codecs are included in it. I tested m4b-tool without the docker image and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality. I use the `helpers/merge2.sh` to merge audiobooks together in batch with this method.
 
 Alternatively you could use ChatGPT to help you combine them. Something like this:
 ```
