@@ -8,7 +8,7 @@ import shutil
 import multiprocessing
 from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
-from subplz.utils import grab_files
+from subplz.files import grab_files
 
 
 ANKI_CONNECT_URL = ""
@@ -199,11 +199,11 @@ def send_to_anki_connect(csv_path, note_template, field_mappings):
     successes = [x for x in notes_response if x is not None]
     failures = len(notes) - len(successes)
 
-    # print("[+] Emptying any fields left empty intentionally")
-    # empty_fields = replace_empty_fields(empty_fields_note_template)["fields"]
-    # empty = []
-    # for i in tqdm(range(0, len(successes), chunk_size)):
-    #     empty += set_empty(empty_fields, successes[i : i + chunk_size])
+    print("[+] Emptying any fields left empty intentionally")
+    empty_fields = replace_empty_fields(empty_fields_note_template)["fields"]
+    empty = []
+    for i in tqdm(range(0, len(successes), chunk_size)):
+        empty += set_empty(empty_fields, successes[i : i + chunk_size])
 
     print("[+] Created {} new notes".format(len(successes)))
     if failures:

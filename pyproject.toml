@@ -41,7 +41,7 @@ dev = [
 ]
 anki = [
   "requests==2.26.0",
-  "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=2391f40"
+  "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=de536d1c983641cd590180aa93c080010b1c5665"
 ]
 
 [project.scripts]

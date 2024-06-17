@@ -10,13 +10,17 @@ This tool allows you to use AI models to generate subtitles from only audio, the
 
 It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a community built Google Colab notebook available on discord.
 
-Current State: 
+Current State:
 - The subtitle timings will be 99.99% accurate for most intended use cases.
-- The timings will be mostly accurate, but may come late or leave early. 
+- The timings will be mostly accurate, but may come late or leave early.
 - Occassionally, the first word of the next line will show up in the next subtitle.
 - Occassionally, non-spoken things like sound effects in subtitles will be combined with other lines
 - Known Issues: RAM usage. 5+ hr audiobooks can take more than 12 GB of RAM. I can't run a 19 hr one with 48GB of RAM. The current work around is to use an epub + chaptered m4b audiobook. Then we can automatically split the ebook text and audiobook chapters to sync in smaller chunks accurately. Alternatively you could use multiple text files and mp3 files to achieve a similar result.
+
 Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
+
+How does this compare to Alass for video subtitles?
+- Alass is usually either 100% right once it get's lined up - or way off and unusable. In contrast, SubPlz is probably right 95% of the time, but may have a few of the above issues. Ideally you'd have both types of subtitle available and could switch from an Alass version to a SubPlz version if need be. Alternatively, since SubPlz is consistent, you could just default to always using it, if you find it to be "good enough"
 
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 
@@ -154,6 +158,31 @@ For different use cases, different parameters may be optimal.
 - Recommended: `subplz sync --model large-v3 -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
+
+
+# Anki Support
+
+- Generates subs2srs style deck
+- Imports the deck into Anki automatically
+
+The Anki support currently takes your m4b file in `<full_folder_path>` named `<name>.m4b`, where `<name>` is the name of the media, and it outputs srs audio and a TSV file that can is sent via AnkiConnect to Anki. This is useful for searching across [GoldenDict](https://www.youtube.com/playlist?list=PLV9y64Yrq5i-1ztReLQQ2oyg43uoeyri-) to find sentences that use a word, or to merge automatically with custom scripts (more releases to support this coming hopefully).
+
+
+1. Install ankiconnect add-on to Anki.
+2. I recommend using `ANKICONNECT` as an environment variable. Set `export ANKICONNECT=localhost:8755` or `export ANKICONNECT="$(hostname).local:8765"` in your `~/.zshrc` or bashrc & activate it.
+3. Make sure you are in the project directory `cd ./AudiobookTextSync`
+4. Install `pip install ./requirements.txt` (only needs to be done once)
+5. Set `ANKI_MEDIA_DIR` to your anki profile's media path: `/mnt/f/Anki2/KanjiEater/collection.media/`
+6. Run the command below
+
+
+Command:
+`./anki.sh "<full_folder_path>"`
+
+Example:
+`./anki.sh "/mnt/d/sync/kokoro/"`
+
+
 
 # Thanks
 
