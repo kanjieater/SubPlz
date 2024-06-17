@@ -1,7 +1,7 @@
 # v1 Readme
 
 # Split m4b by chapter
-`./split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
+`./helpers/split.sh "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
 
 # Get a subtitle with synced transcript from split files
 `subplz sync -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`
@@ -12,7 +12,7 @@
 `python gen.py -d "/mnt/u/Videos/J-Shows/MAG Net/"`
 
 # Merge split files into a single m4b
-`./merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
+`./helpers/merge.sh "/mnt/d/Editing/Audiobooks/ｍｅｄｉｕｍ霊媒探偵城塚翡翠"`
 
 # Merge split files into a single m4b for a library
 
