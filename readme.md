@@ -167,10 +167,40 @@ The Anki support currently takes your m4b file in `<full_folder_path>` named `<n
 
 1. Install ankiconnect add-on to Anki.
 2. I recommend using `ANKICONNECT` as an environment variable. Set `export ANKICONNECT=localhost:8755` or `export ANKICONNECT="$(hostname).local:8765"` in your `~/.zshrc` or bashrc & activate it.
-3. Make sure you are in the project directory `cd ./AudiobookTextSync`
-4. Install `pip install ./requirements.txt` (only needs to be done once)
-5. Set `ANKI_MEDIA_DIR` to your anki profile's media path: `/mnt/f/Anki2/KanjiEater/collection.media/`
-6. Run the command below
+3. Just like the line above, Set `ANKI_MEDIA_DIR` to your anki profile's media path: `export ANKI_MEDIA_DIR="/mnt/f/Anki2/KanjiEater/collection.media/"`. You need to change this path.
+4. Make sure you are in the project directory `cd ./AudiobookTextSync`
+5. Install the main project `pip install .` (only needs to be done once)
+6. Install `pip install .[anki]` (only needs to be done once)
+7. Copy the file from the project in `./anki_importer/mapping.template.json` to `./anki_importer/mapping.json`. `mapping.json` is your personal configuration file that you can and should modify to set the mapping of fields that you want populated.
+My actual config looks like this:
+```json
+{
+  "deckName": "!優先::Y メディア::本",
+  "modelName": "JapaneseNote",
+  "fields": {
+    "Audio": 3,
+    "Expression": 1,
+    "Vocab": ""
+  },
+  "options": {
+    "allowDuplicate": true
+  },
+  "tags": [
+    "mmi",
+    "suspendMe"
+  ]
+}
+```
+The number next to the Expression and Audio maps to the fields like so
+```
+1: Text of subtitle: `パルスに援軍を求めてきたのである。`
+2: Timestamps of sub: `90492-92868`
+3: Sound file: `[sound:アルスラーン戦記9　旌旗流転_90492-92868.mp3]`
+4: Image (not very really useful for audiobooks): <img src='アルスラーン戦記9　旌旗流転_90492-92868.jpg'>
+5: Sub file name: アルスラーン戦記9　旌旗流転.m4b,アルスラーン戦記9　旌旗流転.srt
+```
+Notice you can also set fields and tags manually. You can set multiple tags. Or like in my example, you can set `Vocab` to be empty, even though it's my first field in Anki.
+8. Run the command below
 
 
 Command:

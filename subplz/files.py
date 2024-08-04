@@ -297,7 +297,7 @@ def match_files(audios, texts, folder, rerun):
     if rerun:
         old = get_existing_rerun_files(folder)
         text = grab_files(dir, ["*." + ext for ext in TEXT_FORMATS])
-        already_run =os_sorted(list(set(text + old)))
+        already_run = os_sorted(list(set(text + old)))
         audios_filtered = audios
         texts_filtered = already_run
     else:
