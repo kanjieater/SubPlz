@@ -2,14 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python Debugger: Module",
+      "name": "Run Pytest",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "noDebug": true, // <-- this will use the debug session but run the test without debugger injected into the process
+      "args": []
+  },
+  {
+      "name": "Debug Pytest",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-s"
+      ]
+  },
+    {
+      "name": "Python Debugger: Test kagami",
       "type": "debugpy",
       "request": "launch",
       "module": "subplz",
       "args": [
         "sync",
         "-d",
-        "/mnt/d/sync/変な家",
+        "/mnt/d/sync/test",
         // "--audio",
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",

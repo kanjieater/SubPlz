@@ -37,7 +37,8 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 [project.optional-dependencies]
 dev = [
   "black==24.4.2",
-  "ruff==0.4.4"
+  "ruff==0.4.4",
+  "pytest==8.3.2"
 ]
 anki = [
   "requests==2.26.0",
@@ -47,6 +48,12 @@ anki = [
 [project.scripts]
 subplz = "subplz.__main__:main"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--verbose"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [tool.black]
 line-length = 88

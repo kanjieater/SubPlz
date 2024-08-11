@@ -8,7 +8,7 @@ from ats import align
 from ats.lang import get_lang
 from rapidfuzz import fuzz
 
-from subplz.align import nc_align
+from subplz.align import nc_align, shift_align
 from subplz.files import sourceData
 from subplz.utils import get_tqdm
 
@@ -157,7 +157,8 @@ def sync(source: sourceData, model, streams, be):
 
             if not segments:
                 continue
-            source.writer.write_sub(segments, source.output_full_paths[ai])
+            shifted_segments = shift_align(segments)
+            source.writer.write_sub(shifted_segments, source.output_full_paths[ai])
             if len(source.chapters) == 1 and be.respect_grouping:
                 new_segments = nc_align(
                     chapters[0][0],

@@ -1,5 +1,6 @@
 from rapidfuzz import fuzz
 import re
+from typing import List
 
 from tqdm import tqdm
 from ats.main import Segment
@@ -275,7 +276,7 @@ def read_subtitles(file):
             if line == "":
                 break
 
-        sub = " ".join(sub_text).strip()
+        sub = " ".join(sub_text)
         if sub and last_sub != sub and sub not in [" ", "[音楽]"]:
             last_sub = sub
             subs.append(Segment(sub, sub_start, sub_end))
@@ -294,7 +295,7 @@ def to_float(time_str):
 
 def nc_align(split_script, subs_file, max_merge_count):
     with open(split_script, encoding="utf-8") as s:
-        script = [ScriptLine(line.strip()) for line in read_script(s)]
+        script = [ScriptLine(line) for line in read_script(s)]
     print(subs_file)
     with open(subs_file, encoding="utf-8") as vtt:
         subs = read_subtitles(vtt)
@@ -333,3 +334,139 @@ def nc_align(split_script, subs_file, max_merge_count):
         )
 
     return new_subs
+
+
+def find_punctuation_index(s: str) -> int:
+    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」"""
+    indices = [i for i, char in enumerate(s) if char in punctuation]
+    return indices
+
+def has_ending_punctuation(s: str) -> bool:
+    punctuation = """.。'“"!！?？”)]}」"""
+    indices = [i for i, char in enumerate(s) if char in punctuation]
+    return bool(indices)
+
+
+def has_punctuation(s: str) -> bool:
+    return bool(find_punctuation_index(s))
+
+
+def count_non_punctuation(s: str) -> int:
+    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」"""
+    return len([char for char in s if char not in punctuation])
+
+
+def find_index_with_non_punctuation_start(indices: List[int]) -> List[int]:
+    """Removes sequential indices, keeping only the first occurrence in a sequence."""
+    if not indices:
+        return []
+
+    result = [indices[0]]
+
+    for i in range(1, len(indices)):
+        # Add index if it's not consecutive with the previous index
+        if indices[i] != indices[i - 1] + 1:
+            result.append(indices[i])
+        elif i == 1:  # Keep the first in a consecutive sequence
+            result.append(indices[i])
+        else:  # Replace the last item with the current index
+            result[-1] = indices[i]
+
+    return result
+
+def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
+    """Removes sequential indices, keeping only the last occurrence in a sequence."""
+    if not indices:
+        return []
+
+    result = []
+
+    for i in range(len(indices) - 1):
+        # Add index if it's not consecutive with the next index
+        if indices[i] != indices[i + 1] - 1:
+            result.append(indices[i])
+
+    # Always add the last index in the list
+    result.append(indices[-1])
+
+    return result
+
+def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
+    print("Modified Start segments:")
+    for index in modified_new_segment_debug_log:
+        print(f"""
+            Original: {segments[index].text}
+            Modified: {new_segments[index].text}
+            """)
+
+    print("Modified End segments:")
+    for index in modified_final_segment_debug_log:
+        print(f"""
+            Original: {segments[index].text}
+            Modified: {final_segments[index].text}
+            """)
+
+def shift_align(segments: List[Segment]) -> List[Segment]:
+    modified_new_segment_debug_log = []
+    modified_final_segment_debug_log = []
+    new_segments = []
+    for i, segment in enumerate(segments):
+        text = segment.text
+
+        # If no punctuation is present, keep the segment unchanged
+        if not has_punctuation(text):
+            new_segments.append(segment)
+            continue
+
+        # Case 2.a: Handle case for starting index
+        indices = find_punctuation_index(text)
+        if indices:
+            start_index = find_index_with_non_punctuation_start(indices)[0]
+            # Case 2.c: Handle empty non-punctuation chunks
+            # if the substring would result in an empty string if it were removed
+            non_punc_count = count_non_punctuation(text[0:start_index])
+            if non_punc_count == 0 or \
+                (len(text[0:start_index+1])) == len(text):
+                new_segments.append(segment)
+                continue
+            if non_punc_count <= 2:
+                # If the first segment has 2 or fewer non-punctuation characters
+                if i > 0 and len(new_segments) > 0 and not has_ending_punctuation(new_segments[-1].text[-1]):
+                    # Move part of the text to the previous segment
+                    prev_segment = new_segments.pop()
+                    prev_segment.text += text[:start_index + 1]  # Include the punctuation
+                    new_segments.append(prev_segment)
+                    text = text[start_index + 1:]  # Exclude the punctuation
+                    modified_new_segment_debug_log.append(i)
+        new_segments.append(Segment(text, segment.start, segment.end))
+
+    final_segments = []
+    skip_next = False
+    for i, segment in enumerate(new_segments):
+        if skip_next:
+            skip_next = False
+            continue
+        text = segment.text
+        indices = find_punctuation_index(text)
+        if indices:
+            last_index = find_index_with_non_punctuation_end(indices)[-1]
+            non_punc_count = count_non_punctuation(text[last_index:])
+            if non_punc_count == 0 or \
+                (len(text[last_index:])) == len(text):
+                final_segments.append(segment)
+                continue
+            if count_non_punctuation(text[indices[-1]:]) <= 2:
+                # Move part of the text to the next segment
+                if i+1 < len(new_segments) and not has_ending_punctuation(new_segments[i+1].text[0]):
+                    next_segment = segments[i + 1]
+                    next_segment.text = text[last_index+1:] + next_segment.text  # Keep the punctuation
+                    text = text[:last_index+1]  # Exclude the punctuation
+                    final_segments.append(Segment(text, segment.start, segment.end))
+                    final_segments.append(next_segment)
+                    skip_next = True
+                    modified_final_segment_debug_log.append(i)
+                    continue
+        final_segments.append(Segment(text, segment.start, segment.end))
+
+    print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
+    return final_segments
