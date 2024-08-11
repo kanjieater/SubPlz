@@ -350,6 +350,11 @@ def has_ending_punctuation(s: str) -> bool:
 def has_punctuation(s: str) -> bool:
     return bool(find_punctuation_index(s))
 
+def has_double_comma(str_starts: str, str_ends: str) -> bool:
+    comma = """、"""
+    return str_starts[-1] == comma and str_ends[-1] == comma
+
+
 
 def count_non_punctuation(s: str) -> int:
     punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」"""
@@ -391,6 +396,7 @@ def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
 
     return result
 
+
 def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
     print("Modified Start segments:")
     for index in modified_new_segment_debug_log:
@@ -431,7 +437,7 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
                 continue
             if non_punc_count <= 2:
                 # If the first segment has 2 or fewer non-punctuation characters
-                if i > 0 and len(new_segments) > 0 and not has_ending_punctuation(new_segments[-1].text[-1]):
+                if i > 0 and len(new_segments) > 0 and not has_ending_punctuation(new_segments[-1].text[-1]) and not has_double_comma(new_segments[-1].text, text[:start_index + 1]):
                     # Move part of the text to the previous segment
                     prev_segment = new_segments.pop()
                     prev_segment.text += text[:start_index + 1]  # Include the punctuation
@@ -457,7 +463,7 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
                 continue
             if count_non_punctuation(text[indices[-1]:]) <= 2:
                 # Move part of the text to the next segment
-                if i+1 < len(new_segments) and not has_ending_punctuation(new_segments[i+1].text[0]):
+                if i+1 < len(new_segments) and not has_ending_punctuation(new_segments[i+1].text[0]) and not has_double_comma(new_segments[i+1].text[0], text[:start_index + 1]):
                     next_segment = segments[i + 1]
                     next_segment.text = text[last_index+1:] + next_segment.text  # Keep the punctuation
                     text = text[:last_index+1]  # Exclude the punctuation
@@ -468,5 +474,5 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
                     continue
         final_segments.append(Segment(text, segment.start, segment.end))
 
-    print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
+    # print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
     return final_segments

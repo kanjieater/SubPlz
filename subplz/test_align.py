@@ -109,6 +109,23 @@ def test_shift_align_wa_pattern():
     assert result[1].text == '知っている。'
 
 
+def test_shift_align_maintain_double_comma():
+    # Given segments that require complex alignment
+    segments = [
+        Segment(text='一群の騎馬が、', start=375.00, end=376.00),
+        Segment(text='東へ、ペシャワール城塞の方角へと疾駆している。', start=376.00, end=378.00),
+        Segment(text='一群の騎馬が、東へ、', start=375.00, end=376.00),
+        Segment(text='ペシャワール城塞の方角へと疾駆している。', start=376.00, end=378.00)
+    ]
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0] == segments[0]
+    assert result[1] == segments[1]
+    assert result[2] == segments[2]
+    assert result[3] == segments[3]
+
+
 def test_shift_align_no_change():
     # These lines shouldn't change
     segments = [
