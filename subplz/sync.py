@@ -33,7 +33,7 @@ def match_start(audio, text, model):
             try:
                 l = ac[i].transcribe(None)
             except AttributeError as e:
-                print(f"🥺 Transcript not found! Attribute error occurred: {e}")
+                print(f"🥺 Transcript not found! Attribute error occurred: {e}. If you ran with disabling the cache, delete your cached files.")
 
             lang = get_lang(l["language"])
             acontent = lang.normalize(
