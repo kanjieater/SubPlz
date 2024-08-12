@@ -15,7 +15,9 @@
       "request": "launch",
       "module": "pytest",
       "args": [
-        "-s"
+        "-s",
+        "-k",
+        "test_shift_align_kuromaru"
       ]
   },
     {

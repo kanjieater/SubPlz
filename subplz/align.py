@@ -337,12 +337,12 @@ def nc_align(split_script, subs_file, max_merge_count):
 
 
 def find_punctuation_index(s: str) -> int:
-    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」"""
+    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」―–-・"""
     indices = [i for i, char in enumerate(s) if char in punctuation]
     return indices
 
 def has_ending_punctuation(s: str) -> bool:
-    punctuation = """.。'“"!！?？”)]}」"""
+    punctuation = """.。'"!！?？”)]}」―–-・"""
     indices = [i for i, char in enumerate(s) if char in punctuation]
     return bool(indices)
 
@@ -357,7 +357,7 @@ def has_double_comma(str_starts: str, str_ends: str) -> bool:
 
 
 def count_non_punctuation(s: str) -> int:
-    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」"""
+    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」―–-・"""
     return len([char for char in s if char not in punctuation])
 
 
@@ -395,6 +395,30 @@ def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
     result.append(indices[-1])
 
     return result
+
+def double_check_misaligned_quotes(segments):
+    if not segments or len(segments) < 2:
+        return segments
+
+    adjusted_segments = []
+    for i, segment in enumerate(segments):
+        segment = handle_starting_quote(segment, adjusted_segments, i)
+        segment = handle_ending_quote(segment, segments, i)
+        adjusted_segments.append(segment)
+
+    return adjusted_segments
+
+def handle_starting_quote(segment, adjusted_segments, index):
+    if segment.text.startswith("」") and index > 0:
+        adjusted_segments[-1].text += "」"
+        segment.text = segment.text[1:]
+    return segment
+
+def handle_ending_quote(segment, segments, index):
+    if segment.text.endswith("「") and index < len(segments) - 1:
+        segments[index + 1].text = "「" + segments[index + 1].text
+        segment.text = segment.text[:-1]
+    return segment
 
 
 def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
@@ -475,4 +499,4 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
         final_segments.append(Segment(text, segment.start, segment.end))
 
     # print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
-    return final_segments
+    return double_check_misaligned_quotes(final_segments)

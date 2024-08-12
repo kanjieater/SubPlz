@@ -127,19 +127,71 @@ def test_shift_align_maintain_double_comma():
 
 
 def test_shift_align_no_change():
-    # These lines shouldn't change
     segments = [
         Segment(text='身を硬くしている平日に見るものではなかった。', start=0.00, end=2.00),
         Segment(text='去年、までは。', start=2.10, end=4.00),
         Segment(text='「ああ、', start=4.10, end=6.00),
     ]
-
-    # Call the function
     result = shift_align(segments)
-
-    # Check the results
     assert len(result) == len(segments)
     assert result[0] == segments[0]
     assert result[1] == segments[1]
     assert result[2] == segments[2]
 
+
+def test_shift_align_no_change_opening_quote():
+    segments = [
+        Segment(text='妻たちでござる」', start=0.00, end=2.00),
+        Segment(text='「ほう、トゥース卿はご結婚なさったのか」', start=2.10, end=4.00),
+        Segment(text='妻たちでござる」「ほう、', start=0.00, end=2.00),
+        Segment(text='トゥース卿はご結婚なさったのか」', start=2.10, end=4.00),
+    ]
+    result = shift_align(segments)
+    assert len(result) == len(segments)
+    assert result[0] == segments[0]
+    assert result[1] == segments[1]
+    assert result[2] == segments[2]
+    assert result[3] == segments[3]
+
+
+def test_shift_align_kuromaru():
+    segments = [
+        Segment(text='「ハーチ', start=0.00, end=2.00),
+        Segment(text='ム・マイマイ」などと呼べば、', start=2.10, end=4.00),
+    ]
+
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0].text == '「ハーチム・'
+    assert result[1].text == 'マイマイ」などと呼べば、'
+
+
+def test_shift_open_quote():
+    segments = [
+        # Segment(text='学塾に行きたい子にも援助してやろ', start=0.00, end=2.00),
+        # Segment(text='う」「けっこうな御意ですが、', start=2.10, end=4.00),
+        Segment(text='学塾に行きたい子にも援助してやろう」「', start=0.00, end=2.00),
+        Segment(text='けっこうな御意ですが、', start=2.10, end=4.00),
+
+    ]
+
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0].text == '学塾に行きたい子にも援助してやろう」'
+    assert result[1].text == '「けっこうな御意ですが、'
+
+
+def test_shift_align_emdash():
+    segments = [
+        Segment(text='老国王カトリコスの孫娘――アル', start=0.00, end=2.00),
+        Segment(text='ガシュの妹の娘を妻としたオスロエスが、', start=2.10, end=4.00),
+
+    ]
+
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0].text == '老国王カトリコスの孫娘――'
+    assert result[1].text == 'アルガシュの妹の娘を妻としたオスロエスが、'
