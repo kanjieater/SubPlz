@@ -336,14 +336,17 @@ def nc_align(split_script, subs_file, max_merge_count):
     return new_subs
 
 
+PUNCTUATION = """「"'“¿([{-.。,，!！?？:：”)]}、)」―–-・"""
+END_PUNC =    """.。'"!！?？”)]}」―–-・"""
+
+
 def find_punctuation_index(s: str) -> int:
-    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」―–-・"""
-    indices = [i for i, char in enumerate(s) if char in punctuation]
+
+    indices = [i for i, char in enumerate(s) if char in PUNCTUATION]
     return indices
 
 def has_ending_punctuation(s: str) -> bool:
-    punctuation = """.。'"!！?？”)]}」―–-・"""
-    indices = [i for i, char in enumerate(s) if char in punctuation]
+    indices = [i for i, char in enumerate(s) if char in END_PUNC]
     return bool(indices)
 
 
@@ -357,8 +360,7 @@ def has_double_comma(str_starts: str, str_ends: str) -> bool:
 
 
 def count_non_punctuation(s: str) -> int:
-    punctuation = """「"'“¿([{-.。,，!！?？:：”)]}、)」―–-・"""
-    return len([char for char in s if char not in punctuation])
+    return len([char for char in s if char not in PUNCTUATION])
 
 
 def find_index_with_non_punctuation_start(indices: List[int]) -> List[int]:
