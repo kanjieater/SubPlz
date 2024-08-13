@@ -419,39 +419,20 @@ def find_index_with_non_punctuation_start(indices: List[int]) -> List[int]:
 
     return result
 
-# def find_index_with_non_punctuation_end(text: str, indices: List[int]) -> int:
-#     """Finds the last index where the substring between indices has at most 2 non-punctuation characters."""
-#     indices = indices[::-1]  # Reverse the list to work left to right after reversing
-#     current_non_punc_count = 0
-#     last_valid_index = indices[0]  # Initialize with the first index
-#     for i in range(0, len(indices)):
-#         # Calculate non-punctuation characters between current and previous index
-#         current_non_punc_count += count_non_punctuation(text[indices[i]:])
-#         if current_non_punc_count <= 2:
-#             last_valid_index = indices[i]
-#         else:
-#             break
-#     return last_valid_index  # Return the last valid index
-
 def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
     """Removes sequential indices, keeping only the last occurrence in a sequence."""
     if not indices:
         return []
-
     result = []
-
     for i in range(len(indices) - 1):
-        # Add index if it's not consecutive with the next index
         if indices[i] != indices[i + 1] - 1:
             result.append(indices[i])
-
-    # Always add the last index in the list
     result.append(indices[-1])
-
     return result
 
+
 def trim_segments(segments: List['Segment']) -> List['Segment']:
-    return [segments.text.strip() for segment in segments]
+    return [Segment(text=segment.text.strip(), start=segment.start, end=segment.end) for segment in segments]
 
 
 def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
@@ -532,4 +513,4 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
         final_segments.append(Segment(text, segment.start, segment.end))
 
     # print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
-    return double_check_misaligned_pairs(final_segments)
+    return trim_segments(double_check_misaligned_pairs(final_segments))

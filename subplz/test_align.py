@@ -215,7 +215,7 @@ def test_shift_align_unicode_space():
     result = shift_align(segments)
 
     assert len(result) == len(segments)
-    assert result[0].text == '　陛下のご下問である。奉答せよ」　'
+    assert result[0].text == '陛下のご下問である。奉答せよ」'
     assert result[1].text == 'あたらしく冷水の壺を用意しようとしていたエラムは、'
 
 
@@ -229,5 +229,5 @@ def test_shift_align_unicode_parenthesis():
     result = shift_align(segments)
 
     assert len(result) == len(segments)
-    assert result[0].text == '　王都エクバターナより東へ四十ファルサング'
+    assert result[0].text == '王都エクバターナより東へ四十ファルサング'
     assert result[1].text == '（約二百キロ）。'
