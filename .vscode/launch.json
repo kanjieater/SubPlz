@@ -17,7 +17,7 @@
       "args": [
         "-s",
         "-k",
-        "test_shift_align_start_case"
+        "test_shift_align_no_change"
       ]
   },
     {

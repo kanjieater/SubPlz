@@ -136,6 +136,8 @@ def test_shift_align_maintain_double_comma():
 
 def test_shift_align_no_change():
     segments = [
+        Segment(text='あの、たしかヒルメス王子の腹', start=0.00, end=2.00),
+        Segment(text='心の……」', start=0.00, end=2.00),
         Segment(text='身を硬くしている平日に見るものではなかった。', start=0.00, end=2.00),
         Segment(text='去年、までは。', start=2.10, end=4.00),
         Segment(text='「ああ、', start=4.10, end=6.00),

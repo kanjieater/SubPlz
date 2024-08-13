@@ -450,6 +450,8 @@ def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
 
     return result
 
+def trim_segments(segments: List['Segment']) -> List['Segment']:
+    return [segments.text.strip() for segment in segments]
 
 
 def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
@@ -487,7 +489,7 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
             # if the substring would result in an empty string if it were removed
             non_punc_count = count_non_punctuation(text[0:start_index])
             if non_punc_count == 0 or \
-                (len(text[0:start_index+1])) == len(text):
+                count_non_punctuation(text[start_index+1:]) == 0:
                 new_segments.append(segment)
                 continue
             if non_punc_count <= 2:
