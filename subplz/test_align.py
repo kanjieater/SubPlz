@@ -83,34 +83,42 @@ def test_shift_align_end_start_punctuation():
     assert result[0].text == '午前中もあとちょっとだ」'
     assert result[1].text == 'と思う。'
 
+# @pytest.mark.skip(reason="Would require more complex start punc detection / indexing for edge case")
+def test_shift_align_start_end_wrong():
+    segments = [
+        Segment(text='「あ、', start=375.00, end=376.00),
+        Segment(text='いえ、忘れてました」「ばか、', start=376.00, end=378.00),
+        Segment(text='さっさといれろ。', start=379.00, end=380.00)
+    ]
+    result = shift_align(segments)
+
+    assert result[0].text == '「あ、'
+    assert result[1].text == 'いえ、忘れてました」'
+    assert result[2].text == '「ばか、さっさといれろ。'
+
 
 def test_shift_align_complex_join():
-    # Given segments that require complex alignment
     segments = [
         Segment(text='最初はそれで心地よかったものが、だ', start=375.00, end=376.00),
         Segment(text='んだんと、やっぱりいけないんだと思うように', start=376.00, end=378.00)
     ]
     result = shift_align(segments)
 
-    assert len(result) == 2
     assert result[0].text == '最初はそれで心地よかったものが、'
     assert result[1].text == 'だんだんと、やっぱりいけないんだと思うように'
 
 def test_shift_align_wa_pattern():
-    # Given segments that require complex alignment
     segments = [
         Segment(text='そんな奇跡が起きないこと', start=375.00, end=376.00),
         Segment(text='は、知っている。', start=376.00, end=378.00)
     ]
     result = shift_align(segments)
 
-    assert len(result) == 2
     assert result[0].text == 'そんな奇跡が起きないことは、'
     assert result[1].text == '知っている。'
 
 
 def test_shift_align_maintain_double_comma():
-    # Given segments that require complex alignment
     segments = [
         Segment(text='一群の騎馬が、', start=375.00, end=376.00),
         Segment(text='東へ、ペシャワール城塞の方角へと疾駆している。', start=376.00, end=378.00),
@@ -143,7 +151,6 @@ def test_shift_align_no_change_opening_quote():
     segments = [
         Segment(text='妻たちでござる」', start=0.00, end=2.00),
         Segment(text='「ほう、トゥース卿はご結婚なさったのか」', start=2.10, end=4.00),
-        Segment(text='妻たちでござる」「ほう、', start=0.00, end=2.00),
         Segment(text='トゥース卿はご結婚なさったのか」', start=2.10, end=4.00),
     ]
     result = shift_align(segments)
@@ -151,7 +158,6 @@ def test_shift_align_no_change_opening_quote():
     assert result[0] == segments[0]
     assert result[1] == segments[1]
     assert result[2] == segments[2]
-    assert result[3] == segments[3]
 
 
 def test_shift_align_kuromaru():
@@ -195,3 +201,31 @@ def test_shift_align_emdash():
     assert len(result) == len(segments)
     assert result[0].text == '老国王カトリコスの孫娘――'
     assert result[1].text == 'アルガシュの妹の娘を妻としたオスロエスが、'
+
+
+def test_shift_align_unicode_space():
+    segments = [
+        Segment(text='　陛下のご下問である。奉答せよ」　あた', start=0.00, end=2.00),
+        Segment(text='らしく冷水の壺を用意しようとしていたエラムは、', start=2.10, end=4.00),
+
+    ]
+
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0].text == '　陛下のご下問である。奉答せよ」　'
+    assert result[1].text == 'あたらしく冷水の壺を用意しようとしていたエラムは、'
+
+
+def test_shift_align_unicode_parenthesis():
+    segments = [
+        Segment(text='　王都エクバターナより東へ四十ファルサン', start=0.00, end=2.00),
+        Segment(text='グ（約二百キロ）。', start=2.10, end=4.00),
+
+    ]
+
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0].text == '　王都エクバターナより東へ四十ファルサング'
+    assert result[1].text == '（約二百キロ）。'

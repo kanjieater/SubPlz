@@ -335,13 +335,51 @@ def nc_align(split_script, subs_file, max_merge_count):
 
     return new_subs
 
+PUNCTUATION = """『』「」()（）[]{}"'“”¿?？!！,，、.。…:：;；─―–-・　"""
+START_PUNC = """『「(（[{"'“¿"""
+END_PUNC =    """』」)）]”?？!！.。…:：;；─―–-・"""
 
-PUNCTUATION = """「"'“¿([{-.。,，!！?？:：”)]}、)」―–-・"""
-END_PUNC =    """.。'"!！?？”)]}」―–-・"""
 
+def double_check_misaligned_pairs(segments):
+    if not segments or len(segments) < 2:
+        return segments
+
+    adjusted_segments = []
+    for i, segment in enumerate(segments):
+        segment = handle_specific_pattern(segment, segments, i)
+        segment = handle_starting_punctuation(segment, adjusted_segments, i)
+        segment = handle_ending_punctuation(segment, segments, i)
+        adjusted_segments.append(segment)
+
+    return adjusted_segments
+
+def handle_specific_pattern(segment, segments, index):
+    PATTERN_1 = r'」「(.{1,2})、$'  # Pattern for '」「ばか、'
+    PATTERN_2 = r'」「(.{1})、$'  # Pattern for '」「ば、'
+    combined_pattern = f'({PATTERN_1}|{PATTERN_2})'
+    match = re.search(combined_pattern, segment.text)
+    if match:
+        matched_text = match.group(0)
+        if index < len(segments) - 1:
+            segments[index + 1].text = matched_text + segments[index + 1].text
+            segment.text = segment.text[:match.start()]
+
+    return segment
+
+
+def handle_starting_punctuation(segment, adjusted_segments, index):
+    if segment.text and segment.text[0] in END_PUNC and index > 0:
+        adjusted_segments[-1].text += segment.text[0]
+        segment.text = segment.text[1:]
+    return segment
+
+def handle_ending_punctuation(segment, segments, index):
+    if segment.text and segment.text[-1] in START_PUNC and index < len(segments) - 1:
+        segments[index + 1].text = segment.text[-1] + segments[index + 1].text
+        segment.text = segment.text[:-1]
+    return segment
 
 def find_punctuation_index(s: str) -> int:
-
     indices = [i for i, char in enumerate(s) if char in PUNCTUATION]
     return indices
 
@@ -381,6 +419,20 @@ def find_index_with_non_punctuation_start(indices: List[int]) -> List[int]:
 
     return result
 
+# def find_index_with_non_punctuation_end(text: str, indices: List[int]) -> int:
+#     """Finds the last index where the substring between indices has at most 2 non-punctuation characters."""
+#     indices = indices[::-1]  # Reverse the list to work left to right after reversing
+#     current_non_punc_count = 0
+#     last_valid_index = indices[0]  # Initialize with the first index
+#     for i in range(0, len(indices)):
+#         # Calculate non-punctuation characters between current and previous index
+#         current_non_punc_count += count_non_punctuation(text[indices[i]:])
+#         if current_non_punc_count <= 2:
+#             last_valid_index = indices[i]
+#         else:
+#             break
+#     return last_valid_index  # Return the last valid index
+
 def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
     """Removes sequential indices, keeping only the last occurrence in a sequence."""
     if not indices:
@@ -398,29 +450,6 @@ def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
 
     return result
 
-def double_check_misaligned_quotes(segments):
-    if not segments or len(segments) < 2:
-        return segments
-
-    adjusted_segments = []
-    for i, segment in enumerate(segments):
-        segment = handle_starting_quote(segment, adjusted_segments, i)
-        segment = handle_ending_quote(segment, segments, i)
-        adjusted_segments.append(segment)
-
-    return adjusted_segments
-
-def handle_starting_quote(segment, adjusted_segments, index):
-    if segment.text.startswith("」") and index > 0:
-        adjusted_segments[-1].text += "」"
-        segment.text = segment.text[1:]
-    return segment
-
-def handle_ending_quote(segment, segments, index):
-    if segment.text.endswith("「") and index < len(segments) - 1:
-        segments[index + 1].text = "「" + segments[index + 1].text
-        segment.text = segment.text[:-1]
-    return segment
 
 
 def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
@@ -501,4 +530,4 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
         final_segments.append(Segment(text, segment.start, segment.end))
 
     # print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
-    return double_check_misaligned_quotes(final_segments)
+    return double_check_misaligned_pairs(final_segments)
