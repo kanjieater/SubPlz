@@ -335,9 +335,9 @@ def nc_align(split_script, subs_file, max_merge_count):
 
     return new_subs
 
-PUNCTUATION = """『』「」()（）[]{}"'“”¿?？!！,，、.。…:：;；─―–-・　"""
-START_PUNC = """『「(（[{"'“¿"""
-END_PUNC =    """』」)）]”?？!！.。…:：;；─―–-・"""
+PUNCTUATION = """『』「」()（）《》｟⦆[]{}"'“”¿?？!！,，、.。…:：;；─―–-・　➡"""
+START_PUNC = """『「(（《｟[{"'“¿"""
+END_PUNC =    """』」)）》⦆]”?？!！.。…:：;；─―–-・➡"""
 
 
 def double_check_misaligned_pairs(segments):
