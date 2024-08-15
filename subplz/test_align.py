@@ -70,7 +70,6 @@ def test_shift_align_punctuation_overlap():
     assert result[1].text == '騒音、'
     assert result[2].text == '「ああ、'
 
-# @pytest.mark.skip(reason="debug")
 def test_shift_align_end_start_punctuation():
     # Given segments with punctuation at the end and start
     segments = [
@@ -83,7 +82,7 @@ def test_shift_align_end_start_punctuation():
     assert result[0].text == '午前中もあとちょっとだ」'
     assert result[1].text == 'と思う。'
 
-# @pytest.mark.skip(reason="Would require more complex start punc detection / indexing for edge case")
+
 def test_shift_align_start_end_wrong():
     segments = [
         Segment(text='「あ、', start=375.00, end=376.00),
@@ -96,6 +95,20 @@ def test_shift_align_start_end_wrong():
     assert result[1].text == 'いえ、忘れてました」'
     assert result[2].text == '「ばか、さっさといれろ。'
 
+@pytest.mark.skip(reason="Not worth doing yet")
+def test_shift_align_start_end_wrong_other_matches():
+    # Additional test that fails because of question mark
+    #「いま現在、そこのようすは？」「い
+    #ま、そこのようすは
+    segments = [
+        Segment(text='＜今度こそ死を覚悟しないとかもな＞＜う～ん', start=375.00, end=376.00),
+        Segment(text='先生が待ってるはずだがいないな＞', start=376.00, end=378.00),
+        Segment(text='さっさといれろ。', start=379.00, end=380.00)
+    ]
+    result = shift_align(segments)
+
+    assert result[1].text == '＜今度こそ死を覚悟しないとかもな＞'
+    assert result[2].text == '＜う～ん先生が待ってるはずだがいないな＞'
 
 def test_shift_align_complex_join():
     segments = [
@@ -189,6 +202,20 @@ def test_shift_open_quote():
     assert len(result) == len(segments)
     assert result[0].text == '学塾に行きたい子にも援助してやろう」'
     assert result[1].text == '「けっこうな御意ですが、'
+
+
+def test_shift_open_other():
+    segments = [
+        Segment(text='《えっ　私が払うの？', start=2.10, end=4.00),
+        Segment(text='》《雲隠九郎君》', start=0.00, end=2.00),
+        Segment(text='《講談高校で待ってるよ》', start=2.10, end=4.00),
+
+    ]
+    result = shift_align(segments)
+    assert len(result) == len(segments)
+    assert result[0].text == '《えっ　私が払うの？》'
+    assert result[1].text == '《雲隠九郎君》'
+    assert result[2].text == '《講談高校で待ってるよ》'
 
 
 def test_shift_align_emdash():

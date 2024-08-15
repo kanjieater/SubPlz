@@ -10,8 +10,8 @@ from subplz.files import get_working_folders
 
 
 START_PUNC = """『「(（《｟[{"'“¿""" + """'“"¿([{-『「（〈《〔【｛［｟＜<‘“〝※"""
-END_PUNC =   """…"'・.。!！?？:：”>＞⦆)]}』」）〉》〕】｝］’〟／＼～〜~;；─―–-➡"""
-OTHER_PUNC = "　,，、"
+END_PUNC =   """'"・.。!！?？:：”>＞⦆)]}』」）〉》〕】｝］’〟／＼～〜~;；─―–-➡"""
+OTHER_PUNC = "＊　,，、…"
 PUNCTUATION = START_PUNC + END_PUNC + OTHER_PUNC
 
 
