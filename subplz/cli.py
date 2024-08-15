@@ -9,6 +9,12 @@ from dataclasses import dataclass
 from subplz.files import get_working_folders
 
 
+START_PUNC = """『「(（《｟[{"'“¿""" + """'“"¿([{-『「（〈《〔【｛［｟＜<‘“〝※"""
+END_PUNC =   """…"'・.。!！?？:：”>＞⦆)]}』」）〉》〕】｝］’〟／＼～〜~;；─―–-➡"""
+OTHER_PUNC = "　,，、"
+PUNCTUATION = START_PUNC + END_PUNC + OTHER_PUNC
+
+
 def setup_advanced_cli(parser):
     sp = parser.add_subparsers(
         help="Generate a subtitle file from an file's audio source", required=True
@@ -203,13 +209,13 @@ def setup_advanced_cli(parser):
     advanced_group.add_argument(
         "--prepend_punctuations",
         type=str,
-        default="\"'“¿([{-『「（〈《〔【｛［‘“〝※",
+        default=START_PUNC,
         help="if word_timestamps is True, merge these punctuation symbols with the next word",
     )
     advanced_group.add_argument(
         "--append_punctuations",
         type=str,
-        default="\"'・.。,，!！?？:：”)]}、』」）〉》〕】｝］’〟／＼～〜~",
+        default=END_PUNC + OTHER_PUNC,
         help="if word_timestamps is True, merge these punctuation symbols with the previous word",
     )
     advanced_group.add_argument(

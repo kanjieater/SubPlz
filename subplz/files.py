@@ -168,8 +168,8 @@ class sourceData:
 
 def grab_files(folder, types, sort=True):
     files = []
-    for type in types:
-        pattern = f"{escape(folder)}/{type}"
+    for t in types:
+        pattern = f"{escape(folder)}/{t}"
         files.extend(glob(pattern))
     if sort:
         return os_sorted(files)
@@ -296,7 +296,7 @@ def get_output_full_paths(audio, output_dir, output_format):
 def match_files(audios, texts, folder, rerun):
     if rerun:
         old = get_existing_rerun_files(folder)
-        text = grab_files(dir, ["*." + ext for ext in TEXT_FORMATS])
+        text = grab_files(folder, ["*." + ext for ext in TEXT_FORMATS])
         already_run = os_sorted(list(set(text + old)))
         audios_filtered = audios
         texts_filtered = already_run

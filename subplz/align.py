@@ -4,7 +4,7 @@ from typing import List
 
 from tqdm import tqdm
 from ats.main import Segment
-
+from subplz.cli import PUNCTUATION, START_PUNC, END_PUNC
 
 # Trim script for quick testing
 # script = script[:500]
@@ -334,10 +334,6 @@ def nc_align(split_script, subs_file, max_merge_count):
         )
 
     return new_subs
-
-PUNCTUATION = """『』「」()（）《》｟⦆[]{}"'“”¿?？!！,，、.。…:：;；─―–-・　➡"""
-START_PUNC = """『「(（《｟[{"'“¿"""
-END_PUNC =    """』」)）》⦆]”?？!！.。…:：;；─―–-・➡"""
 
 
 def double_check_misaligned_pairs(segments):
