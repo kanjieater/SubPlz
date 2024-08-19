@@ -83,6 +83,17 @@ def test_shift_align_end_start_punctuation():
     assert result[1].text == 'と思う。'
 
 
+def test_shift_two_in_a_row():
+    segments = [
+        Segment(text='「そのとおりじゃ。王都に帰って、陛下や軍師どのにこの件をご報告申しあげねばならぬ。ひ', start=373.82, end=374.36),
+        Segment(text='とつまちがえば、パルス国の存亡にかかわることゆえ」　フ', start=373.82, end=374.36),
+        Segment(text='ァランギースは懐中から小さな翡翠の笛をとり出した。', start=374.36, end=375.00)
+    ]
+    result = shift_align(segments)
+    assert result[-2].text == 'ひとつまちがえば、パルス国の存亡にかかわることゆえ」'
+    assert result[-1].text == 'ファランギースは懐中から小さな翡翠の笛をとり出した。'
+
+
 def test_shift_align_start_end_wrong():
     segments = [
         Segment(text='「あ、', start=375.00, end=376.00),
