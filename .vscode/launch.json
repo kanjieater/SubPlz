@@ -26,9 +26,10 @@
       "request": "launch",
       "module": "subplz",
       "args": [
-        "sync",
+        "gen",
         "-d",
         "/mnt/d/sync/test",
+        "--overwrite",
         // "--overwrite-cache",
         // "--no-use-cache",
         // "--audio",

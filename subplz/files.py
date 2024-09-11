@@ -154,16 +154,16 @@ class AudioSub(AudioStream):
 class sourceData:
     dirs: List[str]
     audio: List[str]
-    text: List[str]
     output_dir: str
     output_format: str
     overwrite: bool
     rerun: bool
     output_full_paths: List[Path]
     writer: Writer
-    chapters: List
     streams: List
     lang: str
+    text: List[str] = None
+    chapters: List = None
 
 
 def grab_files(folder, types, sort=True):
@@ -289,8 +289,11 @@ def setup_output_dir(output_dir, first_audio=None):
     return output_dir
 
 
-def get_output_full_paths(audio, output_dir, output_format):
-    return [Path(output_dir) / f"{Path(a).stem}.{output_format}" for a in audio]
+def get_output_full_paths(audio, output_dir, output_format, lang_ext):
+    le = ""
+    if lang_ext:
+        le = f".{lang_ext}"
+    return [Path(output_dir) / f"{Path(a).stem}{le}.{output_format}" for a in audio]
 
 
 def match_files(audios, texts, folder, rerun):
@@ -341,31 +344,55 @@ def get_sources_from_dirs(input, cache_inputs):
     working_folders = get_working_folders(input.dirs)
     for folder in working_folders:
         audios = get_audio(folder)
-        texts = get_text(folder)
-        a, t = match_files(audios, texts, folder, input.rerun)
-        for matched_audio, matched_text in zip(a, t):
-            output_full_paths = get_output_full_paths(
-                matched_audio, folder, input.output_format
-            )
-            writer = Writer(input.output_format)
+        if input.subcommand == "sync":
+            texts = get_text(folder)
+            a, t = match_files(audios, texts, folder, input.rerun)
 
-            streams = get_streams(matched_audio, cache_inputs)
-            chapters = get_chapters(matched_text, input.lang)
-            s = sourceData(
-                dirs=input.dirs,
-                audio=matched_audio,
-                text=matched_text,
-                output_dir=setup_output_dir(folder),
-                output_format=input.output_format,
-                overwrite=input.overwrite,
-                rerun=input.rerun,
-                output_full_paths=output_full_paths,
-                writer=writer,
-                chapters=chapters,
-                streams=streams,
-                lang=input.lang,
-            )
-            sources.append(s)
+
+            for matched_audio, matched_text in zip(a, t):
+                output_full_paths = get_output_full_paths(
+                    matched_audio, folder, input.output_format, input.lang_ext
+                )
+                writer = Writer(input.output_format)
+
+                streams = get_streams(matched_audio, cache_inputs)
+                chapters = get_chapters(matched_text, input.lang)
+                s = sourceData(
+                    dirs=input.dirs,
+                    audio=matched_audio,
+                    text=matched_text,
+                    output_dir=setup_output_dir(folder),
+                    output_format=input.output_format,
+                    overwrite=input.overwrite,
+                    rerun=input.rerun,
+                    output_full_paths=output_full_paths,
+                    writer=writer,
+                    chapters=chapters,
+                    streams=streams,
+                    lang=input.lang,
+                )
+                sources.append(s)
+        else:
+            for matched_audio in audios:
+                output_full_paths = get_output_full_paths(
+                    [matched_audio], folder, input.output_format, input.lang_ext
+                )
+                writer = Writer(input.output_format)
+
+                streams = get_streams([matched_audio], cache_inputs)
+                s = sourceData(
+                    dirs=input.dirs,
+                    audio=matched_audio,
+                    output_dir=setup_output_dir(folder),
+                    output_format=input.output_format,
+                    overwrite=input.overwrite,
+                    rerun=input.rerun,
+                    output_full_paths=output_full_paths,
+                    writer=writer,
+                    streams=streams,
+                    lang=input.lang,
+                )
+                sources.append(s)
     return sources
 
 
@@ -375,7 +402,7 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
     else:
         output_dir = setup_output_dir(input.output_dir, input.audio[0])
         output_full_paths = get_output_full_paths(
-            input.audio, output_dir, input.output_format
+            input.audio, output_dir, input.output_format, input.lang_ext
         )
         writer = Writer(input.output_format)
         chapters = get_chapters(input.text, input.lang)
@@ -405,7 +432,7 @@ def rename_existing_file_to_old(p):
     return new_filename
 
 
-def get_sources(input, cache_inputs):
+def get_sources(input, cache_inputs) -> List[sourceData]:
     sources = setup_sources(input, cache_inputs)
     valid_sources = []
     invalid_sources = []
@@ -431,17 +458,17 @@ def get_sources(input, cache_inputs):
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if not source.text:
+            if not source.text and input.subcommand == "sync":
                 print(f"❗ {source.audio}'s text is missing, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if not source.chapters:
+            if not source.chapters and input.subcommand == "sync":
                 print(f"❗ {source.text}'s couldn't be parsed, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if op.exists() and not old_file.exists():
+            if op.exists() and not old_file.exists() and input.subcommand == "sync":
                 rename_existing_file_to_old(op)
 
         if is_valid:
@@ -449,7 +476,8 @@ def get_sources(input, cache_inputs):
 
     for source in valid_sources:
         print(f"🎧 {pformat(source.audio)}' ⟹ 📖 {pformat(source.text)}...")
-    cleanup(invalid_sources)
+    if input.subcommand == "sync":
+        cleanup(invalid_sources)
     return valid_sources
 
 
@@ -491,8 +519,9 @@ def rename_old_subs(source: sourceData):
         sub_path.rename(new_filename)
 
 
-def post_process(sources: List[sourceData]):
-    cleanup(sources)
+def post_process(sources: List[sourceData], subcommand):
+    if subcommand == "sync":
+        cleanup(sources)
     complete_success = True
     sorted_sources = sorted(
         sources, key=lambda source: source.writer.written, reverse=True
@@ -500,7 +529,8 @@ def post_process(sources: List[sourceData]):
     for source in sorted_sources:
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
-            rename_old_subs(source)
+            if subcommand == "sync":
+                rename_old_subs(source)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         else:
             complete_success = False

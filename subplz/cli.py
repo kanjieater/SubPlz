@@ -14,23 +14,8 @@ END_PUNC =   """'"・.。!！?？:：”>＞⦆)]}』」）〉》〕】｝］’
 OTHER_PUNC = "＊　,，、…"
 PUNCTUATION = START_PUNC + END_PUNC + OTHER_PUNC
 
-
-def setup_advanced_cli(parser):
-    sp = parser.add_subparsers(
-        help="Generate a subtitle file from an file's audio source", required=True
-    )
-    sync = sp.add_parser(
-        "sync",
-        help="Sync a text to an audio/video stream",
-        usage=""""subplz sync [-h] [-d DIRS [DIRS ...]] [--audio AUDIO [AUDIO ...]] [--text TEXT [TEXT ...]] [--output-dir OUTPUT_DIR] [--output-format OUTPUT_FORMAT]
-                   [--language LANGUAGE] [--model MODEL] """,
-    )
-    gen = sp.add_parser("gen", help="Generate subs from a audio/video stream")
-    main_group = sync.add_argument_group("Main arguments")
-    optional_group = sync.add_argument_group("Optional arguments")
-    advanced_group = sync.add_argument_group("Advanced arguments")
-
-    # Sources
+def add_arguments(main_group, optional_group, advanced_group, subcommand):
+    # Common arguments for both sync and gen
     main_group.add_argument(
         "-d",
         "--dirs",
@@ -48,14 +33,26 @@ def setup_advanced_cli(parser):
         required=False,
         help="list of audio files to process (in the correct order)",
     )
+
     main_group.add_argument(
-        "--text", nargs="+", default=[], required=False, help="path to the script file"
+        "--lang-ext",
+        type=str,
+        default=None,
+        required=False,
+        help="The subtitle language extenion to be used. You can use this to also force multiple subtitles with different generation methods to be used, eg: attackOnTitanEP01.az.srt could be used to indicate AI generated sub"
     )
+
+    if subcommand == "sync":
+        main_group.add_argument(
+            "--text", nargs="+", default=[], required=False, help="path to the script file"
+        )
+
     main_group.add_argument(
         "--output-dir",
         default=None,
         help="Output directory, default uses the directory for the first audio file",
     )
+
     main_group.add_argument(
         "--output-format",
         default="srt",
@@ -73,15 +70,18 @@ def setup_advanced_cli(parser):
     )
 
     # Behaviors
-    optional_group.add_argument(
-        "--respect-grouping",
-        default=False,
-        help="Keep the lines in the same subtitle together, instead of breaking them apart. ",
-        action=argparse.BooleanOptionalAction,
-    )
+    if subcommand == "sync":
+        optional_group.add_argument(
+            "--respect-grouping",
+            default=False,
+            help="Keep the lines in the same subtitle together, instead of breaking them apart. ",
+            action=argparse.BooleanOptionalAction,
+        )
+
+
     optional_group.add_argument(
         "--overwrite",
-        default=True,
+        default=None,
         help="Overwrite any destination files",
         action=argparse.BooleanOptionalAction,
     )
@@ -106,7 +106,7 @@ def setup_advanced_cli(parser):
         "--rerun",
         default=False,
         action=argparse.BooleanOptionalAction,
-        help="Align files even if file is marked as having run",
+        help="Work on files even if file is marked as having run",
     )
 
     # Hardware Inputs
@@ -159,12 +159,13 @@ def setup_advanced_cli(parser):
     )
 
     # No-compo algo
-    optional_group.add_argument(
-        "--respect-grouping-count",
-        type=int,
-        help="Affects how deep to search for matching groups with the respect-grouping flag; Default 6 is good for audiobooks, 15 for subs with animated themes",
-        default=6,
-    )
+    if subcommand == "sync":
+        optional_group.add_argument(
+            "--respect-grouping-count",
+            type=int,
+            help="Affects how deep to search for matching groups with the respect-grouping flag; Default 6 is good for audiobooks, 15 for subs with animated themes",
+            default=6,
+        )
 
     # Advanced Model Inputs
     advanced_group.add_argument(
@@ -317,13 +318,47 @@ def setup_advanced_cli(parser):
         help="Number of batches to operate on",
     )
 
+
+def setup_commands_cli(parser):
+    sp = parser.add_subparsers(
+        help="Generate a subtitle file from an file's audio source",
+        required=True,
+        dest="subcommand"  # Add this line to store the subcommand name
+    )
+    sync = sp.add_parser(
+        "sync",
+        help="Sync a text to an audio/video stream",
+        usage=""""subplz sync [-h] [-d DIRS [DIRS ...]] [--audio AUDIO [AUDIO ...]] [--text TEXT [TEXT ...]] [--output-dir OUTPUT_DIR] [--output-format OUTPUT_FORMAT]
+                   [--language LANGUAGE] [--model MODEL] """,
+    )
+
+    main_group = sync.add_argument_group("Main arguments")
+    optional_group = sync.add_argument_group("Optional arguments")
+    advanced_group = sync.add_argument_group("Advanced arguments")
+
+    add_arguments(main_group, optional_group, advanced_group, subcommand="sync")
+
+    # Gen
+    gen = sp.add_parser(
+        "gen",
+        help="Generate subtitles from AI without basing it on existing subtitles",
+        usage=""""subplz gen [-h] [-d DIRS [DIRS ...]] [--audio AUDIO [AUDIO ...]] [--output-dir OUTPUT_DIR] [--output-format OUTPUT_FORMAT]
+                   [--language LANGUAGE] [--model MODEL] """,
+    )
+
+    main_group_gen = gen.add_argument_group("Main arguments")
+    optional_group_gen = gen.add_argument_group("Optional arguments")
+    advanced_group_gen = gen.add_argument_group("Advanced arguments")
+
+    add_arguments(main_group_gen, optional_group_gen, advanced_group_gen, subcommand="gen")
+
     return parser
 
 
 def get_args():
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
 
-    parser = setup_advanced_cli(parser)
+    parser = setup_commands_cli(parser)
     args = parser.parse_args()
     return args
 
@@ -387,15 +422,92 @@ class backendParams:
     fast_decoder_overlap: int
     fast_decoder_batches: int
 
+@dataclass
+class backendGenParams:
+    # Hardware
+    threads: int
+    device: str
+    # UI
+    progress: bool
+    # General Whisper
+    language: str
+    model_name: str
+    # Faster Whisper
+    faster_whisper: bool
+    local_only: bool
+    # stable-ts
+    stable_ts: bool
+    vad: bool
+    # Advanced Whisper
+    initial_prompt: str
+    length_penalty: float
+    temperature: float
+    temperature_increment_on_fallback: float
+    beam_size: int
+    patience: float
+    suppress_tokens: List[str]
+    prepend_punctuations: str
+    append_punctuations: str
+    nopend_punctuations: str
+    compression_ratio_threshold: float
+    logprob_threshold: float
+    condition_on_previous_text: bool
+    no_speech_threshold: float
+    word_timestamps: bool
+    # Experimental Hugging Face
+    # Experimental Word Timestamps
+    highlight_words: bool
+    max_line_width: int
+    max_line_count: int
+    max_words_per_line: int
+    # Original Whisper Optimizations
+    dynamic_quantization: bool
+    quantize: bool
+    # Fast Decoder
+    fast_decoder: bool
+    fast_decoder_overlap: int
+    fast_decoder_batches: int
 
+def get_backend_data(args):
 
-# args.progress
-
-
-def get_inputs():
-    args = get_args()
-    inputs = SimpleNamespace(
-        backend=backendParams(
+    if( args.subcommand == "gen" ):
+        data = backendGenParams(
+                threads=args.threads,
+                device=args.device,
+                progress=args.progress,
+                language=args.language,
+                model_name=args.model,
+                faster_whisper=args.faster_whisper,
+                local_only=args.local_only,
+                initial_prompt=args.initial_prompt,
+                length_penalty=args.length_penalty,
+                temperature=args.temperature,
+                temperature_increment_on_fallback=args.temperature_increment_on_fallback,
+                beam_size=args.beam_size,
+                patience=args.patience,
+                suppress_tokens=args.suppress_tokens,
+                prepend_punctuations=args.prepend_punctuations,
+                append_punctuations=args.append_punctuations,
+                nopend_punctuations=args.nopend_punctuations,
+                logprob_threshold=args.logprob_threshold,
+                compression_ratio_threshold=args.compression_ratio_threshold,
+                condition_on_previous_text=args.condition_on_previous_text,
+                no_speech_threshold=args.no_speech_threshold,
+                word_timestamps=args.word_timestamps,
+                highlight_words=args.highlight_words,
+                max_line_width=args.max_line_width,
+                max_line_count=args.max_line_count,
+                max_words_per_line=args.max_words_per_line,
+                dynamic_quantization=args.dynamic_quantization,
+                quantize=args.quantize,
+                fast_decoder=args.fast_decoder,
+                fast_decoder_overlap=args.fast_decoder_overlap,
+                fast_decoder_batches=args.fast_decoder_batches,
+                stable_ts=args.stable_ts,
+                vad=args.vad,
+            )
+    else:
+        data = backendParams(
             threads=args.threads,
             device=args.device,
             progress=args.progress,
@@ -431,24 +543,55 @@ def get_inputs():
             respect_grouping_count=args.respect_grouping_count,
             stable_ts=args.stable_ts,
             vad=args.vad,
-        ),
+        )
+    return data
+
+
+# args.progress
+
+def get_source_data(args):
+    if( args.subcommand == "gen" ):
+        data = SimpleNamespace(
+            dirs=args.dirs,
+            audio=args.audio,
+            output_dir=args.output_dir,
+            output_format=args.output_format,
+            overwrite=args.overwrite if isinstance(args.overwrite, bool) else False,
+            rerun=args.rerun,
+            lang=args.language,
+            lang_ext=args.lang_ext,
+            subcommand=args.subcommand,
+        )
+    else:
+        data = SimpleNamespace(
+            dirs=args.dirs,
+            audio=args.audio,
+            text=args.text,
+            output_dir=args.output_dir,
+            output_format=args.output_format,
+            overwrite=args.overwrite if isinstance(args.overwrite, bool) else True,
+            rerun=args.rerun,
+            lang=args.language,
+            lang_ext=args.lang_ext,
+            subcommand=args.subcommand,
+        )
+    return data
+
+
+def get_inputs():
+    args = get_args()
+    inputs = SimpleNamespace(
+        subcommand=args.subcommand,
+        backend=get_backend_data(args),
         cache=SimpleNamespace(
             overwrite=args.overwrite_cache,
             enabled=args.use_cache,
             cache_dir=args.cache_dir,
             model_name=args.model,
         ),
-        sources=SimpleNamespace(
-            dirs=args.dirs,
-            audio=args.audio,
-            text=args.text,
-            output_dir=args.output_dir,
-            output_format=args.output_format,
-            overwrite=args.overwrite,
-            rerun=args.rerun,
-            lang=args.language,
-        ),
+        sources=get_source_data(args)
     )
-    validate_source_inputs(inputs.sources)
+    if inputs.subcommand == "sync":
+        validate_source_inputs(inputs.sources)
 
     return inputs

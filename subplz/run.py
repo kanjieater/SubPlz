@@ -1,5 +1,6 @@
 from subplz.transcribe import transcribe
 from subplz.sync import sync
+from subplz.gen import gen
 from subplz.files import get_sources, post_process
 from subplz.models import get_model, get_temperature
 from subplz.utils import get_threads
@@ -17,10 +18,18 @@ def execute_on_inputs():
     sources = get_sources(inputs.sources, inputs.cache)
     for source in sources:
         transcribed_streams = transcribe(source.streams, model, be)
-        sync(
-            source,
-            model,
-            transcribed_streams,
-            be,
-        )
-    post_process(sources)
+        if inputs.subcommand == "sync":
+            sync(
+                source,
+                model,
+                transcribed_streams,
+                be,
+            )
+        elif inputs.subcommand == "gen":
+            gen(
+                source,
+                model,
+                transcribed_streams,
+                be,
+            )
+    post_process(sources, inputs.subcommand)

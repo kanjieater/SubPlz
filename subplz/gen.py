@@ -1,102 +1,36 @@
-import argparse
-import sys, os
-import stable_whisper
-import ffmpeg
-import multiprocessing
 
-# from subsai import SubsAI
-import traceback
-from os import path
-from pathlib import Path
-from datetime import datetime, timedelta
-from tqdm.contrib.concurrent import process_map
-from tqdm import tqdm
-from pprint import pprint
-from utils import read_vtt, write_sub, grab_files
+from ats.main import Segment
+from subplz.utils import get_tqdm
+from subplz.align import shift_align
 
-# from split_sentences import split_sentences
-from run import get_working_folders, generate_transcript_from_audio, get_model
+tqdm, trange = get_tqdm()
 
 
-def generate_subs(files, model):
-    for file in files:
-        try:
-            ext = "srt"
-            lang_code = ".ja"
-            sub_path = str(Path(file).with_suffix(lang_code))
-            generate_transcript_from_audio(file, sub_path, model, ext)
-        except Exception as err:
-            tb = traceback.format_exc()
-            pprint(tb)
-            failures.append({"working_folder": file, "err": err})
-    return failures
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate audio for files")
-    parser.add_argument(
-        "-d",
-        "--dirs",
-        dest="dirs",
-        default=None,
-        required=True,
-        type=str,
-        nargs="+",
-        help="List of folders to run generate subs for",
-    )
-
-    parser.add_argument(
-        "--use-filtered-cache",
-        help="Uses cached filtered files and skips cleanup. Skips making the filtered audio files.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--use-transcript-cache",
-        help="Uses cached transcript files and skips cleanup. Skips the whisper step.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--align",
-        help="Align existing subs",
-        action="store_true",
-        default=False,
-    )
-
-    parser.add_argument(
-        "-sd",
-        "--subs_dir",
-        dest="subs_dir",
-        default=None,
-        required=False,
-        type=str,
-        nargs="+",
-        help="List of folders that have subs, in the same order as dirs",
-    )
-
-    args = parser.parse_args()
-    working_folders = get_working_folders(args.dirs)
-    global model
-    model = False  # global model preserved between files
-    model = get_model("large-v2")
-    successes = []
-    failures = []
-    for working_folder in working_folders:
-        # try:
-        print(working_folder)
-        # audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
-        failures.extend(generate_subs(audio_files, model))
-        successes.append(working_folder)
-        # except Exception as err:
-        #     pprint(err)
-        #     failures.append({"working_folder": working_folder, "err": err})
-
-    if len(successes) > 0:
-        print(f"The following {len(successes)} succeeded:")
-        pprint(successes)
-    if len(failures) > 0:
-        print(f"The following {len(failures)} failed:")
-        for failure in failures:
-            pprint(failure["working_folder"])
-            pprint(failure["err"])
+def gen(source, model, streams, be):
+    args = {
+        "language": be.language,
+        "initial_prompt": be.initial_prompt,
+        "length_penalty": be.length_penalty,
+        "temperature": be.temperature,
+        "beam_size": be.beam_size,
+        "patience": be.patience,
+        "suppress_tokens": be.suppress_tokens,
+        "prepend_punctuations": be.prepend_punctuations,
+        "append_punctuations": be.append_punctuations,
+        "compression_ratio_threshold": be.compression_ratio_threshold,
+        "logprob_threshold": be.logprob_threshold,
+        "condition_on_previous_text": be.condition_on_previous_text,
+        "no_speech_threshold": be.no_speech_threshold,
+        "word_timestamps": be.word_timestamps,
+    }
+    print("🤖 Writing generated subs...")
+    with tqdm(streams) as bar:
+        for ai, batches in enumerate(bar):
+            segments = []
+            for s in streams[ai][2]:
+                segments += s.transcribe(model, **args).get("segments", [])
+            if not segments:
+                continue
+            shifted_segments = shift_align([Segment(s['text'], s['start'], s['end']) for s in segments])
+            source.writer.write_sub(shifted_segments, source.output_full_paths[ai])
