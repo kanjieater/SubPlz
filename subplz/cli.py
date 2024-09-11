@@ -152,9 +152,21 @@ def add_arguments(main_group, optional_group, advanced_group, subcommand):
         action=argparse.BooleanOptionalAction,
     )
     optional_group.add_argument(
+        "--demucs",
+        type=str,
+        default="demucs",
+        help="Use stable-ts demucs",
+    )
+    optional_group.add_argument(
+        "--refinement",
+        default=True,
+        help="Use stable-ts refinement option",
+        action=argparse.BooleanOptionalAction,
+    )
+    optional_group.add_argument(
         "--vad",
         default=True,
-        help="Don't download outside models",
+        help="Use Voice Activity Detection to get more accurate timestamps",
         action=argparse.BooleanOptionalAction,
     )
 
@@ -392,6 +404,8 @@ class backendParams:
     # stable-ts
     stable_ts: bool
     vad: bool
+    demucs: str
+    refinement: str
     # Advanced Whisper
     initial_prompt: str
     length_penalty: float
@@ -438,6 +452,8 @@ class backendGenParams:
     # stable-ts
     stable_ts: bool
     vad: bool
+    demucs: str
+    refinement: str
     # Advanced Whisper
     initial_prompt: str
     length_penalty: float
@@ -504,6 +520,8 @@ def get_backend_data(args):
                 fast_decoder_overlap=args.fast_decoder_overlap,
                 fast_decoder_batches=args.fast_decoder_batches,
                 stable_ts=args.stable_ts,
+                demucs=args.demucs,
+                refinement=args.refinement,
                 vad=args.vad,
             )
     else:
@@ -542,6 +560,8 @@ def get_backend_data(args):
             respect_grouping=args.respect_grouping,
             respect_grouping_count=args.respect_grouping_count,
             stable_ts=args.stable_ts,
+            demucs=args.demucs,
+            refinement=args.refinement,
             vad=args.vad,
         )
     return data

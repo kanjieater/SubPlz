@@ -400,29 +400,51 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
     if input.dirs:
         sources = get_sources_from_dirs(input, cache_inputs)
     else:
-        output_dir = setup_output_dir(input.output_dir, input.audio[0])
-        output_full_paths = get_output_full_paths(
-            input.audio, output_dir, input.output_format, input.lang_ext
-        )
-        writer = Writer(input.output_format)
-        chapters = get_chapters(input.text, input.lang)
-        streams = get_streams(input.audio, cache_inputs)
-        sources = [
-            sourceData(
-                dirs=[],
-                audio=input.audio,
-                text=input.text,
-                output_dir=output_dir,
-                output_format=input.output_format,
-                overwrite=input.overwrite,
-                rerun=input.rerun,
-                output_full_paths=output_full_paths,
-                writer=writer,
-                streams=streams,
-                chapters=chapters,
-                lang=input.lang,
+        if input.subcommand == "sync":
+            output_dir = setup_output_dir(input.output_dir, input.audio[0])
+            output_full_paths = get_output_full_paths(
+                input.audio, output_dir, input.output_format, input.lang_ext
             )
-        ]
+            writer = Writer(input.output_format)
+            chapters = get_chapters(input.text, input.lang)
+            streams = get_streams(input.audio, cache_inputs)
+            sources = [
+                sourceData(
+                    dirs=[],
+                    audio=input.audio,
+                    text=input.text,
+                    output_dir=output_dir,
+                    output_format=input.output_format,
+                    overwrite=input.overwrite,
+                    rerun=input.rerun,
+                    output_full_paths=output_full_paths,
+                    writer=writer,
+                    streams=streams,
+                    chapters=chapters,
+                    lang=input.lang,
+                )
+            ]
+        else:
+            output_dir = setup_output_dir(input.output_dir, input.audio[0])
+            output_full_paths = get_output_full_paths(
+                input.audio, output_dir, input.output_format, input.lang_ext
+            )
+            writer = Writer(input.output_format)
+            streams = get_streams(input.audio, cache_inputs)
+            sources = [
+                sourceData(
+                    dirs=[],
+                    audio=input.audio,
+                    output_dir=output_dir,
+                    output_format=input.output_format,
+                    overwrite=input.overwrite,
+                    rerun=input.rerun,
+                    output_full_paths=output_full_paths,
+                    writer=writer,
+                    streams=streams,
+                    lang=input.lang,
+                )
+            ]
     return sources
 
 def rename_existing_file_to_old(p):
