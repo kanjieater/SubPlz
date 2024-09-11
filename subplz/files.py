@@ -474,9 +474,9 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
         if is_valid:
             valid_sources.append(source)
 
-    for source in valid_sources:
-        print(f"🎧 {pformat(source.audio)}' ⟹ 📖 {pformat(source.text)}...")
     if input.subcommand == "sync":
+        for source in valid_sources:
+            print(f"🎧 {pformat(source.audio)}' ⟹ 📖 {pformat(source.text)}...")
         cleanup(invalid_sources)
     return valid_sources
 

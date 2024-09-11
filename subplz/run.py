@@ -5,6 +5,9 @@ from subplz.files import get_sources, post_process
 from subplz.models import get_model, get_temperature
 from subplz.utils import get_threads
 from subplz.cli import get_inputs
+from subplz.utils import get_tqdm
+
+tqdm, trange = get_tqdm()
 
 
 def execute_on_inputs():
@@ -16,7 +19,8 @@ def execute_on_inputs():
     model = get_model(be)
 
     sources = get_sources(inputs.sources, inputs.cache)
-    for source in sources:
+    for source in tqdm(sources):
+        print(f"🐼 Starting '{source.audio}'...")
         transcribed_streams = transcribe(source.streams, model, be)
         if inputs.subcommand == "sync":
             sync(

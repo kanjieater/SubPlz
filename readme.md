@@ -43,7 +43,7 @@ If you can't contribute monetarily please consider following on a social platfor
 # How to use
 
 ## Quick Guide
-
+### Sync
 1. Put an audio/video file and a text file in a folder.
    1. Audio / Video files: `m4b`, `mkv` or any other audio/video file
    2. Text files: `srt`, `vtt`, `ass`, `txt`, or `epub`
@@ -57,8 +57,21 @@ If you can't contribute monetarily please consider following on a social platfor
    └── script.txt
 ```
 2. List the directories you want to run this on. The `-d` parameter can multiple audiobooks to process like: `subplz sync -d "/mnt/d/sync/Harry Potter 1/" "/mnt/d/sync/Harry Potter 2 The Spooky Sequel/"`
-3. Run `subplz sync -d "<full folder path>"` like `/mnt/d/sync/Harry Potter 1"`
+3. Run `subplz sync -d "<full folder path>"` using something like `/mnt/d/sync/Harry Potter 1`
 4. From there, use a [texthooker](https://github.com/Renji-XD/texthooker-ui) with something like [mpv_websocket](https://github.com/kuroahna/mpv_websocket) and enjoy Immersion Reading.
+
+### Gen
+1. Put an audio/video file and a text file in a folder.
+   1. Audio / Video files: `m4b`, `mkv` or any other audio/video file
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising EP00.mkv
+   └── NeoOtaku Uprising EP01.avi
+```
+1. List the directories you want to run this on. The `-d` parameter can multiple files to process like: `subplz gen -d "/mnt/d/NeoOtaku Uprising The Anime" --model large-v3`
+2. Run `subplz gen -d "<full folder path>" --model large-v3` using something like `/mnt/d/sync/NeoOtaku Uprising The Anime`. Large models are highly recommended for `gen` (unlike `sync`)
+3. From there, use a video player like MPV or Plex. You can also use `--lang-ext az` to set a language you wouldn't otherwise need as a designated "AI subtitle", and use it as a fallback when sync doesn't work or you don't have existing subtitles already
 
 
 # Install
