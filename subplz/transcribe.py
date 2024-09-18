@@ -20,6 +20,7 @@ def transcribe(streams, model, be):
         "condition_on_previous_text": be.condition_on_previous_text,
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
+        "denoiser": be.denoiser,
         "vad": be.vad,
         "vad_onnx": True,
     }

@@ -152,10 +152,10 @@ def add_arguments(main_group, optional_group, advanced_group, subcommand):
         action=argparse.BooleanOptionalAction,
     )
     optional_group.add_argument(
-        "--demucs",
+        "--denoiser",
         type=str,
-        default="demucs",
-        help="Use stable-ts demucs",
+        default="",
+        help="Use stable-ts denoiser",
     )
     optional_group.add_argument(
         "--refinement",
@@ -404,7 +404,7 @@ class backendParams:
     # stable-ts
     stable_ts: bool
     vad: bool
-    demucs: str
+    denoiser: str
     refinement: str
     # Advanced Whisper
     initial_prompt: str
@@ -452,7 +452,7 @@ class backendGenParams:
     # stable-ts
     stable_ts: bool
     vad: bool
-    demucs: str
+    denoiser: str
     refinement: str
     # Advanced Whisper
     initial_prompt: str
@@ -520,7 +520,7 @@ def get_backend_data(args):
                 fast_decoder_overlap=args.fast_decoder_overlap,
                 fast_decoder_batches=args.fast_decoder_batches,
                 stable_ts=args.stable_ts,
-                demucs=args.demucs,
+                denoiser=args.denoiser,
                 refinement=args.refinement,
                 vad=args.vad,
             )
@@ -560,7 +560,7 @@ def get_backend_data(args):
             respect_grouping=args.respect_grouping,
             respect_grouping_count=args.respect_grouping_count,
             stable_ts=args.stable_ts,
-            demucs=args.demucs,
+            denoiser=args.denoiser,
             refinement=args.refinement,
             vad=args.vad,
         )

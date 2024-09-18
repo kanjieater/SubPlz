@@ -22,6 +22,7 @@ def faster_transcribe(self, audio, name, **args):
     args["patience"] = args["patience"] if args["patience"] else 1
     args["length_penalty"] = args["length_penalty"] if args["length_penalty"] else 1
     result = self.transcribe_stable(audio, best_of=1, **args)
+    # result = self.refine(audio, result, **args)
     result.pad(.5, .5, word_level=False)
     segments, prev_end = [], 0
     with tqdm(total=result.duration, unit_scale=True, unit=" seconds") as pbar:
