@@ -77,6 +77,27 @@ def add_arguments(main_group, optional_group, advanced_group, subcommand):
             help="Keep the lines in the same subtitle together, instead of breaking them apart. ",
             action=argparse.BooleanOptionalAction,
         )
+        optional_group.add_argument(
+            "--alass",
+            default=False,
+            help="Use Alass extract a subtitle as 'original-lang-ext' susbtitle and use it to align the subtitles",
+            action=argparse.BooleanOptionalAction,
+        )
+        main_group.add_argument(
+            "--lang-ext-incorrect",
+            type=str,
+            default=None,
+            required=False,
+            help="The subtitle extension to prioritize to correct",
+        )
+
+    main_group.add_argument(
+        "--lang-ext-original",
+        type=str,
+        default=None,
+        required=False,
+        help="The subtitle language extension to be used for alass upon extraction. If no embedded subs exist we'll pull from the sub with this lang extension. If only lang-ext & lang-ext-original are provided we'll rename one ext to the other without changing the contents of the sub.",
+    )
 
 
     optional_group.add_argument(
@@ -387,6 +408,7 @@ def validate_source_inputs(sources):
 
 @dataclass
 class backendParams:
+    alass: bool
     # Hardware
     threads: int
     device: str
@@ -563,6 +585,7 @@ def get_backend_data(args):
             denoiser=args.denoiser,
             refinement=args.refinement,
             vad=args.vad,
+            alass=args.alass,
         )
     return data
 
@@ -593,6 +616,8 @@ def get_source_data(args):
             rerun=args.rerun,
             lang=args.language,
             lang_ext=args.lang_ext,
+            lang_ext_original=args.lang_ext_original,
+            lang_ext_incorrect=args.lang_ext_incorrect,
             subcommand=args.subcommand,
         )
     return data

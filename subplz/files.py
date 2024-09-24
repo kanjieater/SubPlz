@@ -470,7 +470,7 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
                 break
             if old_file.exists() and op.exists() and not source.rerun:
                 print(
-                    f"🤔 {old_file.name} already exists but you don't want it overwritten, skipping."
+                    f"🤔 {old_file.name} already exists but you don't want it overwritten, skipping. If you do, add --rerun"
                 )
                 invalid_sources.append(source)
                 is_valid = False
@@ -541,7 +541,7 @@ def rename_old_subs(source: sourceData):
         sub_path.rename(new_filename)
 
 
-def post_process(sources: List[sourceData], subcommand):
+def post_process(sources: List[sourceData], subcommand, alass):
     if subcommand == "sync":
         cleanup(sources)
     complete_success = True
@@ -554,11 +554,13 @@ def post_process(sources: List[sourceData], subcommand):
             if subcommand == "sync":
                 rename_old_subs(source)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
+        elif alass:
+            print(f"Alass completed for '{source.text}'")
         else:
             complete_success = False
             print(f"❗ No text matched for '{source.text}'")
 
-    if not sources:
+    if not sources and not alass:
         print(
             """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if you had a .old file preventing rerun"""
         )
