@@ -2,6 +2,7 @@ from subplz.transcribe import transcribe
 from subplz.sync import sync
 from subplz.alass import sync_alass
 from subplz.gen import gen
+from subplz.helpers import find, rename, copy
 from subplz.files import get_sources, post_process
 from subplz.models import get_model, get_temperature
 from subplz.utils import get_threads
@@ -13,6 +14,13 @@ tqdm, trange = get_tqdm()
 
 def execute_on_inputs():
     inputs = get_inputs()
+    if inputs.subcommand == "find":
+        find()
+    if inputs.subcommand == "rename":
+        rename()
+    if inputs.subcommand == "copy":
+        copy()
+
     be = inputs.backend
 
     be.temperature = get_temperature(be)
