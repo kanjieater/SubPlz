@@ -16,7 +16,7 @@ def extract_subtitles(video_path: Path, output_subtitle_path: Path) -> None:
         (
             ffmpeg
             .input(str(video_path))
-            .output(str(output_subtitle_path), map='0:s:0', c='srt')
+            .output(str(output_subtitle_path), map='0:s:0', c='srt', loglevel="quiet")
             .global_args("-hide_banner")
             .run(overwrite_output=True)
         )
@@ -25,7 +25,7 @@ def extract_subtitles(video_path: Path, output_subtitle_path: Path) -> None:
         raise RuntimeError(f"Failed to extract subtitles: {e.stderr.decode()}\nCommand: {str(e.cmd)}")
 
 # Define function to run alass
-def sync_alass(source, input_sources,be):
+def sync_alass(source, input_sources, be):
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
 
