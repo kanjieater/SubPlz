@@ -576,11 +576,12 @@ class backendFindParams:
     # Hardware
     dirs: List[str]
 
+
 def setup_commands_cli(parser):
     sp = parser.add_subparsers(
         help="Generate a subtitle file from a file's audio source",
         required=True,
-        dest="subcommand"
+        dest="subcommand",
     )
 
     # Sync command
@@ -595,8 +596,12 @@ def setup_commands_cli(parser):
     optional_group_sync = sync.add_argument_group("Optional arguments")
     advanced_group_sync = sync.add_argument_group("Advanced arguments")
 
-    add_arguments_from_dataclass(main_group_sync, SyncParams, optional_group_sync, advanced_group_sync)
-    add_arguments_from_dataclass(main_group_sync, SyncData, optional_group_sync, advanced_group_sync)
+    add_arguments_from_dataclass(
+        main_group_sync, SyncParams, optional_group_sync, advanced_group_sync
+    )
+    add_arguments_from_dataclass(
+        main_group_sync, SyncData, optional_group_sync, advanced_group_sync
+    )
 
     # Gen command
     gen = sp.add_parser(
@@ -610,8 +615,12 @@ def setup_commands_cli(parser):
     optional_group_gen = gen.add_argument_group("Optional arguments")
     advanced_group_gen = gen.add_argument_group("Advanced arguments")
 
-    add_arguments_from_dataclass(main_group_gen, GenParams, optional_group_gen, advanced_group_gen)
-    add_arguments_from_dataclass(main_group_gen, GenData, optional_group_gen, advanced_group_gen)
+    add_arguments_from_dataclass(
+        main_group_gen, GenParams, optional_group_gen, advanced_group_gen
+    )
+    add_arguments_from_dataclass(
+        main_group_gen, GenData, optional_group_gen, advanced_group_gen
+    )
 
     # # Find command
     # find = sp.add_parser(
@@ -627,7 +636,6 @@ def setup_commands_cli(parser):
     # add_arguments_from_dataclass(main_group_find, FindParams, optional_group_find, advanced_group_find)
 
     return parser
-
 
 
 def get_args():
@@ -648,12 +656,14 @@ def validate_source_inputs(sources):
         raise ValueError(error_text)
 
 
-def add_arguments_from_dataclass(main_group, dataclass_type, optional_group, advanced_group):
+def add_arguments_from_dataclass(
+    main_group, dataclass_type, optional_group, advanced_group
+):
     # Create a mapping of categories to their respective argument groups
     category_groups = {
         "main": main_group,
         "optional": optional_group,
-        "advanced": advanced_group
+        "advanced": advanced_group,
     }
 
     for f in fields(dataclass_type):
@@ -669,8 +679,13 @@ def get_data(args, subcommand_to_dataclass):
     data_class = subcommand_to_dataclass.get(args.subcommand)
     if data_class is None:
         raise ValueError("Unknown subcommand")
-    kwargs = {f.name: getattr(args, f.name) for f in fields(data_class) if hasattr(args, f.name)}
+    kwargs = {
+        f.name: getattr(args, f.name)
+        for f in fields(data_class)
+        if hasattr(args, f.name)
+    }
     return data_class(**kwargs)
+
 
 def get_backend_data(args):
     subcommand_to_dataclass = {
@@ -679,12 +694,14 @@ def get_backend_data(args):
     }
     return get_data(args, subcommand_to_dataclass)
 
+
 def get_source_data(args):
     subcommand_to_dataclass = {
         "gen": GenData,
         "sync": SyncData,
     }
     return get_data(args, subcommand_to_dataclass)
+
 
 def get_inputs():
     args = get_args()

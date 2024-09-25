@@ -296,30 +296,31 @@ def get_output_full_paths(audio, output_dir, output_format, lang_ext):
     return [Path(output_dir) / f"{Path(a).stem}{le}.{output_format}" for a in audio]
 
 
-def match_files(audios, texts, folder, rerun):
+def match_files(audios, texts, folder, rerun, orig):
     if rerun:
-        old = get_existing_rerun_files(folder)
+        old = get_existing_rerun_files(folder, orig)
         text = grab_files(folder, ["*." + ext for ext in TEXT_FORMATS])
         already_run = os_sorted(list(set(text + old)))
         audios_filtered = audios
         texts_filtered = already_run
     else:
-        already_run = get_existing_rerun_files(folder)
-        already_run_text_paths = []
-        already_run_audio_paths = []
-        for ar in already_run:
-            arPath = Path(ar)
-            removed_second_stem = Path(arPath.stem).stem
-            already_run_audio_paths.append(str(arPath.parent / removed_second_stem))
-            already_run_text_paths.append(str(arPath.parent / arPath.stem))
+        # TODO: reconsider if any of this is worthwhile after switching to language code switches
+        # already_run = get_existing_rerun_files(folder, orig)
+        # already_run_text_paths = []
+        # already_run_audio_paths = []
+        # for ar in already_run:
+        #     arPath = Path(ar)
+        #     removed_second_stem = Path(arPath.stem).stem
+        #     already_run_audio_paths.append(str(arPath.parent / removed_second_stem))
+        #     already_run_text_paths.append(str(arPath.parent / arPath.stem))
         destemed_audio = [
             str(Path(audio).parent / Path(audio).stem) for audio in audios
         ]
         destemed_text = [
             str(Path(text).parent / Path(text).stem) for text in texts
         ]
-        audios_unique = list(set(destemed_audio) - set(already_run_audio_paths))
-        texts_unique = list(set(destemed_text) - set(already_run_audio_paths) - set(already_run_text_paths))
+        audios_unique = list(set(destemed_audio))
+        texts_unique = list(set(destemed_text))
 
         texts_filtered = [
             t for t in texts if str(Path(t).parent / Path(t).stem) in texts_unique
@@ -346,7 +347,7 @@ def get_sources_from_dirs(input, cache_inputs):
         audios = get_audio(folder)
         if input.subcommand == "sync":
             texts = get_text(folder)
-            a, t = match_files(audios, texts, folder, input.rerun)
+            a, t = match_files(audios, texts, folder, input.rerun, input.lang_ext_original)
 
 
             for matched_audio, matched_text in zip(a, t):
@@ -447,9 +448,9 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
             ]
     return sources
 
-def rename_existing_file_to_old(p):
+def rename_existing_file_to_old(p, orig):
     path_obj = Path(p)
-    new_filename = path_obj.with_suffix(".old" + path_obj.suffix)
+    new_filename = path_obj.with_suffix(f".{orig}{path_obj.suffix}")
     path_obj.rename(new_filename)
     return new_filename
 
@@ -462,13 +463,13 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
         output_paths = source.output_full_paths
         is_valid = True
         for op in output_paths:
-            old_file = get_rerun_file_path(op)
+            old_file = get_rerun_file_path(op, input.lang_ext_original)
             if not source.overwrite and op.exists():
                 print(f"🤔 SubPlz file '{op.name}' already exists, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
-            if old_file.exists() and op.exists() and not source.rerun:
+            if old_file.exists() and (str(old_file) == str(op)) and not source.rerun:
                 print(
                     f"🤔 {old_file.name} already exists but you don't want it overwritten, skipping. If you do, add --rerun"
                 )
@@ -491,14 +492,14 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
                 is_valid = False
                 break
             if op.exists() and not old_file.exists() and input.subcommand == "sync":
-                rename_existing_file_to_old(op)
+                rename_existing_file_to_old(op, input.lang_ext_original)
 
         if is_valid:
             valid_sources.append(source)
 
     if input.subcommand == "sync":
         for source in valid_sources:
-            print(f"🎧 {pformat(source.audio)}' ⟹ 📖 {pformat(source.text)}...")
+            print(f"🎧 {pformat(source.audio)}' ➕ 📖 {pformat(source.text)}...")
         cleanup(invalid_sources)
     return valid_sources
 
@@ -512,22 +513,28 @@ def cleanup(sources: List[sourceData]):
                 tmp_file_path.unlink()
 
 
-def get_existing_rerun_files(dir: str) -> List[str]:
-    old = grab_files(dir, ["*.old." + ext for ext in SUBTITLE_FORMATS])
+def get_existing_rerun_files(dir: str, orig) -> List[str]:
+    old = grab_files(dir, [f"*.{orig}." + ext for ext in SUBTITLE_FORMATS])
     return old
 
+def get_true_stem(file_path: Path) -> str:
+    stem = file_path.stem
+    while '.' in stem[-4:]:
+        stem = Path(stem).stem
+    return stem
 
-def get_rerun_file_path(output_path: Path) -> Path:
-    cache_file = output_path.parent / f"{output_path.stem}.old{output_path.suffix}"
+
+def get_rerun_file_path(output_path: Path, orig) -> Path:
+    cache_file = output_path.parent / f"{get_true_stem(output_path)}.{orig}{output_path.suffix}"
     return cache_file
 
 
-def rename_old_subs(source: sourceData):
+def rename_old_subs(source: sourceData, orig):
     subs = []
     for sub in source.text:
         if (
             Path(sub).suffix[1:] in SUBTITLE_FORMATS
-            and ".old" not in Path(Path(sub).stem).suffix
+            and f".{orig}" not in Path(Path(sub).stem).suffix
         ):
             subs.append(sub)
     remaining_subs = set(subs) - set([str(p) for p in source.output_full_paths])
@@ -535,13 +542,13 @@ def rename_old_subs(source: sourceData):
         sub_path = Path(sub)
 
         if len(source.text) == len(source.audio):
-            new_filename = Path(source.audio[i]).with_suffix(".old" + sub_path.suffix)
+            new_filename = Path(source.audio[i]).with_suffix(f".{orig}{sub_path.suffix}")
         else:
-            new_filename = sub_path.with_suffix(".old" + sub_path.suffix)
+            new_filename = sub_path.with_suffix(f".{orig}{sub_path.suffix}")
         sub_path.rename(new_filename)
 
 
-def post_process(sources: List[sourceData], subcommand, alass):
+def post_process(sources: List[sourceData], subcommand, alass, orig):
     if subcommand == "sync":
         cleanup(sources)
     complete_success = True
@@ -552,7 +559,7 @@ def post_process(sources: List[sourceData], subcommand, alass):
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
             if subcommand == "sync":
-                rename_old_subs(source)
+                rename_old_subs(source, orig)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         elif alass:
             print(f"Alass completed for '{source.text}'")
@@ -562,7 +569,7 @@ def post_process(sources: List[sourceData], subcommand, alass):
 
     if not sources and not alass:
         print(
-            """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if you had a .old file preventing rerun"""
+            """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if the destination file already exists"""
         )
     elif complete_success:
         print("🎉 Everything went great!")

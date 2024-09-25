@@ -49,4 +49,4 @@ def execute_on_inputs():
                 transcribed_streams,
                 be,
             )
-    post_process(sources, inputs.subcommand, inputs.backend.alass)
+    post_process(sources, inputs.subcommand, inputs.backend.alass, inputs.sources.lang_ext_original)
