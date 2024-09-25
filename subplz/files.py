@@ -548,6 +548,26 @@ def rename_old_subs(source: sourceData, orig):
         sub_path.rename(new_filename)
 
 
+def write_sub_failed(source, target_path, error_message):
+    """
+    Writes an error message to a file indicating subtitle processing failure.
+    The file will have the same base name as the target subtitle path but with a `.subfail` extension.
+
+    :param source: The source stream object for logging details.
+    :param target_path: The path where the target subtitle would be saved.
+    :param error_message: The error message to log in the `.subfail` file.
+    """
+    # Define the path for the failure file
+    failed_path = target_path.with_suffix(".subfail")
+    try:
+        # Write the error message to the .subfail file
+        with failed_path.open("w") as fail_file:
+            fail_file.write(f"Error processing subtitle for {source}:\n{error_message}\n")
+        print(f"🚨 Error log written to {failed_path}")
+    except Exception as e:
+        print(f"❗ Failed to write error log to {failed_path}: {e}")
+
+
 def post_process(sources: List[sourceData], subcommand, alass, orig):
     if subcommand == "sync":
         cleanup(sources)
@@ -558,27 +578,38 @@ def post_process(sources: List[sourceData], subcommand, alass, orig):
     for source in sorted_sources:
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
-            if subcommand == "sync":
-                rename_old_subs(source, orig)
+            # if subcommand == "sync":
+            #     rename_old_subs(source, orig)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
-        elif alass:
-            print(f"Alass completed for '{source.text}'")
+        elif alass and source.writer.written:
+            print(f"🙌 Alass succeeded for '{source.text}'")
+        elif alass and not source.writer.written:
+            complete_success = False
+            print(f"❗ Alass failed for '{source.text}'")
         else:
             complete_success = False
-            print(f"❗ No text matched for '{source.text}'")
+            print(f"❗ Failed to sync '{source.text}'")
 
-    if not sources and not alass:
+    if not sources:
         print(
             """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if the destination file already exists"""
         )
     elif complete_success:
         print("🎉 Everything went great!")
     else:
-        print(
-            """😭 At least one of the files failed to sync.
-            Possible reasons:
-            1. The audio didn't match the text.
-            2. The audio and text file matching might not have been ordered correctly.
-            3. It could be cached - You could try running with `--overwrite-cache` if you've renamed another file to the exact same file path that you've run with the tool before.
-              """
-        )
+        if alass:
+            print(
+                """😭 At least one of the files failed to sync.
+                Possible reasons:
+                1. Alass failed to run or match subtitles
+                """
+            )
+        else:
+            print(
+                """😭 At least one of the files failed to sync.
+                Possible reasons:
+                1. The audio didn't match the text.
+                2. The audio and text file matching might not have been ordered correctly.
+                3. It could be cached - You could try running with `--overwrite-cache` if you've renamed another file to the exact same file path that you've run with the tool before.
+                """
+            )

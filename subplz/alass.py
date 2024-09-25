@@ -2,7 +2,7 @@ import ffmpeg
 import subprocess
 from pathlib import Path
 from subplz.utils import get_tqdm
-from subplz.files import normalize_text
+from subplz.files import normalize_text, write_sub_failed
 
 tqdm, trange = get_tqdm()
 
@@ -24,7 +24,14 @@ def extract_subtitles(video_path: Path, output_subtitle_path: Path) -> None:
     except ffmpeg.Error as e:
         raise RuntimeError(f"Failed to extract subtitles: {e.stderr.decode()}\nCommand: {str(e.cmd)}")
 
-# Define function to run alass
+
+def get_subtitle_path(video_path, lang_ext):
+    stem = Path(video_path).stem
+    parent = Path(video_path).parent
+    ext = f".{lang_ext}" if lang_ext else ""
+    return parent / f"{stem}{ext}.srt"
+
+
 def sync_alass(source, input_sources, be):
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
@@ -32,18 +39,29 @@ def sync_alass(source, input_sources, be):
     with tqdm(source.streams) as bar:
         for batches in bar:
             video_path = batches[2][0].path
-            subtitle_path = Path(video_path).parent / f"{Path(video_path).stem}.{input_sources.lang_ext_original}.srt"
-            incorrect_subtitle_path = Path(video_path).parent / f"{Path(video_path).stem}.{input_sources.lang_ext_incorrect}.srt"
-            target_subtitle_path = Path(video_path).parent / f"{Path(video_path).stem}.{input_sources.lang_ext}.srt"
 
-            bar.set_description(f'Extracting subtitles from {video_path}')
+            subtitle_path = get_subtitle_path(video_path, input_sources.lang_ext_original)
+            target_subtitle_path = get_subtitle_path(video_path, input_sources.lang_ext)
+            incorrect_subtitle_path = get_subtitle_path(video_path, input_sources.lang_ext_incorrect)
+            if subtitle_path is None and incorrect_subtitle_path is None:
+                print(f"❗ Skipping syncing {subtitle_path} since --lang-ext-original and --lang-ext-incorrect were empty")
+                continue
+            if str(subtitle_path) == str(incorrect_subtitle_path):
+                print(f"❗ Skipping syncing {subtitle_path} since the name matches the incorrect timed subtitle")
 
-            # Extract subtitles with ffmpeg
             if not subtitle_path.exists():
+                print(f'⛏️ Extracting subtitles from {video_path} to {subtitle_path}')
                 extract_subtitles(video_path, subtitle_path)
+                if not subtitle_path.exists():
+                    error_message = f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
+                    print(error_message)
+                    write_sub_failed(source, subtitle_path, error_message)
+                    continue
+            if not incorrect_subtitle_path.exists():
+                print(f"❗ Subtitle with incorrect timing not found: {incorrect_subtitle_path}")
+                continue
 
-            # Run alass alignment
-            bar.set_description(f'Aligning {batches[0]}')
+            print(f'🤝 Aligning {incorrect_subtitle_path} based on {subtitle_path}')
             cmd = [
                 alass_path,
                 # *['-' + h for h in alass_args],
@@ -52,6 +70,7 @@ def sync_alass(source, input_sources, be):
                 str(target_subtitle_path)
             ]
             try:
-                subprocess.run(cmd)
+                subprocess.run(cmd, check=True, stderr=subprocess.PIPE, text=True)
+                source.writer.written = True
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Alass command failed: {e.stderr.decode()}\n args: {' '.join(cmd)}") from e
+                print(f"Alass command failed: {e}")
