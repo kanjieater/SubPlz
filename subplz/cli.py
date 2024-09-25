@@ -572,9 +572,9 @@ class GenParams:
 
 
 @dataclass
-class backendFindParams:
-    # Hardware
-    dirs: List[str]
+class FindParams:
+    subcommand: str = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "main"})
 
 
 def setup_commands_cli(parser):
@@ -622,18 +622,18 @@ def setup_commands_cli(parser):
         main_group_gen, GenData, optional_group_gen, advanced_group_gen
     )
 
-    # # Find command
-    # find = sp.add_parser(
-    #     "find",
-    #     help="Find all subdirectories that contain video or audio files",
-    #     usage=""""subplz find [-h] [-d DIRS [DIRS ...]] """,
-    # )
+    # Find command
+    find = sp.add_parser(
+        "find",
+        help="Find all subdirectories that contain video or audio files",
+        usage=""""subplz find [-h] [-d DIRS [DIRS ...]] """,
+    )
 
-    # main_group_find = find.add_argument_group("Main arguments")
-    # optional_group_find = find.add_argument_group("Optional arguments")
-    # advanced_group_find = find.add_argument_group("Advanced arguments")
+    main_group_find = find.add_argument_group("Main arguments")
+    optional_group_find = find.add_argument_group("Optional arguments")
+    advanced_group_find = find.add_argument_group("Advanced arguments")
 
-    # add_arguments_from_dataclass(main_group_find, FindParams, optional_group_find, advanced_group_find)
+    add_arguments_from_dataclass(main_group_find, FindParams, optional_group_find, advanced_group_find)
 
     return parser
 
@@ -705,18 +705,21 @@ def get_source_data(args):
 
 def get_inputs():
     args = get_args()
-    inputs = SimpleNamespace(
-        subcommand=args.subcommand,
-        backend=get_backend_data(args),
-        cache=SimpleNamespace(
-            overwrite=args.overwrite_cache,
-            enabled=args.use_cache,
-            cache_dir=args.cache_dir,
-            model_name=args.model_name,
-        ),
-        sources=get_source_data(args),
-    )
-    if inputs.subcommand == "sync":
-        validate_source_inputs(inputs.sources)
+    if args.subcommand in ["sync", "gen"]:
+        inputs = SimpleNamespace(
+            subcommand=args.subcommand,
+            backend=get_backend_data(args),
+            cache=SimpleNamespace(
+                overwrite=args.overwrite_cache,
+                enabled=args.use_cache,
+                cache_dir=args.cache_dir,
+                model_name=args.model_name,
+            ),
+            sources=get_source_data(args),
+        )
+        if inputs.subcommand == "sync":
+            validate_source_inputs(inputs.sources)
 
-    return inputs
+        return inputs
+    else:
+        return args

@@ -1,18 +1,25 @@
 import os
 from pathlib import Path
 import shutil
+from subplz.files import SUPPORTED_AUDIO_FORMATS
+
 
 def find(directories):
+    all_directories = []
+
     for dir in directories:
-        # subtitle_files = []
-        # for directory in dirs:
-        #     path = Path(directory)
-        #     if path.is_dir():
-        #         subtitle_files.extend(path.glob("*.srt"))  #
+        path = Path(dir)
+        if path.is_dir():
+            try:
+                # Recursively find all directories
+                for subdir in path.rglob("*"):
+                    if subdir.is_dir():
+                        all_directories.append(str(subdir))
+            except OSError as e:
+                print(f"Error accessing directory '{path}': {e}")
 
-        print(dir)
-    return directories
-
+    print(all_directories)
+    return all_directories
 
 def rename():
     """Rename subtitle files based on specified criteria."""

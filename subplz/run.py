@@ -15,11 +15,14 @@ tqdm, trange = get_tqdm()
 def execute_on_inputs():
     inputs = get_inputs()
     if inputs.subcommand == "find":
-        find()
+        find(inputs.dirs)
+        return
     if inputs.subcommand == "rename":
         rename()
+        return
     if inputs.subcommand == "copy":
         copy()
+        return
 
     be = inputs.backend
 
