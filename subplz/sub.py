@@ -1,104 +1,78 @@
-import argparse
-import sys, os
-import stable_whisper
-import ffmpeg
-import multiprocessing
-import traceback
-from os import path
+import os
 from pathlib import Path
-from datetime import datetime, timedelta
-from tqdm.contrib.concurrent import process_map
-from tqdm import tqdm
-from pprint import pprint
-from utils import (
-    read_vtt,
-    write_sub,
-    grab_files,
-    audio_formats,
-    video_formats,
-    subtitle_formats,
-    get_mapping,
-)
-from run import get_working_folders, generate_transcript_from_audio, get_model
+import ffmpeg
+from subplz.utils import grab_files
+
+SUBTITLE_FORMATS = ["ass", "srt", "vtt"]
+
+def cleanup_subfail(output_paths):
+    output_dirs = {path.parent for path in output_paths}
+    subfail_files = []
+    for output_dir in output_dirs:
+        subfail_files.extend(grab_files(output_dir, ['*.subfail'], sort=False))
+    output_set = set(output_paths)
+
+    for subfail_path in map(Path, subfail_files):
+        successful_paths = {subfail_path.with_suffix(f'.{subtitle_format}') for subtitle_format in SUBTITLE_FORMATS}
+        if successful_paths.intersection(output_set):
+            print(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
+            os.remove(subfail_path)
 
 
-SUPPORTED_FORMATS = ["*." + extension for extension in video_formats + audio_formats]
+
+def write_subfail(source, target_path, error_message):
+    """
+    Writes an error message to a file indicating subtitle processing failure.
+    The file will have the same base name as the target subtitle path but with a `.subfail` extension.
+
+    :param source: The source stream object for logging details.
+    :param target_path: The path where the target subtitle would be saved.
+    :param error_message: The error message to log in the `.subfail` file.
+    """
+    # Define the path for the failure file
+    failed_path = target_path.with_suffix(".subfail")
+    try:
+        # Write the error message to the .subfail file
+        with failed_path.open("w") as fail_file:
+            fail_file.write(f"Error processing subtitle for {source}:\n{error_message}\n")
+        print(f"🚨 Error log written to {failed_path}")
+    except Exception as e:
+        print(f"❗ Failed to write error log to {failed_path}: {e}")
 
 
-def match_subs(files, model):
+
+def get_subtitle_path(video_path, lang_ext):
+    stem = Path(video_path).stem
+    parent = Path(video_path).parent
+    ext = f".{lang_ext}" if lang_ext else ""
+    return parent / f"{stem}{ext}.srt"
+
+
+def extract_subtitles(video_path: Path, output_subtitle_path: Path) -> None:
+    try:
+        (
+            ffmpeg
+            .input(str(video_path))
+            .output(str(output_subtitle_path), map='0:s:0', c='srt', loglevel="quiet")
+            .global_args("-hide_banner")
+            .run(overwrite_output=True)
+        )
+        return output_subtitle_path
+    except ffmpeg.Error as e:
+        raise RuntimeError(f"Failed to extract subtitles: {e.stderr.decode()}\nCommand: {str(e.cmd)}")
+
+
+def extract_all_subtitles(files, lang_ext, lang_ext_original):
     for file in files:
+        subtitle_path = get_subtitle_path(file, lang_ext_original)
+        if subtitle_path.exists():
+            continue
         try:
-            ext = "srt"
-            lang_code = ".ja"
-            sub_path = str(Path(file).with_suffix(lang_code))
-            generate_transcript_from_audio(file, sub_path, model, ext)
+            print(f'⛏️ Extracting subtitles from {file} to {subtitle_path}')
+            extract_subtitles(file, subtitle_path)
         except Exception as err:
-            tb = traceback.format_exc()
-            pprint(tb)
-            failures.append({"working_folder": file, "err": err})
-    return failures
+            error_message = f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
+            print(err)
+            target_subtitle_path = get_subtitle_path(file, lang_ext)
+            write_subfail(file, target_subtitle_path, error_message)
 
-
-def get_mapping_config():
-    script_path = Path(__file__).resolve().parent
-    json_file_name = "sub.json"
-    json_file_path = script_path / json_file_name
-    return get_mapping(str(json_file_path))
-
-
-def get_matching_dirs(config):
-    content_dirs = config["content_dirs"]
-    sub_dir = config["sub_dir"]
-    blacklist_dirs = config["blacklist_dirs"]
-
-    sub_entries = [entry.name for entry in Path(sub_dir).iterdir() if entry.is_dir()]
-    matching_dirs = []
-
-    for content_dir in content_dirs:
-        content_path = Path(content_dir)
-        content_entries = [
-            entry.name for entry in content_path.iterdir() if entry.is_dir()
-        ]
-        for content_entry in content_entries:
-            if content_entry in sub_entries and content_entry not in blacklist_dirs:
-                matching_dirs.append(content_entry)
-
-    return matching_dirs
-
-
-def get_folders_with_matching_subs(content_names):
-    for name in content_names:
-        pass
-
-
-if __name__ == "__main__":
-    # args = parser.parse_args()
-    config = get_mapping_config()
-    content_names = get_matching_dirs(config)
-    valid_content_folders = get_folders_with_matching_subs(
-        content_names, config.content_dirs, config.sub_dir
-    )
-
-    global model
-    model = False  # global model preserved between files
-    model = get_model("large-v2")
-    successes = []
-    failures = []
-    for working_folder in working_folders:
-        # try:
-        print(working_folder)
-        audio_files = grab_files(working_folder, SUPPORTED_FORMATS)
-        failures.extend(match_subs(audio_files, model))
-        successes.append(working_folder)
-        # except Exception as err:
-        #     pprint(err)
-        #     failures.append({"working_folder": working_folder, "err": err})
-
-    if len(successes) > 0:
-        print(f"The following {len(successes)} succeeded:")
-        pprint(successes)
-    if len(failures) > 0:
-        print(f"The following {len(failures)} failed:")
-        for failure in failures:
-            pprint(failure["working_folder"])
-            pprint(failure["err"])

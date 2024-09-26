@@ -30,11 +30,13 @@ def execute_on_inputs():
     be.threads = get_threads(be)
     model = get_model(be)
 
+    # if inputs.subcommand == "sync" and inputs.backend.alass:
+    #     extract_potential_subtitles(inputs.sources)
     sources = get_sources(inputs.sources, inputs.cache)
     for source in tqdm(sources):
         print(f"🐼 Starting '{source.audio}'...")
 
-        if inputs.subcommand == "sync" and inputs.backend.alass:
+        if inputs.subcommand == "sync" and source.alass:
             sync_alass(source, inputs.sources, be)
         elif inputs.subcommand == "sync":
             transcribed_streams = transcribe(source.streams, model, be)
@@ -52,7 +54,5 @@ def execute_on_inputs():
                 transcribed_streams,
                 be,
             )
-    if inputs.subcommand == "gen":
-        post_process(sources, inputs.subcommand)
-    elif inputs.subcommand == "sync":
-        post_process(sources, inputs.subcommand, inputs.backend.alass)
+    post_process(sources, inputs.subcommand)
+    post_process(sources, inputs.subcommand)

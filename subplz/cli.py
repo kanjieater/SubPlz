@@ -450,7 +450,6 @@ ARGUMENTS = {
 
 @dataclass
 class SyncParams:
-    alass: bool = field(metadata={"category": "optional"})
     # Hardware
     threads: int = field(metadata={"category": "optional"})
     device: str = field(metadata={"category": "optional"})
@@ -517,6 +516,7 @@ class SyncData:
     use_cache: bool = field(metadata={"category": "optional"})
     cache_dir: str = field(metadata={"category": "optional"})
     overwrite: bool = field(default=True, metadata={"category": "optional"})
+    alass: bool = field(default=False, metadata={"category": "optional"})
 
 
 @dataclass
@@ -533,6 +533,7 @@ class GenData:
     use_cache: bool = field(metadata={"category": "optional"})
     cache_dir: str = field(metadata={"category": "optional"})
     overwrite: bool = field(default=False, metadata={"category": "optional"})
+    alass: bool = field(default=False, metadata={"category": "optional"})
 
 
 @dataclass

@@ -1,24 +1,26 @@
 import os
 import re
+from collections import defaultdict
 from pathlib import Path
 from os import path
-from os.path import basename, splitext, dirname, isdir, join
+from os.path import basename, splitext, isdir, join
 from typing import List, Callable
 from dataclasses import dataclass
 import ffmpeg
 from natsort import os_sorted
-from glob import glob, escape
+
 from pprint import pformat
 from ats.main import (
     TextFile,
     AudioStream,
     TextFile,
-    TextParagraph,
     write_srt,
     write_vtt,
 )
 from subplz.cache import Cache
 from subplz.text import split_sentences, split_sentences_from_input, Epub
+from subplz.sub import extract_all_subtitles, cleanup_subfail, SUBTITLE_FORMATS
+from subplz.utils import grab_files
 
 AUDIO_FORMATS = [
     "aac",
@@ -34,7 +36,6 @@ AUDIO_FORMATS = [
     "m4b",
 ]
 VIDEO_FORMATS = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
-SUBTITLE_FORMATS = ["ass", "srt", "vtt"]
 TEXT_FORMATS = ["epub", "txt"]
 
 SUPPORTED_AUDIO_FORMATS = [
@@ -164,16 +165,8 @@ class sourceData:
     lang: str
     text: List[str] = None
     chapters: List = None
+    alass: bool = False
 
-
-def grab_files(folder, types, sort=True):
-    files = []
-    for t in types:
-        pattern = f"{escape(folder)}/{t}"
-        files.extend(glob(pattern))
-    if sort:
-        return os_sorted(files)
-    return files
 
 
 def get_streams(audio, cache_inputs):
@@ -223,7 +216,7 @@ def normalize_text(file_path):
     return str(txt_path)
 
 
-def get_chapters(text: List[str], lang):
+def get_chapters(text: List[str], lang, alass):
     # print("📖 Finding chapters...") #log
     sub_exts = ["." + extension for extension in SUBTITLE_FORMATS]
     chapters = []
@@ -243,7 +236,8 @@ def get_chapters(text: List[str], lang):
         elif file_ext in sub_exts:
             try:
                 txt_path = normalize_text(file_path)
-                split_sentences(txt_path, txt_path, lang)
+                if not alass:
+                    split_sentences(txt_path, txt_path, lang)
 
             except ffmpeg.Error as e:
                 print(
@@ -255,7 +249,8 @@ def get_chapters(text: List[str], lang):
             txt_path = get_tmp_path(
                 Path(file_path).parent / f"{Path(file_path).stem}.txt"
             )
-            split_sentences(file_path, txt_path, lang)
+            if not alass:
+                split_sentences(file_path, txt_path, lang)
             chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
     return chapters
 
@@ -296,13 +291,42 @@ def get_output_full_paths(audio, output_dir, output_format, lang_ext):
     return [Path(output_dir) / f"{Path(a).stem}{le}.{output_format}" for a in audio]
 
 
-def match_files(audios, texts, folder, rerun, orig):
+def match_lang_ext_original(audios, texts, expected_lang_ext):
+    grouped_files = defaultdict(list)
+    audio_dict = {get_true_stem(Path(audio)): audio for audio in audios}
+
+    for text in texts:
+        subtitle_path = Path(text)
+        true_stem = get_true_stem(subtitle_path)
+        text_lang_ext = subtitle_path.stem.split('.')[-1]  # Extract the language extension
+
+        # Check if the true stem matches the audio and the text has the expected language extension
+        if true_stem in audio_dict and text_lang_ext == expected_lang_ext:
+            grouped_files[audio_dict[true_stem]].append(subtitle_path)
+
+    audios_filtered = []
+    texts_filtered = []
+
+    # Ensure a 1:1 match by taking the first subtitle that matches the expected language extension
+    for audio, subs in grouped_files.items():
+        if subs:
+            audios_filtered.append(audio)
+            texts_filtered.append(subs[0])  # Assuming we take the first match for 1:1 relationship
+
+    return audios_filtered, texts_filtered
+
+
+
+def match_files(audios, texts, folder, rerun, orig, alass=False):
     if rerun:
         old = get_existing_rerun_files(folder, orig)
         text = grab_files(folder, ["*." + ext for ext in TEXT_FORMATS])
         already_run = os_sorted(list(set(text + old)))
         audios_filtered = audios
         texts_filtered = already_run
+    elif orig:
+        # We're only going to match up files that are already in have the original lang ext to the audio file
+        audios_filtered, texts_filtered = match_lang_ext_original(audios, texts, orig)
     else:
         # TODO: reconsider if any of this is worthwhile after switching to language code switches
         # already_run = get_existing_rerun_files(folder, orig)
@@ -347,6 +371,8 @@ def get_sources_from_dirs(input, cache_inputs):
         audios = get_audio(folder)
         if input.subcommand == "sync":
             texts = get_text(folder)
+            if input.alass:
+                extract_all_subtitles(audios, input.lang_ext, input.lang_ext_original)
             a, t = match_files(audios, texts, folder, input.rerun, input.lang_ext_original)
 
 
@@ -357,7 +383,7 @@ def get_sources_from_dirs(input, cache_inputs):
                 writer = Writer(input.output_format)
 
                 streams = get_streams(matched_audio, cache_inputs)
-                chapters = get_chapters(matched_text, input.lang)
+                chapters = get_chapters(matched_text, input.lang, input.alass)
                 s = sourceData(
                     dirs=input.dirs,
                     audio=matched_audio,
@@ -371,6 +397,7 @@ def get_sources_from_dirs(input, cache_inputs):
                     chapters=chapters,
                     streams=streams,
                     lang=input.lang,
+                    alass=input.alass,
                 )
                 sources.append(s)
         else:
@@ -392,6 +419,7 @@ def get_sources_from_dirs(input, cache_inputs):
                     writer=writer,
                     streams=streams,
                     lang=input.lang,
+                    alass=input.alass,
                 )
                 sources.append(s)
     return sources
@@ -407,7 +435,7 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
                 input.audio, output_dir, input.output_format, input.lang_ext
             )
             writer = Writer(input.output_format)
-            chapters = get_chapters(input.text, input.lang)
+            chapters = get_chapters(input.text, input.lang, input.alass)
             streams = get_streams(input.audio, cache_inputs)
             sources = [
                 sourceData(
@@ -423,6 +451,7 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
                     streams=streams,
                     chapters=chapters,
                     lang=input.lang,
+                    alass=input.alass,
                 )
             ]
         else:
@@ -444,6 +473,7 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
                     writer=writer,
                     streams=streams,
                     lang=input.lang,
+                    alass=input.alass,
                 )
             ]
     return sources
@@ -554,42 +584,9 @@ def rename_old_subs(source: sourceData, orig):
         sub_path.rename(new_filename)
 
 
-def cleanup_subfail_files(output_paths):
-    output_dirs = {path.parent for path in output_paths}
-    subfail_files = []
-    for output_dir in output_dirs:
-        subfail_files.extend(grab_files(output_dir, ['*.subfail'], sort=False))
-    output_set = set(output_paths)
-
-    for subfail_path in map(Path, subfail_files):
-        successful_paths = {subfail_path.with_suffix(f'.{subtitle_format}') for subtitle_format in SUBTITLE_FORMATS}
-        if successful_paths.intersection(output_set):
-            print(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
-            os.remove(subfail_path)
 
 
-
-def write_sub_failed(source, target_path, error_message):
-    """
-    Writes an error message to a file indicating subtitle processing failure.
-    The file will have the same base name as the target subtitle path but with a `.subfail` extension.
-
-    :param source: The source stream object for logging details.
-    :param target_path: The path where the target subtitle would be saved.
-    :param error_message: The error message to log in the `.subfail` file.
-    """
-    # Define the path for the failure file
-    failed_path = target_path.with_suffix(".subfail")
-    try:
-        # Write the error message to the .subfail file
-        with failed_path.open("w") as fail_file:
-            fail_file.write(f"Error processing subtitle for {source}:\n{error_message}\n")
-        print(f"🚨 Error log written to {failed_path}")
-    except Exception as e:
-        print(f"❗ Failed to write error log to {failed_path}: {e}")
-
-
-def post_process(sources: List[sourceData], subcommand, alass=False):
+def post_process(sources: List[sourceData], subcommand):
     if subcommand == "sync":
         cleanup(sources)
     complete_success = True
@@ -600,15 +597,15 @@ def post_process(sources: List[sourceData], subcommand, alass=False):
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
-        elif alass and not source.writer.written:
+        elif source.alass and not source.writer.written:
             complete_success = False
             print(f"❗ Alass failed for '{source.audio[0]}'")
         else:
             complete_success = False
             print(f"❗ Failed to sync '{source.text}'")
 
-        cleanup_subfail_files(source.output_full_paths)
-
+        cleanup_subfail(source.output_full_paths)
+    alass_exists = getattr(sources[0], 'alass', None) if sources and len(sources) > 0 else None
     if not sources:
         print(
             """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if the destination file already exists"""
@@ -616,7 +613,7 @@ def post_process(sources: List[sourceData], subcommand, alass=False):
     elif complete_success:
         print("🎉 Everything went great!")
     else:
-        if alass:
+        if alass_exists:
             print(
                 """😭 At least one of the files failed to sync.
                 Possible reasons:

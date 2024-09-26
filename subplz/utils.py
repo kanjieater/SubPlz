@@ -1,5 +1,7 @@
+from glob import glob, escape
 from functools import partialmethod
 import torch
+from natsort import os_sorted
 
 
 def is_notebook() -> bool:
@@ -36,3 +38,13 @@ def get_threads(inputs):
     if threads > 0:
         torch.set_num_threads(threads)
     return threads
+
+
+def grab_files(folder, types, sort=True):
+    files = []
+    for t in types:
+        pattern = f"{escape(folder)}/{t}"
+        files.extend(glob(pattern))
+    if sort:
+        return os_sorted(files)
+    return files
