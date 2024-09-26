@@ -169,6 +169,20 @@ For different use cases, different parameters may be optimal.
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
 
+
+# Generating All Subtitle Algorithms in Batch
+Let's say you want to automate getting the best subs for every piece of media in your library. SubPlz takes advantage of how well video players integrate with language codes by overriding them to map them to algorithms, instead of different languages. This makes it so you can quickly switch between a sub on the fly while watching content, and easily update your preferred option for a series later on if your default doesn't work.
+
+Just run `./helpers/subplz.sh` with a sub like `sub1.ja.srt` and `video1.mkv` and it will genearate the following:
+| Algorithm    | Default Language Code | Mnemonic | Description |
+| -------- | ------- | -------- | ------- |
+| Bazarr  | ab    | B for Bazarr | Default potentially untimed subs in target language|
+| Alass | as     | S for Ala_ss_ | Subs that have been aligned using `en` & `ab` subs via Alass|
+| SubPlz    | ak    | K for KanjiEater | Generated alignment from AI with the `ab` subs text |
+| FasterWhisper    | az    | Z for the last option | Generated purely based on audio. Surprisingly accurate but not perfect. |
+| Original    | en    | Animes subs tend to be in EN | This would be the original timings used for Alass, and what would be extracted from you videos automatically|
+| Preferred    | ja    | Your target language | This is a copy of one of the other options, named with your target language so it plays this by default |
+
 # Anki Support
 
 - Generates subs2srs style deck

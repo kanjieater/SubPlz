@@ -10,13 +10,13 @@ def cleanup_subfail(output_paths):
     subfail_files = []
     for output_dir in output_dirs:
         subfail_files.extend(grab_files(output_dir, ['*.subfail'], sort=False))
-    output_set = set(output_paths)
 
     for subfail_path in map(Path, subfail_files):
         successful_paths = {subfail_path.with_suffix(f'.{subtitle_format}') for subtitle_format in SUBTITLE_FORMATS}
-        if successful_paths.intersection(output_set):
-            print(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
-            os.remove(subfail_path)
+        for successful_path in successful_paths:
+            if successful_path.exists():
+                print(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
+                os.remove(subfail_path)
 
 
 

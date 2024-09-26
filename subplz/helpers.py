@@ -37,20 +37,15 @@ def rename(inputs):
     overwrite = inputs.overwrite
 
     for directory in directories:
-        for text in get_text(directory):  # Get all subtitle files in the directory
+        for text in get_text(directory):
             if f".{lang_ext_original}." in text:
-                old_path = Path(text)  # Ensure we have a Path object
+                old_path = Path(text)
                 true_stem = get_true_stem(old_path)
 
-                # Create new name based on the stem, new language extension, and retain the original file extension
                 new_name = old_path.parent / f"{true_stem}.{lang_ext}{old_path.suffix}"
-
-                # Check if the new file exists
                 if new_name.exists() and not overwrite:
                     print(f"Skipping renaming for {new_name} since it already exists.")
-                    continue  # Use 'continue' instead of 'break' to keep processing other files
-
-                # Attempt to rename the file
+                    continue
                 try:
                     old_path.rename(new_name)
                     print(f"Renamed: {old_path} to {new_name}")

@@ -548,12 +548,18 @@ def get_existing_rerun_files(dir: str, orig) -> List[str]:
     old = grab_files(dir, [f"*.{orig}." + ext for ext in SUBTITLE_FORMATS])
     return old
 
+def get_hearing_impaired_extensions() -> set:
+    return {'cc', 'hi', 'sdh'}
+
 def get_true_stem(file_path: Path) -> str:
     stem = file_path.stem
-    while '.' in stem[-4:]:
-        stem = Path(stem).stem
-    return stem
+    stem_parts = stem.split('.')
+    known_extensions = get_hearing_impaired_extensions()
 
+    if stem_parts[-1] in known_extensions:
+        stem_parts.pop()
+    return Path(stem).stem
+    # return stem_parts[-1] if len(stem_parts) > 1 else stem
 
 def get_rerun_file_path(output_path: Path, input) -> Path:
     orig_dot = ''
