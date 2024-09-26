@@ -577,6 +577,15 @@ class FindParams:
     dirs: List[str] = field(metadata={"category": "main"})
 
 
+@dataclass
+class RenameParams:
+    subcommand: str = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "main"})
+    lang_ext: str = field(metadata={"category": "main"})
+    lang_ext_original: Optional[str] = field(metadata={"category": "main"})
+    overwrite: bool = field(default=False, metadata={"category": "optional"})
+
+
 def setup_commands_cli(parser):
     sp = parser.add_subparsers(
         help="Generate a subtitle file from a file's audio source",
@@ -633,7 +642,18 @@ def setup_commands_cli(parser):
     optional_group_find = find.add_argument_group("Optional arguments")
     advanced_group_find = find.add_argument_group("Advanced arguments")
 
-    add_arguments_from_dataclass(main_group_find, FindParams, optional_group_find, advanced_group_find)
+    # rename command
+    rename = sp.add_parser(
+        "rename",
+        help="Rename one subtitle to another lang ext name",
+        usage=""""subplz rename [-h] [-d DIRS [DIRS ...]] """,
+    )
+
+    main_group_rename = rename.add_argument_group("Main arguments")
+    optional_group_rename = rename.add_argument_group("Optional arguments")
+    advanced_group_rename = rename.add_argument_group("Advanced arguments")
+
+    add_arguments_from_dataclass(main_group_rename, RenameParams, optional_group_rename, advanced_group_rename)
 
     return parser
 

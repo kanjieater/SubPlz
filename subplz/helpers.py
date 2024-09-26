@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import shutil
-from subplz.files import SUPPORTED_AUDIO_FORMATS
+from subplz.files import SUPPORTED_AUDIO_FORMATS, get_true_stem, get_text
 
 
 def find(directories):
@@ -21,16 +21,34 @@ def find(directories):
     print(all_directories)
     return all_directories
 
-def rename():
-    """Rename subtitle files based on specified criteria."""
-    inputs = get_inputs()
-    rename_map = inputs.rename_map  # Assuming a rename_map is provided in the inputs
 
-    for old_name, new_name in rename_map.items():
-        old_path = Path(old_name)
-        new_path = Path(new_name)
-        if old_path.exists():
-            old_path.rename(new_path)
+def get_rerun_file_path(output_path: Path, orig) -> Path:
+    cache_file = output_path.parent / f"{get_true_stem(output_path)}.{orig}{output_path.suffix}"
+    return cache_file
+
+def rename(inputs):
+    directories = inputs.dirs
+    lang_ext = inputs.lang_ext
+    lang_ext_original = inputs.lang_ext_original
+    overwrite = inputs.overwrite
+    for directory in directories:
+        for text in get_text(directory):  # Get all subtitle files in the directory
+            if f".{lang_ext_original}." in text:
+                old_path = Path(text)  # Ensure we have a Path object
+                true_stem = get_true_stem(old_path)
+
+                # Create new name based on the stem, new language extension, and retain the original file extension
+                new_name = old_path.parent / f"{true_stem}.{lang_ext}{old_path.suffix}"
+
+                if old_path.exists():
+                    if new_name.exists() and not overwrite:
+                        print(f"Skipping renaming for {new_name} since it already exists.")
+                        break
+                    old_path.rename(new_name)
+                    print(f"Renamed: {old_path} to {new_name}")
+                    break
+
+
 
 
 def copy():

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the list of directories from the Python command
-directories=$(subplz find -d '/mnt/v/Videos/J-Anime Shows/' '/mnt/v/Videos/J-Anime Movies/')
+directories=$(subplz find -d '/mnt/v/Videos/J-Anime Shows/hells paradise/')
 
 # Check if directories variable is empty
 if [[ -z "$directories" ]]; then

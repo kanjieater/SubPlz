@@ -18,7 +18,7 @@ def execute_on_inputs():
         find(inputs.dirs)
         return
     if inputs.subcommand == "rename":
-        rename()
+        rename(inputs)
         return
     if inputs.subcommand == "copy":
         copy()
