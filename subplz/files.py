@@ -589,7 +589,7 @@ def post_process(sources: List[sourceData], subcommand, alass=False):
             print(f"🙌 Alass succeeded for '{source.text}'")
         elif alass and not source.writer.written:
             complete_success = False
-            print(f"❗ Alass failed for '{source.text}'")
+            print(f"❗ Alass failed for '{source.audio[0]}'")
         else:
             complete_success = False
             print(f"❗ Failed to sync '{source.text}'")

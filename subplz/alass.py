@@ -55,7 +55,7 @@ def sync_alass(source, input_sources, be):
                 if not subtitle_path.exists():
                     error_message = f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
                     print(error_message)
-                    write_sub_failed(source, subtitle_path, error_message)
+                    write_sub_failed(source, target_subtitle_path, error_message)
                     continue
             if not incorrect_subtitle_path.exists():
                 print(f"❗ Subtitle with incorrect timing not found: {incorrect_subtitle_path}")
@@ -69,8 +69,19 @@ def sync_alass(source, input_sources, be):
                 str(incorrect_subtitle_path),
                 str(target_subtitle_path)
             ]
-            try:
-                subprocess.run(cmd, check=True, stderr=subprocess.PIPE, text=True)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            # Check if the command was successful
+            if result.returncode != 0:
+                error_output = result.stderr
+                stdout_output = result.stdout
+                error_message = (
+                    f"❗ Alass command failed: {result.returncode}\n\n"
+                    f"stdout: {stdout_output}\n\n"
+                    f"Error output: {error_output}"
+                )
+                print(error_message)
+                write_sub_failed(source, target_subtitle_path, error_message)
+            else:
+                # If successful, proceed with your logic here
                 source.writer.written = True
-            except subprocess.CalledProcessError as e:
-                print(f"Alass command failed: {e}")

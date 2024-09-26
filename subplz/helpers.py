@@ -79,7 +79,7 @@ def copy(inputs: CopyParams):
             if copied:
                 break
 
-            for subtitle_file in subs[:]:
+            for subtitle_file in subs:
                 old_path = Path(subtitle_file)
                 if f".{ext}." in old_path.name:
                     true_stem = get_true_stem(old_path)
@@ -87,14 +87,12 @@ def copy(inputs: CopyParams):
 
                     if new_file.exists() and not inputs.overwrite:
                         print(f"Skipping copying {new_file} since it already exists")
-                        subs.remove(subtitle_file)
                         copied = True
                         break
 
                     try:
                         shutil.copy(old_path, new_file)
                         print(f"Copied {old_path} to {new_file}")
-                        subs.remove(subtitle_file)
                         copied = True
                         break
                     except Exception as e:
