@@ -23,11 +23,16 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
   if [[ -n "$directory" ]]; then
     echo "Processing directory: $directory"
     # Uncomment the lines below to run the commands
+    echo "Renaming files in : $directory"
     subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "ja"
-    # subplz sync -d "$directory" --lang-ext "as" --lang-ext-original "ab" --alass
-    # subplz sync -d "$directory" --lang-ext "ay" --lang-ext-original "ab"
-    # subplz gen -d "$directory" --lang-ext "az" --model large-v3
-    # subplz copy -d "$directory" --lang-ext "ja" --lang-ext-priority "as" "ay" "az" "ab"
+    echo "Alass Syncing in : $directory"
+    subplz sync -d "$directory" --lang-ext "as" --lang-ext-original "en" --lang-ext-incorrect "ab" --alass
+    echo "SubPlz Syncing in : $directory"
+    subplz sync -d "$directory" --lang-ext "ay" --lang-ext-original "ab"
+    echo "Generating in : $directory"
+    subplz gen -d "$directory" --lang-ext "az" --model large-v3
+    echo "Copying prioritized in : $directory"
+    subplz copy -d "$directory" --lang-ext "ja" --lang-ext-priority "as" "ay" "az" "ab" --overwrite
   else
     echo "Directory name is empty."
   fi

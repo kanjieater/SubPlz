@@ -463,7 +463,8 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
         output_paths = source.output_full_paths
         is_valid = True
         for op in output_paths:
-            old_file = get_rerun_file_path(op, input.lang_ext_original)
+
+            old_file = get_rerun_file_path(op, input)
             if not source.overwrite and op.exists():
                 print(f"🤔 SubPlz file '{op.name}' already exists, skipping.")
                 invalid_sources.append(source)
@@ -524,8 +525,13 @@ def get_true_stem(file_path: Path) -> str:
     return stem
 
 
-def get_rerun_file_path(output_path: Path, orig) -> Path:
-    cache_file = output_path.parent / f"{get_true_stem(output_path)}.{orig}{output_path.suffix}"
+def get_rerun_file_path(output_path: Path, input) -> Path:
+    orig_dot = ''
+    if input.subcommand == "sync":
+        if input.lang_ext_original:
+            orig_dot = f".{input.lang_ext_original}"
+
+    cache_file = output_path.parent / f"{get_true_stem(output_path)}{orig_dot}{output_path.suffix}"
     return cache_file
 
 
@@ -568,7 +574,7 @@ def write_sub_failed(source, target_path, error_message):
         print(f"❗ Failed to write error log to {failed_path}: {e}")
 
 
-def post_process(sources: List[sourceData], subcommand, alass, orig):
+def post_process(sources: List[sourceData], subcommand, alass=False):
     if subcommand == "sync":
         cleanup(sources)
     complete_success = True
@@ -578,8 +584,6 @@ def post_process(sources: List[sourceData], subcommand, alass, orig):
     for source in sorted_sources:
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
-            # if subcommand == "sync":
-            #     rename_old_subs(source, orig)
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         elif alass and source.writer.written:
             print(f"🙌 Alass succeeded for '{source.text}'")

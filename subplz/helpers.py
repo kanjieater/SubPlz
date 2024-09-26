@@ -1,25 +1,26 @@
-import os
+from typing import List
 from pathlib import Path
 import shutil
-from subplz.files import SUPPORTED_AUDIO_FORMATS, get_true_stem, get_text
+from subplz.files import SUPPORTED_AUDIO_FORMATS, get_true_stem, get_text, get_audio
+from subplz.cli import CopyParams
 
-
-def find(directories):
-    all_directories = []
+def find(directories: List[str]) -> List[str]:
+    audio_dirs = []
 
     for dir in directories:
         path = Path(dir)
         if path.is_dir():
             try:
-                # Recursively find all directories
+                if get_audio(path):
+                    audio_dirs.append(str(path))
                 for subdir in path.rglob("*"):
-                    if subdir.is_dir():
-                        all_directories.append(str(subdir))
+                    if subdir.is_dir() and get_audio(subdir):
+                        audio_dirs.append(str(subdir))
             except OSError as e:
                 print(f"Error accessing directory '{path}': {e}")
 
-    print(all_directories)
-    return all_directories
+    print(audio_dirs)
+    return audio_dirs
 
 
 def get_rerun_file_path(output_path: Path, orig) -> Path:
@@ -49,16 +50,36 @@ def rename(inputs):
                     break
 
 
+def copy(inputs: CopyParams):
+    for directory in inputs.dirs:
+        dir_path = Path(directory)
+        if not dir_path.exists() or not dir_path.is_dir():
+            print(f"Skipping invalid directory: {directory}")
+            continue
 
+        audio_files = get_audio(dir_path)
+        subtitle_files = get_text(dir_path)
 
-def copy():
-    """Copy subtitle files to a specified output directory."""
-    inputs = get_inputs()
-    output_dir = Path(inputs.output_dir)
+        for audio_file in audio_files:
+            copied = False
+            for ext in inputs.lang_ext_priority:
+                if copied:
+                    break
+                for subtitle_file in subtitle_files:
+                    old_path = Path(subtitle_file)
+                    if f".{ext}." in old_path.name:
+                        true_stem = get_true_stem(old_path)
+                        new_file = old_path.with_name(f"{true_stem}.{inputs.lang_ext}{old_path.suffix}")
 
-    if not output_dir.exists():
-        output_dir.mkdir(parents=True)
+                        if new_file.exists() and not inputs.overwrite:
+                            print(f"Skipping copying {new_file} since it already exists")
+                            copied = True
+                            break
 
-    subtitle_files = find()  # Use the find function to get the files
-    for file in subtitle_files:
-        shutil.copy(file, output_dir / file.name)
+                        try:
+                            shutil.copy(old_path, new_file)
+                            print(f"Copied {old_path} to {new_file}")
+                            copied = True
+                            break
+                        except Exception as e:
+                            print(f"Failed to copy {old_path} to {new_file}: {e}")

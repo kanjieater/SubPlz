@@ -21,7 +21,7 @@ def execute_on_inputs():
         rename(inputs)
         return
     if inputs.subcommand == "copy":
-        copy()
+        copy(inputs)
         return
 
     be = inputs.backend
@@ -52,4 +52,7 @@ def execute_on_inputs():
                 transcribed_streams,
                 be,
             )
-    post_process(sources, inputs.subcommand, inputs.backend.alass, inputs.sources.lang_ext_original)
+    if inputs.subcommand == "gen":
+        post_process(sources, inputs.subcommand)
+    elif inputs.subcommand == "sync":
+        post_process(sources, inputs.subcommand, inputs.backend.alass)
