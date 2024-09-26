@@ -554,6 +554,21 @@ def rename_old_subs(source: sourceData, orig):
         sub_path.rename(new_filename)
 
 
+def cleanup_subfail_files(output_paths):
+    output_dirs = {path.parent for path in output_paths}
+    subfail_files = []
+    for output_dir in output_dirs:
+        subfail_files.extend(grab_files(output_dir, ['*.subfail'], sort=False))
+    output_set = set(output_paths)
+
+    for subfail_path in map(Path, subfail_files):
+        successful_paths = {subfail_path.with_suffix(f'.{subtitle_format}') for subtitle_format in SUBTITLE_FORMATS}
+        if successful_paths.intersection(output_set):
+            print(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
+            os.remove(subfail_path)
+
+
+
 def write_sub_failed(source, target_path, error_message):
     """
     Writes an error message to a file indicating subtitle processing failure.
@@ -585,14 +600,14 @@ def post_process(sources: List[sourceData], subcommand, alass=False):
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
             print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
-        elif alass and source.writer.written:
-            print(f"🙌 Alass succeeded for '{source.text}'")
         elif alass and not source.writer.written:
             complete_success = False
             print(f"❗ Alass failed for '{source.audio[0]}'")
         else:
             complete_success = False
             print(f"❗ Failed to sync '{source.text}'")
+
+        cleanup_subfail_files(source.output_full_paths)
 
     if not sources:
         print(

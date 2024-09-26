@@ -24,7 +24,7 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
     echo "Processing directory: $directory"
     # Uncomment the lines below to run the commands
     # echo "Renaming files in : $directory"
-    # subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "ja"
+    subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "ja"
     echo "Alass Syncing in : $directory"
     subplz sync -d "$directory" --lang-ext "as" --lang-ext-original "en" --lang-ext-incorrect "ab" --alass
     # echo "SubPlz Syncing in : $directory"
