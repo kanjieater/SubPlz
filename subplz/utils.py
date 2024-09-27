@@ -1,4 +1,5 @@
 from glob import glob, escape
+from pathlib import Path
 from functools import partialmethod
 import torch
 from natsort import os_sorted
@@ -48,3 +49,9 @@ def grab_files(folder, types, sort=True):
     if sort:
         return os_sorted(files)
     return files
+
+
+def get_tmp_path(file_path):
+    file_path = Path(file_path)
+    filename = file_path.stem
+    return file_path.parent / f"{filename}.tmp{file_path.suffix}"

@@ -1,7 +1,16 @@
 #!/bin/bash
 
+# Check if a path argument is provided
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <path>"
+  exit 1
+fi
+
+# Get the directory path from the argument
+input_path="$1"
+
 # Get the list of directories from the Python command
-directories=$(subplz find -d '/mnt/v/Videos/J-Anime Shows/Psycho-Pass/')
+directories=$(subplz find -d "$input_path")
 
 # Check if directories variable is empty
 if [[ -z "$directories" ]]; then
@@ -13,6 +22,11 @@ fi
 echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; do
   # Trim any leading or trailing whitespace
   directory=$(echo "$directory" | xargs)
+
+  # Add leading slash back if it's missing
+  if [[ "$directory" != /* ]]; then
+    directory="/$directory"
+  fi
 
   # Check if the directory contains "Error accessing"
   if [[ "$directory" == *"Error accessing"* ]]; then

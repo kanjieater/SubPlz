@@ -19,8 +19,8 @@ from ats.main import (
 )
 from subplz.cache import Cache
 from subplz.text import split_sentences, split_sentences_from_input, Epub
-from subplz.sub import extract_all_subtitles, cleanup_subfail, SUBTITLE_FORMATS
-from subplz.utils import grab_files
+from subplz.sub import extract_all_subtitles, cleanup_subfail, SUBTITLE_FORMATS, normalize_text
+from subplz.utils import grab_files, get_tmp_path
 
 AUDIO_FORMATS = [
     "aac",
@@ -175,46 +175,6 @@ def get_streams(audio, cache_inputs):
     return streams
 
 
-def convert_sub_format(full_original_path, full_sub_path):
-    stream = ffmpeg.input(full_original_path)
-    stream = ffmpeg.output(stream, full_sub_path, loglevel="error").global_args(
-        "-hide_banner"
-    )
-    ffmpeg.run(stream, overwrite_output=True)
-
-
-def remove_timing_and_metadata(srt_path, txt_path):
-    with (
-        open(srt_path, "r", encoding="utf-8") as srt_file,
-        open(txt_path, "w", encoding="utf-8") as txt_file,
-    ):
-        for line in srt_file:
-            # Skip lines that contain only numbers or '-->'
-            if line.strip() and not line.strip().isdigit() and "-->" not in line:
-                clean_line = re.sub(r"<[^>]+>", "", line.strip())  # Remove HTML tags
-                clean_line = re.sub(r"{[^}]+}", "", clean_line)  # Remove Aegisub tags
-                clean_line = re.sub(r"m\s\d+\s\d+\s.+?$", "", clean_line)
-
-                txt_file.write(clean_line + "\n")
-    return str(txt_path)
-
-
-def get_tmp_path(file_path):
-    file_path = Path(file_path)
-    filename = file_path.stem
-    return file_path.parent / f"{filename}.tmp{file_path.suffix}"
-
-
-def normalize_text(file_path):
-    file_path = Path(file_path)
-    filename = file_path.stem
-    srt_path = get_tmp_path(file_path.parent / f"{filename}.srt")
-    txt_path = get_tmp_path(file_path.parent / f"{filename}.txt")
-    convert_sub_format(str(file_path), str(srt_path))
-    txt_path = remove_timing_and_metadata(srt_path, txt_path)
-    srt_path.unlink()
-    return str(txt_path)
-
 
 def get_chapters(text: List[str], lang, alass):
     # print("📖 Finding chapters...") #log
@@ -241,7 +201,7 @@ def get_chapters(text: List[str], lang, alass):
 
             except ffmpeg.Error as e:
                 print(
-                    f"Failed to normalize the subs. We can't process them. Try to get subs from a different source and try again: {e}"
+                    f"❗Failed to normalize the subs. We can't process them. Try to get subs from a different source and try again: {e}"
                 )
                 return []
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
@@ -370,9 +330,9 @@ def get_sources_from_dirs(input, cache_inputs):
     for folder in working_folders:
         audios = get_audio(folder)
         if input.subcommand == "sync":
-            texts = get_text(folder)
             if input.alass:
                 extract_all_subtitles(audios, input.lang_ext, input.lang_ext_original)
+            texts = get_text(folder)
             a, t = match_files(audios, texts, folder, input.rerun, input.lang_ext_original)
 
 

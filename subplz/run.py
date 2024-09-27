@@ -28,11 +28,12 @@ def execute_on_inputs():
 
     be.temperature = get_temperature(be)
     be.threads = get_threads(be)
-    model = get_model(be)
 
-    # if inputs.subcommand == "sync" and inputs.backend.alass:
-    #     extract_potential_subtitles(inputs.sources)
+
     sources = get_sources(inputs.sources, inputs.cache)
+    alass_exists = getattr(sources[0], 'alass', None) if sources and len(sources) > 0 else None
+    if not alass_exists:
+        model = get_model(be)
     for source in tqdm(sources):
         print(f"🐼 Starting '{source.audio}'...")
 
@@ -54,5 +55,4 @@ def execute_on_inputs():
                 transcribed_streams,
                 be,
             )
-    post_process(sources, inputs.subcommand)
     post_process(sources, inputs.subcommand)
