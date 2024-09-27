@@ -258,21 +258,17 @@ def match_lang_ext_original(audios, texts, expected_lang_ext):
     for text in texts:
         subtitle_path = Path(text)
         true_stem = get_true_stem(subtitle_path)
-        text_lang_ext = subtitle_path.stem.split('.')[-1]  # Extract the language extension
-
-        # Check if the true stem matches the audio and the text has the expected language extension
+        text_lang_ext = subtitle_path.stem.split('.')[-1]
         if true_stem in audio_dict and text_lang_ext == expected_lang_ext:
             grouped_files[audio_dict[true_stem]].append(subtitle_path)
 
     audios_filtered = []
     texts_filtered = []
 
-    # Ensure a 1:1 match by taking the first subtitle that matches the expected language extension
     for audio, subs in grouped_files.items():
         if subs:
             audios_filtered.append(audio)
-            texts_filtered.append(subs[0])  # Assuming we take the first match for 1:1 relationship
-
+            texts_filtered.append(subs[0])
     return audios_filtered, texts_filtered
 
 
@@ -510,8 +506,10 @@ def get_existing_rerun_files(dir: str, orig) -> List[str]:
     old = grab_files(dir, [f"*.{orig}." + ext for ext in SUBTITLE_FORMATS])
     return old
 
+
 def get_hearing_impaired_extensions() -> set:
     return {'cc', 'hi', 'sdh'}
+
 
 def get_true_stem(file_path: Path) -> str:
     stem = file_path.stem
@@ -520,8 +518,13 @@ def get_true_stem(file_path: Path) -> str:
 
     if stem_parts[-1] in known_extensions:
         stem = '.'.join(stem_parts[:-1])
-    return Path(stem).stem
+        stem_parts = stem.split('.')
+
+    if len(stem_parts[-1]) > 0 and len(stem_parts[-1]) < 4:
+        stem = '.'.join(stem_parts[:-1])
+    return stem
     # return stem_parts[-1] if len(stem_parts) > 1 else stem
+
 
 def get_rerun_file_path(output_path: Path, input) -> Path:
     orig_dot = ''

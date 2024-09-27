@@ -1,11 +1,14 @@
 import re
 import os
+from multiprocessing import Pool, cpu_count
+from functools import partial
 from pathlib import Path
 import ffmpeg
 from subplz.utils import grab_files
 from dataclasses import dataclass
-from subplz.utils import get_tmp_path
+from subplz.utils import get_tmp_path, get_tqdm
 
+tqdm, trange = get_tqdm()
 
 SUBTITLE_FORMATS = ["ass", "srt", "vtt"]
 
@@ -150,7 +153,7 @@ def sanitize_subtitle(subtitle_path: Path) -> None:
         print(f"❗ Failed to sanitize subtitles: {e}")
 
 
-def extract_subtitles(video_path: Path, output_subtitle_path: Path) -> None:
+def ffmpeg_extract(video_path: Path, output_subtitle_path: Path) -> None:
     # Need stdin flag for running from bash here
     # https://stackoverflow.com/questions/25811022/incorporating-ffmpeg-in-a-bash-script
     try:
@@ -167,18 +170,25 @@ def extract_subtitles(video_path: Path, output_subtitle_path: Path) -> None:
         )
 
 
+def extract_subtitle(file, lang_ext, lang_ext_original):
+    subtitle_path = get_subtitle_path(file, lang_ext_original)
+    if subtitle_path.exists():
+        return
+
+    try:
+        print(f"⛏️ Extracting subtitles from {file} to {subtitle_path}")
+        ffmpeg_extract(file, subtitle_path)
+    except Exception as err:
+        error_message = (
+            f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
+        )
+        print(err)
+        target_subtitle_path = get_subtitle_path(file, lang_ext)
+        write_subfail(file, target_subtitle_path, error_message)
+
+
 def extract_all_subtitles(files, lang_ext, lang_ext_original):
-    for file in files:
-        subtitle_path = get_subtitle_path(file, lang_ext_original)
-        if subtitle_path.exists():
-            continue
-        try:
-            print(f"⛏️ Extracting subtitles from {file} to {subtitle_path}")
-            extract_subtitles(file, subtitle_path)
-        except Exception as err:
-            error_message = (
-                f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
-            )
-            print(err)
-            target_subtitle_path = get_subtitle_path(file, lang_ext)
-            write_subfail(file, target_subtitle_path, error_message)
+    with Pool(processes=cpu_count()) as pool:
+        list(tqdm(pool.imap(partial(extract_subtitle, lang_ext=lang_ext, lang_ext_original=lang_ext_original), files),
+                   total=len(files),
+                   desc="Extracting Subtitles in Parallel (may take a while)"))
