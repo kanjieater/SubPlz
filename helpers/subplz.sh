@@ -7,10 +7,10 @@ if [ "$#" -ne 1 ]; then
 fi
 
 # Get the directory path from the argument
-input_path="$1"
+directories="$1"
 
 # Get the list of directories from the Python command
-directories=$(subplz find -d "$input_path")
+# directories=$(subplz find -d "$input_path")
 
 # Check if directories variable is empty
 if [[ -z "$directories" ]]; then
@@ -38,6 +38,7 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
     echo "Processing directory: $directory"
 
     echo "Renaming files in : $directory"
+    subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "old"
     subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "ja"
 
     echo "Alass Syncing in : $directory"

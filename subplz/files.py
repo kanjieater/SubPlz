@@ -37,6 +37,7 @@ AUDIO_FORMATS = [
 ]
 VIDEO_FORMATS = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
 TEXT_FORMATS = ["epub", "txt"]
+WRITTEN_FORMATS = SUBTITLE_FORMATS + TEXT_FORMATS
 
 SUPPORTED_AUDIO_FORMATS = [
     "*." + extension for extension in VIDEO_FORMATS + AUDIO_FORMATS
@@ -496,10 +497,11 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
 def cleanup(sources: List[sourceData]):
     for source in sources:
         for file in source.text:
-            tmp_file = get_tmp_path(file).with_suffix(".txt")
-            tmp_file_path = Path(tmp_file)
-            if tmp_file_path.exists():
-                tmp_file_path.unlink()
+            for ext in WRITTEN_FORMATS:
+                tmp_file = get_tmp_path(file).with_suffix(f".{ext}")
+                tmp_file_path = Path(tmp_file)
+                if tmp_file_path.exists():
+                    tmp_file_path.unlink()
 
 
 def get_existing_rerun_files(dir: str, orig) -> List[str]:

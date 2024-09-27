@@ -6,20 +6,26 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs.
 
-This tool allows you to use AI models to generate subtitles from only audio, then match the subtitles to an accurate text, like a book. It supports syncronizing existing subs as well. Soon, You can also just generate subtitles for videos with it, without needing any existing subtitles. Currently I am only developing this tool for Japanese use, though rumor has it, the `language` flag can be used for other languages too.
+This tool allows you to:
+- Use AI models to generate subtitles from only audio, then match the subtitles to an accurate text like an ebook
+- Sync existing subs using AI to detect where content from the sub is spoken
+- Generate subtitles for videos with without needing any existing subtitles
+- Generate Alass aligned subs for directories, automatically extracting embedded subs for timeing
+- Rename and/or copy files to other language extensions (sub1.ja.srt -> sub1.en.srt)
+
+Currently I am only developing this tool for Japanese use, though rumor has it, the `lang` flag can be used for other languages too.
 
 It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a community built Google Colab notebook available on discord.
 
-Current State:
-- The subtitle timings will be 99.99% accurate for most intended use cases.
-- The timings will be mostly accurate, but may come late or leave early.
-- Occassionally, non-spoken things like sound effects in subtitles will be combined with other lines
+Current State of SubPlz alignments:
+- The subtitle timings will be 98% accurate for most intended use cases
+- The timings will be mostly accurate, but may come late or leave early
+- Occassionally, non-spoken things like character names at the start of a line or sound effects in subtitles will be combined with other lines
+- Theme songs might throw subs off time, but will auto-recover almost immediately after
 - Known Issues: RAM usage. 5+ hr audiobooks can take more than 12 GB of RAM. I can't run a 19 hr one with 48GB of RAM. The current work around is to use an epub + chaptered m4b audiobook. Then we can automatically split the ebook text and audiobook chapters to sync in smaller chunks accurately. Alternatively you could use multiple text files and mp3 files to achieve a similar result.
 
-Accuracy has improved tremendously with the latest updates to the AI tooling used. Sometimes the first few lines will be off slightly, but will quickly autocorrect. If it get's off midway, it autocorrects. Sometimes multiple lines get bundled together making large subtitles, but it's not usually an issue.
-
 How does this compare to Alass for video subtitles?
-- Alass is usually either 100% right once it get's lined up - or way off and unusable. In contrast, SubPlz is probably right 95% of the time, but may have a few of the above issues. Ideally you'd have both types of subtitle available and could switch from an Alass version to a SubPlz version if need be. Alternatively, since SubPlz is consistent, you could just default to always using it, if you find it to be "good enough"
+- Alass is usually either 100% right once it get's lined up - or way off and unusable. In contrast, SubPlz is probably right 98% but may have a few of the above issues. Ideally you'd have both types of subtitle available and could switch from an Alass version to a SubPlz version if need be. Alternatively, since SubPlz is consistent, you could just default to always using it, if you find it to be "good enough". [See Generating All Subtitle Algorithms in Batch](#Generating-All-Subtitle-Algorithms-in-Batch)
 
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 
@@ -37,10 +43,10 @@ If you find my tools useful please consider supporting via Patreon. I have spent
 
 <a href="https://www.patreon.com/kanjieater" rel="nofollow"><img src="https://i.imgur.com/VCTLqLj.png"></a>
 
-If you can't contribute monetarily please consider following on a social platform, joining the discord and sharing this with a friend.
+If you can't contribute monetarily please consider following on a social platform, joining the discord & sharing a kind message or sharing this with a friend.
 
 
-# How to use
+# How to Use
 
 ## Quick Guide
 ### Sync
@@ -73,6 +79,34 @@ If you can't contribute monetarily please consider following on a social platfor
 2. Run `subplz gen -d "<full folder path>" --model large-v3` using something like `/mnt/d/sync/NeoOtaku Uprising The Anime`. Large models are highly recommended for `gen` (unlike `sync`)
 3. From there, use a video player like MPV or Plex. You can also use `--lang-ext az` to set a language you wouldn't otherwise need as a designated "AI subtitle", and use it as a fallback when sync doesn't work or you don't have existing subtitles already
 
+### Alass
+1. Put an video(s) with embdedded subs & sub file(s) that need alignment in a folder.
+   1. Video & Sub files: `m4b`, `mkv` or any other audio/video file
+   2. If you don't have embdedded subs, you'll need it to have a `*.en.srt` extension in the folder
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.srt
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.mkv
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.en.srt
+   └── NeoOtaku Uprising With No Embedded Eng Subs EP01.srt
+```
+1. List the directories you want to run this on. The `-d` parameter can multiple files to process like: `subplz sync -d "/mnt/d/NeoOtaku Uprising The Anime" --alass --lang-ext "ja" --lang-ext-original "en"`
+   1. You could also add `--lang-ext-incorrect "ja"` if you had `NeoOtaku Uprising With No Embedded Eng Subs EP01.ja.srt` instead of `NeoOtaku Uprising With No Embedded Eng Subs EP01.srt`. This is the incorrect timed sub from Alass
+2. From there, SubPlz will extract the first available subs from videos writing them with `--lang-ext-original` extension, make sure the subtitles are sanitized, convert subs to the same format for Alass if need be, and align the incorrect timings with the timed subs to give you correctly timed subs like below:
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.en.srt (embedded)
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.ja.srt (timed)
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.srt (original/incorrect timings)
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.mkv
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.en.srt (no change)
+   └── NeoOtaku Uprising With No Embedded Eng Subs EP01.ja.srt (timed)
+   └── NeoOtaku Uprising With No Embedded Eng Subs EP01.srt (original/incorrect timings)
+```
 
 # Install
 
