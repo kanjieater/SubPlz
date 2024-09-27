@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 from subplz.utils import get_tqdm
-from subplz.sub import get_subtitle_path, write_subfail, sanitize_subtitle
+from subplz.sub import get_subtitle_path, write_subfail, sanitize_subtitle, convert_between_sub_format
 
 tqdm, trange = get_tqdm()
 
@@ -29,8 +29,20 @@ def sync_alass(source, input_sources, be):
             if not incorrect_subtitle_path.exists():
                 print(f"❗ Subtitle with incorrect timing not found: {incorrect_subtitle_path}")
                 continue
+            temp_srt_path = ''
+            temp_incorrect_srt_path = ''
             try:
                 sanitize_subtitle(subtitle_path)
+                sanitize_subtitle(incorrect_subtitle_path)
+                if subtitle_path.suffix != incorrect_subtitle_path.suffix:
+                    temp_srt_path = subtitle_path.with_suffix('.tmp.srt')
+                    temp_incorrect_srt_path = incorrect_subtitle_path.with_suffix('.tmp.srt')
+
+                    print(f"🔄 Converting {subtitle_path} and {incorrect_subtitle_path} to SRT format for Alass")
+                    convert_between_sub_format(str(subtitle_path), str(temp_srt_path), format='srt')
+                    convert_between_sub_format(str(incorrect_subtitle_path), str(temp_incorrect_srt_path), format='srt')
+                    subtitle_path = temp_srt_path
+                    incorrect_subtitle_path = temp_incorrect_srt_path
             except Exception as err:
                 error_message = (
                     f"""❗ Failed to Sanitize subtitles; {subtitle_path}
@@ -50,7 +62,6 @@ def sync_alass(source, input_sources, be):
             ]
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-            # Check if the command was successful
             if result.returncode != 0:
                 error_output = result.stderr
                 stdout_output = result.stdout
@@ -62,5 +73,10 @@ def sync_alass(source, input_sources, be):
                 print(error_message)
                 write_subfail(source, target_subtitle_path, error_message)
             else:
-                # If successful, proceed with your logic here
                 source.writer.written = True
+
+            if temp_srt_path and temp_srt_path.exists():
+                temp_srt_path.unlink()
+
+            if temp_incorrect_srt_path and temp_incorrect_srt_path.exists():
+                temp_incorrect_srt_path.unlink()

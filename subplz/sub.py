@@ -1,16 +1,16 @@
 import re
 import os
+from dataclasses import dataclass
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from pathlib import Path
 import ffmpeg
-from subplz.utils import grab_files
-from dataclasses import dataclass
-from subplz.utils import get_tmp_path, get_tqdm
+from subplz.utils import grab_files,  get_tmp_path, get_tqdm
+
 
 tqdm, trange = get_tqdm()
 
-SUBTITLE_FORMATS = ["ass", "srt", "vtt"]
+SUBTITLE_FORMATS = ["ass", "srt", "vtt", "ssa", "idx"]
 
 
 def sexagesimal(secs, use_comma=False):
@@ -90,6 +90,9 @@ def get_subtitle_path(video_path, lang_ext):
     stem = Path(video_path).stem
     parent = Path(video_path).parent
     ext = f".{lang_ext}" if lang_ext else ""
+    for format in SUBTITLE_FORMATS:
+        if (parent / f"{stem}{ext}.{format}").exists():
+            return parent / f"{stem}{ext}.{format}"
     return parent / f"{stem}{ext}.srt"
 
 
@@ -188,7 +191,8 @@ def extract_subtitle(file, lang_ext, lang_ext_original):
 
 
 def extract_all_subtitles(files, lang_ext, lang_ext_original):
-    with Pool(processes=cpu_count()) as pool:
+    count = int(cpu_count() / 2 + 1)
+    with Pool(processes=count) as pool:
         list(tqdm(pool.imap(partial(extract_subtitle, lang_ext=lang_ext, lang_ext_original=lang_ext_original), files),
                    total=len(files),
                    desc="Extracting Subtitles in Parallel (may take a while)"))
