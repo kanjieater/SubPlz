@@ -390,6 +390,8 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
         sources = get_sources_from_dirs(input, cache_inputs)
     else:
         if input.subcommand == "sync":
+            if input.alass:
+                extract_all_subtitles(input.audio, input.lang_ext, input.lang_ext_original)
             output_dir = setup_output_dir(input.output_dir, input.audio[0])
             output_full_paths = get_output_full_paths(
                 input.audio, output_dir, input.output_format, input.lang_ext
@@ -517,7 +519,7 @@ def get_true_stem(file_path: Path) -> str:
     known_extensions = get_hearing_impaired_extensions()
 
     if stem_parts[-1] in known_extensions:
-        stem_parts.pop()
+        stem = '.'.join(stem_parts[:-1])
     return Path(stem).stem
     # return stem_parts[-1] if len(stem_parts) > 1 else stem
 

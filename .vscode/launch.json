@@ -21,6 +21,22 @@
       ]
   },
     {
+      "name": "Rename",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "rename",
+        "-d",
+        "/mnt/v/Videos/J-Anime Shows/Cardcaptor Sakura/",
+        "--lang-ext",
+        "ab",
+        "--lang-ext-original",
+        "ja",
+
+      ],
+    },
+    {
       "name": "Python Debugger: Test kagami",
       "type": "debugpy",
       "request": "launch",

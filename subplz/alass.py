@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 from subplz.utils import get_tqdm
-from subplz.sub import get_subtitle_path, write_subfail
+from subplz.sub import get_subtitle_path, write_subfail, sanitize_subtitle
 
 tqdm, trange = get_tqdm()
 
@@ -29,6 +29,16 @@ def sync_alass(source, input_sources, be):
             if not incorrect_subtitle_path.exists():
                 print(f"❗ Subtitle with incorrect timing not found: {incorrect_subtitle_path}")
                 continue
+            try:
+                sanitize_subtitle(subtitle_path)
+            except Exception as err:
+                error_message = (
+                    f"""❗ Failed to Sanitize subtitles; {subtitle_path}
+                    {err}
+                    """
+                )
+                print(error_message)
+                write_subfail(source, target_subtitle_path, error_message)
 
             print(f'🤝 Aligning {incorrect_subtitle_path} based on {subtitle_path}')
             cmd = [

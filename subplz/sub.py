@@ -175,7 +175,6 @@ def extract_all_subtitles(files, lang_ext, lang_ext_original):
         try:
             print(f"⛏️ Extracting subtitles from {file} to {subtitle_path}")
             extract_subtitles(file, subtitle_path)
-            sanitize_subtitle(subtitle_path)
         except Exception as err:
             error_message = (
                 f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
