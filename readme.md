@@ -10,8 +10,9 @@ This tool allows you to:
 - Use AI models to generate subtitles from only audio, then match the subtitles to an accurate text like an ebook
 - Sync existing subs using AI to detect where content from the sub is spoken
 - Generate subtitles for videos with without needing any existing subtitles
-- Generate Alass aligned subs for directories, automatically extracting embedded subs for timeing
+- Generate Alass aligned subs for directories, automatically extracting embedded subs for timing
 - Rename and/or copy files to other language extensions (sub1.ja.srt -> sub1.en.srt)
+- Automation options to use (and abuse) language codes to store multiple subtitle alignment algorithms so you have multiple options to choose the best fit while watching content, while auto-selecting your preferred (dependent on video player support)
 
 Currently I am only developing this tool for Japanese use, though rumor has it, the `lang` flag can be used for other languages too.
 
@@ -26,6 +27,11 @@ Current State of SubPlz alignments:
 
 How does this compare to Alass for video subtitles?
 - Alass is usually either 100% right once it get's lined up - or way off and unusable. In contrast, SubPlz is probably right 98% but may have a few of the above issues. Ideally you'd have both types of subtitle available and could switch from an Alass version to a SubPlz version if need be. Alternatively, since SubPlz is consistent, you could just default to always using it, if you find it to be "good enough". [See Generating All Subtitle Algorithms in Batch](#Generating-All-Subtitle-Algorithms-in-Batch)
+
+Current State of Alass alignments:
+- Alass tends to struggle on large commercial gaps often found in Japanese TV subs like AT-X
+- Once Alass get's thrown off it may stay misaligned for the rest of the episode
+- SubPlz can extract the first subtitle embedded, but doesn't try to get the longest one. Sometimes you'll get Informational or Commentary subs which can't be used for alignments of the spoken dialog. We may be able to automate this in the future
 
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 
@@ -80,9 +86,10 @@ If you can't contribute monetarily please consider following on a social platfor
 3. From there, use a video player like MPV or Plex. You can also use `--lang-ext az` to set a language you wouldn't otherwise need as a designated "AI subtitle", and use it as a fallback when sync doesn't work or you don't have existing subtitles already
 
 ### Alass
-1. Put an video(s) with embdedded subs & sub file(s) that need alignment in a folder.
+1. Put a video(s) with embdedded subs & sub file(s) that need alignment in a folder.
    1. Video & Sub files: `m4b`, `mkv` or any other audio/video file
    2. If you don't have embdedded subs, you'll need it to have a `*.en.srt` extension in the folder
+   3. Consider using Rename to get your files ready for alass
 ```bash
 /sync/
 └── /NeoOtaku Uprising The Anime/
@@ -107,6 +114,53 @@ If you can't contribute monetarily please consider following on a social platfor
    └── NeoOtaku Uprising With No Embedded Eng Subs EP01.ja.srt (timed)
    └── NeoOtaku Uprising With No Embedded Eng Subs EP01.srt (original/incorrect timings)
 ```
+
+### Rename (When Sub Names Don't Match)
+1. Put a video(s) & sub file(s) that need alignment in a folder.
+   1. Video & Sub files: `m4b`, `mkv` or any other audio/video file
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv
+   ├── 1.srt
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.mkv
+   └── 2.ass
+```
+
+1. Run `subplz rename -d "/mnt/v/Videos/J-Anime Shows/NeoOtaku Uprising The Anime/" --lang-ext "ab" --dry-run` to see what the rename would be
+2. If the renames look right, run it again without the `--dry-run` flag: `subplz rename -d "/mnt/v/Videos/J-Anime Shows/NeoOtaku Uprising The Anime/" --lang-ext ab --dry-run`
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.ab.srt
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.mkv
+   └── NeoOtaku Uprising With No Embedded Eng Subs EP01.ab.ass
+```
+
+### Rename a Language Extension (When Sub Names Match)
+1. Put a video(s) & sub file(s) that match names in a folder.
+   1. Video & Sub files: `m4b`, `mkv` or any other audio/video file
+   2. The names must be exactly the same besides language extension & hearing impaired code
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.ab.cc.srt (notice the hearing impaired cc)
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.mkv
+   └── NeoOtaku Uprising With No Embedded Eng Subs EP01.ab.srt
+```
+
+1. Run `subplz rename -d "/mnt/v/Videos/J-Anime Shows/NeoOtaku Uprising The Anime/" --lang-ext jp --lang-ext-original ab` to get:
+```bash
+/sync/
+└── /NeoOtaku Uprising The Anime/
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv
+   ├── NeoOtaku Uprising With Embedded Eng Subs EP00.jp.srt (notice the removed cc)
+   ├── NeoOtaku Uprising With No Embedded Eng Subs EP01.mkv
+   └── NeoOtaku Uprising With No Embedded Eng Subs EP01.jp.srt
+```
+
 
 # Install
 
@@ -183,12 +237,6 @@ By default, the `-d` parameter will pick up the supported files in the directory
 By default the tool will overwrite any existing srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
 
 `subplz sync -d "/mnt/v/somefolder" --no-overwrite`
-
-## Only Running for the Files It Needs
-For subtitles, SubPlz renames matching sub files to the audio with the `<audiofile>.old.<sub ext>` naming. This ensures that subplz runs once and only once per directory for your content. If you want to rerun the SubPlz syncing, you can use the flag `--rerun` to use the matching `.old` file and ignore all subs that aren't `.old`.
-
-## Respect Transcript Grouping
-If you want to allow the tool to break lines up into smaller chunks, you can use this flag. `--no-respect-grouping`
 
 ## Tuning Recommendations
 For different use cases, different parameters may be optimal.
@@ -304,6 +352,10 @@ https://github.com/kanjieater/subs2cia
 https://github.com/ym1234/audiobooktextsync
 
 # Other Cool Projects
+
+The GOAT delivers again; The best Japanese reading experience ttu-reader paired with SubPlz subs
+- https://github.com/Renji-XD/ttu-whispersync
+- Demo: https://x.com/kanjieater/status/1834309526129930433
 
 A cool tool to turn these audiobook subs into Visual Novels
 - https://github.com/asayake-b5/audiobooksync2renpy

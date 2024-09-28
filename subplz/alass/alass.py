@@ -27,7 +27,7 @@ def sync_alass(source, input_sources, be):
             if str(subtitle_path) == str(incorrect_subtitle_path):
                 print(f"❗ Skipping syncing {subtitle_path} since the name matches the incorrect timed subtitle")
             if not incorrect_subtitle_path.exists():
-                print(f"❗ Subtitle with incorrect timing not found: {incorrect_subtitle_path}")
+                print(f"""❗ Subtitle with incorrect timing not found.: {incorrect_subtitle_path}""")
                 continue
             temp_srt_path = ''
             temp_incorrect_srt_path = ''

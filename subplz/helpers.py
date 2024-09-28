@@ -2,7 +2,7 @@ from typing import List
 from pathlib import Path
 from collections import defaultdict
 import shutil
-from subplz.files import SUPPORTED_AUDIO_FORMATS, get_true_stem, get_text, get_audio
+from subplz.files import SUPPORTED_AUDIO_FORMATS, get_true_stem, get_text, get_audio, match_files, get_audio
 from subplz.cli import CopyParams
 
 def find(directories: List[str]) -> List[str]:
@@ -35,28 +35,53 @@ def rename(inputs):
     lang_ext = inputs.lang_ext
     lang_ext_original = inputs.lang_ext_original
     overwrite = inputs.overwrite
+    if not lang_ext:
+        print("❗ Failed to rename. You must include a language extension --lang_ext to add to the output file name.")
+        return
 
-    for directory in directories:
-        for text in get_text(directory):
-            if f".{lang_ext_original}." in text:
-                old_path = Path(text)
-                true_stem = get_true_stem(old_path)
+    rename_texts = []
+    if lang_ext_original is None:
+        for directory in directories:
+            texts = get_text(directory)
+            audios = get_audio(directory)
+            matched_audios, matched_texts = match_files(audios, texts, directory, False, None)
+            for audio, text in zip(matched_audios, matched_texts):
+                audio_path = Path(audio[0])
+                text_path = Path(text[0])
+                true_stem = get_true_stem(audio_path)
+                new_name = audio_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
+                rename_texts.append({str(text_path): new_name})
 
-                new_name = old_path.parent / f"{true_stem}.{lang_ext}{old_path.suffix}"
-                if new_name.exists() and not overwrite:
-                    print(f"Skipping renaming for {new_name} since it already exists.")
-                    continue
-                try:
-                    old_path.rename(new_name)
-                    print(f"Renamed: {old_path} to {new_name}")
-                except Exception as e:
-                    print(f"Failed to rename {old_path} to {new_name}: {e}")
+    else:
+        for directory in directories:
+            for text in get_text(directory):
+                if f".{lang_ext_original}." in text:
+                    text_path = Path(text)
+                    true_stem = get_true_stem(text_path)
+                    new_name = text_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
+                    rename_texts.append({str(text_path): new_name})
+
+    for rename_text in rename_texts:
+        text_path, new_name = list(rename_text.items())[0]
+        old_path = Path(text_path)
+        if new_name.exists() and not overwrite:
+            print(f"😐 Skipping renaming for {new_name} since it already exists.")
+            continue
+        try:
+            print(f"""
+                  {old_path}
+                  ⚠️ is being renamed to ⚠️
+                  {new_name}""")
+            if not inputs.dry_run:
+                old_path.rename(new_name)
+        except Exception as e:
+            print(f"❗ Failed to rename {old_path} to {new_name}: {e}")
 
 def copy(inputs: CopyParams):
  for directory in inputs.dirs:
     dir_path = Path(directory)
     if not dir_path.exists() or not dir_path.is_dir():
-        print(f"Skipping invalid directory: {directory}")
+        print(f"❗Skipping invalid directory: {directory}")
         continue
     audio_files = get_audio(dir_path)
     subtitle_files = get_text(dir_path)

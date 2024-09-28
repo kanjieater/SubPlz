@@ -28,12 +28,9 @@
       "args": [
         "rename",
         "-d",
-        "/mnt/v/Videos/J-Anime Shows/Cardcaptor Sakura/",
+        "/mnt/v/Videos/J-Anime Shows/Mashle Magic and Muscles/Season 01/",
         "--lang-ext",
         "ab",
-        "--lang-ext-original",
-        "ja",
-
       ],
     },
     {
@@ -67,6 +64,27 @@
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",
         // "/mnt/d/sync/変な家/変な家.epub",
+      ],
+    },
+    {
+      "name": "Alass Single",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "sync",
+        "--audio",
+        "/mnt/v/Videos/J-Anime Shows/Mashle Magic and Muscles/Season 01/MASHLE - MAGIC AND MUSCLES (2023) - S01E01 - 001 - Mash Burnedead and the Body of the Gods [WEBDL-1080p][8bit][x264][AAC 2.0][EN+JA]-ZR.mkv",
+        "--text",
+        "/mnt/v/Videos/J-Anime Shows/Mashle Magic and Muscles/Season 01/Mashle - Magic and Muscles.S01E01.WEBRip.Netflix.ja[cc].srt",
+        "--alass",
+        "--lang-ext",
+        "ja",
+        // "--lang-ext-incorrect",
+        // "ja",
+        // "--lang-ext-original",
+        // "en",
+
       ],
     },
     {

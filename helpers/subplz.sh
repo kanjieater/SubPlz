@@ -45,7 +45,7 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
     subplz sync -d "$directory" --lang-ext "as" --lang-ext-original "en" --lang-ext-incorrect "ab" --alass
 
     echo "SubPlz Syncing in : $directory"
-    subplz sync -d "$directory" --lang-ext "ak" --lang-ext-original "ab"
+    subplz sync -d "$directory" --lang-ext "ak" --lang-ext-original "ab" --model large-v3
 
     echo "Generating in : $directory"
     subplz gen -d "$directory" --lang-ext "az" --model large-v3

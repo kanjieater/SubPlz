@@ -275,6 +275,7 @@ def match_lang_ext_original(audios, texts, expected_lang_ext):
 
 
 def match_files(audios, texts, folder, rerun, orig, alass=False):
+    already_run = []
     if rerun:
         old = get_existing_rerun_files(folder, orig)
         text = grab_files(folder, ["*." + ext for ext in TEXT_FORMATS])
@@ -591,6 +592,19 @@ def post_process(sources: List[sourceData], subcommand):
                 """😭 At least one of the files failed to sync.
                 Possible reasons:
                 1. Alass failed to run or match subtitles
+                2. Try using the `--lang-ext-incorrect ab` with the a sub with the same name as the media file, where `ab` is the language code in the sub extension
+                3. Try using the `--lang-ext-original en` with the a sub with the same name as the media file, where `en` is the language code in the sub extension
+                4. Try using the `--lang-ext ja` with the a sub with the same name as the media file, where `en` is the language code in the sub extension
+                Something like this:
+
+                subplz sync -d "/mnt/d/NeoOtaku Uprising The Anime" --alass --lang-ext "ja" --lang-ext-original "en" --lang-ext-incorrect "ab"
+
+                /NeoOtaku Uprising The Anime/
+                ├── NeoOtaku Uprising With Embedded Eng Subs EP00.mkv (embedded subs can extract to Original)
+                ├── NeoOtaku Uprising With Embedded Eng Subs EP00.en.srt (Original: Correct Timing)
+                └── NeoOtaku Uprising With Embedded Eng Subs EP00.ab.srt (Japanese: Wrong Timings)
+                This would generate for you
+                NeoOtaku Uprising With Embedded Eng Subs EP00.ja.srt (Japanese: Correct Timings)
                 """
             )
         else:
