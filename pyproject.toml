@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "SubPlz"
+name = "subplz"
 version = "2.0.0"
 description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
 readme = "README.md"
@@ -28,11 +28,14 @@ dependencies = [
     # "ats @ file:///home/ke/code/AudiobookTextSync"
 ]
 
+
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
-include = ["*"]  # package names should match these glob patterns (["*"] by default)
+include = ["*"]    # package names should match these glob patterns (["*"] by default)
 exclude = []  # exclude packages matching these glob patterns (empty by default)
 
+[tool.setuptools.package-data]
+"*" = ["alass-linux64"]
 
 [project.optional-dependencies]
 dev = [

@@ -6,7 +6,7 @@ from subplz.sub import get_subtitle_path, write_subfail, sanitize_subtitle, conv
 tqdm, trange = get_tqdm()
 
 # Define paths
-alass_dir = Path(__file__).parent.parent / 'alass'
+alass_dir = Path(__file__).parent
 alass_path = alass_dir / 'alass-linux64'
 
 
