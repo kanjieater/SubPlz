@@ -37,15 +37,19 @@ RUN mkdir -p /config/ && chown -R myuser:myuser /config && chown -R myuser:myuse
 # Set work directory
 WORKDIR /app
 
+RUN pip install --no-cache-dir .
 # Switch to the non-root user
 USER myuser
 
 # # Expose port for Wyoming connection
 # EXPOSE 10300
 
+
+# Ensure the path to subplz is available
+ENV PATH="/home/myuser/.local/bin:$PATH"
 # Healthcheck to ensure container is running
 HEALTHCHECK --interval=30s --timeout=10s CMD nc -z localhost 10300 || exit 1
 
 # Start the application
-ENTRYPOINT ["python", "-m", "subplz"]
+ENTRYPOINT ["subplz"]
 CMD ["--help"]
