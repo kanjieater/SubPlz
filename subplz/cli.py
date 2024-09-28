@@ -151,6 +151,14 @@ ARGUMENTS = {
             "action": "store_true",
         },
     },
+    "dry_run": {
+        "flags": ["--dry-run"],
+        "kwargs": {
+            "default": None,
+            "help": "If set, we'll only show the changes we'd make instead of writing them",
+            "action": "store_true",
+        },
+    },
     "use_cache": {
         "flags": ["--use-cache"],
         "kwargs": {
@@ -597,6 +605,7 @@ class RenameParams:
     lang_ext: str = field(metadata={"category": "main"})
     lang_ext_original: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=False, metadata={"category": "optional"})
+    dry_run: bool = field(default=False, metadata={"category": "optional"})
 
 
 @dataclass
