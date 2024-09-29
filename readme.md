@@ -21,7 +21,7 @@ It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a communit
 Current State of SubPlz alignments:
 - The subtitle timings will be 98% accurate for most intended use cases
 - The timings will be mostly accurate, but may come late or leave early
-- Occassionally, non-spoken things like character names at the start of a line or sound effects in subtitles will be combined with other lines
+- Occasionally, non-spoken things like character names at the start of a line or sound effects in subtitles will be combined with other lines
 - Theme songs might throw subs off time, but will auto-recover almost immediately after
 - Known Issues: RAM usage. 5+ hr audiobooks can take more than 12 GB of RAM. I can't run a 19 hr one with 48GB of RAM. The current work around is to use an epub + chaptered m4b audiobook. Then we can automatically split the ebook text and audiobook chapters to sync in smaller chunks accurately. Alternatively you could use multiple text files and mp3 files to achieve a similar result.
 

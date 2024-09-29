@@ -51,7 +51,7 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
     subplz gen -d "$directory" --lang-ext "az" --model large-v3
 
     echo "Copying prioritized in : $directory"
-    subplz copy -d "$directory" --lang-ext "ja" --lang-ext-priority "as" "ay" "az" "ab" --overwrite
+    subplz copy -d "$directory" --lang-ext "ja" --lang-ext-priority "as" "ak" "az" "ab" --overwrite
   else
     echo "Directory name is empty."
   fi
