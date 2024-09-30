@@ -171,8 +171,11 @@ class sourceData:
 
 
 def get_streams(audio, cache_inputs):
-    # print("🎧 Loading streams...") #log
-    streams = [(basename(f), *AudioSub.from_file(f, cache_inputs)) for f in audio]
+    streams = []
+    for f in audio:
+        basename_f = basename(f)
+        title, audio_subs = AudioSub.from_file(f, cache_inputs)
+        streams.append((basename_f, title, audio_subs))
     return streams
 
 

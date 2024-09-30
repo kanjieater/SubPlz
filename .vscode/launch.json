@@ -20,6 +20,21 @@
         "test_shift_align_no_change"
       ]
   },
+  {
+      "name": "Gen",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "gen",
+        "-d",
+        "/mnt/v/Videos/deleteme",
+        "--model",
+        "large-v3",
+        "--lang-ext",
+        "ja"
+      ]
+  },
     {
       "name": "Rename",
       "type": "debugpy",

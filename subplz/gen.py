@@ -25,12 +25,24 @@ def gen(source, model, streams, be):
         "word_timestamps": be.word_timestamps,
     }
     print("🤖 Writing generated subs...")
+    segments = []
+    offset = 0 
+
     with tqdm(streams) as bar:
         for ai, batches in enumerate(bar):
-            segments = []
             for s in streams[ai][2]:
-                segments += s.transcribe(model, **args).get("segments", [])
+                transcribed_segments = s.transcribe(model, **args).get("segments", [])
+
+                for seg in transcribed_segments:
+                    adjusted_segment = Segment(
+                        seg['text'],
+                        seg['start'] + offset,
+                        seg['end'] + offset
+                    )
+                    segments.append(adjusted_segment)
+                offset += s.duration
             if not segments:
                 continue
-            shifted_segments = shift_align([Segment(s['text'], s['start'], s['end']) for s in segments])
-            source.writer.write_sub(shifted_segments, source.output_full_paths[ai])
+
+    shifted_segments = shift_align(segments)
+    source.writer.write_sub(shifted_segments, source.output_full_paths[ai])
