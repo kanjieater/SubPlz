@@ -7,9 +7,9 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs.
 
 This tool allows you to:
-- Use AI models to generate subtitles from only audio, then match the subtitles to an accurate text like an ebook
+- Use AI models to generate subtitles from only audio, then match the subtitles to an accurate text (such as your own copy of an ebook)
 - Sync existing subs using AI to detect where content from the sub is spoken
-- Generate subtitles for videos with without needing any existing subtitles
+- Generate subtitles for videos without needing any existing subtitles
 - Generate Alass aligned subs for directories, automatically extracting embedded subs for timing
 - Rename and/or copy files to other language extensions (sub1.ja.srt -> sub1.en.srt)
 - Automation options to use (and abuse) language codes to store multiple subtitle alignment algorithms so you have multiple options to choose the best fit while watching content, while auto-selecting your preferred (dependent on video player support)
