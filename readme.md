@@ -6,13 +6,20 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs.
 
-This tool allows you to:
-- Use AI models to generate subtitles from only audio, then match the subtitles to an accurate text (such as your own copy of an ebook)
-- Sync existing subs using AI to detect where content from the sub is spoken
-- Generate subtitles for videos without needing any existing subtitles
-- Generate Alass aligned subs for directories, automatically extracting embedded subs for timing
-- Rename and/or copy files to other language extensions (sub1.ja.srt -> sub1.en.srt)
-- Automation options to use (and abuse) language codes to store multiple subtitle alignment algorithms so you have multiple options to choose the best fit while watching content, while auto-selecting your preferred (dependent on video player support)
+## Features
+- **Sync Existing Subtitles**: Multiple options to automate synchronizing your subtitles with various techniques in bulk
+- **Accurately Subtitle Narrated Media**: Leverage the original source text of an ebook to provide highly accurate subtitles
+- **Create New Subtitles**: Generate new subtitles from the audio of a media file
+- **File Management**: Automatically organize and rename your subtitles to match your media files
+- **Provide Multiple Video Subtitle Options**: Combines other features to allow you to have multiple alignment & generation subs available to you, for easy auto-selecting of your preferred version  (dependent on video player support)
+
+
+For a glimpse of some of the technologies & techniques we're using depending on the arguments, here's a short list: 
+- **faster-whisper**: for using AI to generate subtitles fast
+- **stable-ts**: for more accurate Whisper time stamps
+- **Silero VAD**: for Voice Activity Detection
+- **Alass**: for language agnostic subtitle alignment
+- **Needleman–Wunsch algorithm**: for alignment to original source text
 
 Currently I am only developing this tool for Japanese use, though rumor has it, the `lang` flag can be used for other languages too.
 
