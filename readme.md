@@ -3,7 +3,7 @@
 
 https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-874c-5731b4261736.mp4
 
-Generate, sync, and manage subtitle files for any media type with special features for working with audiobooks and videos.
+🫴 Generate, sync, and manage subtitle files for any media; Generate your own audiobook subs similar to Kindle's Immersion Reading 📖🎧
 
 ## Features
 - **Sync Existing Subtitles**: Multiple options to automate synchronizing your subtitles with various techniques in bulk
