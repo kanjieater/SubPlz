@@ -3,8 +3,7 @@
 
 https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-874c-5731b4261736.mp4
 
-
-Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs.
+Generate, sync, and manage subtitle files for any media type with special features for working with audiobooks and videos.
 
 ## Features
 - **Sync Existing Subtitles**: Multiple options to automate synchronizing your subtitles with various techniques in bulk
