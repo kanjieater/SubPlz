@@ -140,7 +140,7 @@ class AudioSub(AudioStream):
         return title, [
             cls(
                 stream=ffmpeg.input(
-                    path, ss=float(chapter["start_time"]), to=float(chapter["end_time"])
+                    path, ss=chapter["start_time"], to=chapter["end_time"]
                 ),
                 duration=float(chapter["end_time"]) - float(chapter["start_time"]),
                 path=path,
@@ -149,6 +149,7 @@ class AudioSub(AudioStream):
                 cache=cache,
             )
             for chapter in info["chapters"]
+            if (float(chapter['end_time']) - float(chapter['start_time'])) > 1
         ]
 
 
