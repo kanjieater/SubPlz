@@ -186,6 +186,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    docker run -it --rm --name subplz \
    -v <full path to up to content folder>:/sync \
    -v <your folder path>:/SyncCache \
+   -v <your model cache path>:/config/.cache \
    kanjieater/subplz:latest \
    sync -d "/sync/<content folder>/"
    ```
@@ -203,6 +204,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    --gpus all \
    -v /mnt/d/sync/変な家/:/sync \
    -v /mnt/d/SyncCache:/app/SyncCache \
+   -v /mnt/d/ModelCache:/config/.cache \
    kanjieater/subplz:latest \
    sync -d "/sync/"
    ```
@@ -212,7 +214,9 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 
    c. The SyncCache part is the same thing as the folder syncing. This is just mapping where things are locally to your machine. As long as the app can find the SyncCache folder, it will be able to resync things much faster.
 
-   d. `<command> <params>` ex: `sync -d /sync/`, this runs a `subplz <command> <params>` as you would outside of docker
+   d. Optional: `-v <your config cache path>:/config/.cache` ex: `-v /mnt/d/ModelCache:/config/.cache` This maps a local directory to store additionally downloaded models, like large-v3. This helps in avoiding re-downloading the models every time you run the container.
+
+   e. `<command> <params>` ex: `sync -d /sync/`, this runs a `subplz <command> <params>` as you would outside of docker
 
 ### Running from Docker: Batch
 1. `➜ docker run --entrypoint ./helpers/subplz.sh -it --rm --name subplz --gpus all -v "/mnt/v/Videos/J-Anime Shows/Under Ninja/Season 01":/sync -v /home/ke/code/subplz/SyncCache:/app/SyncCache kanjieater/subplz:latest /sync/`
