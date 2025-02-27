@@ -36,7 +36,6 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
 
   if [[ -n "$directory" ]]; then
     echo "Processing directory: $directory"
-
     echo "Renaming files in : $directory"
     subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "old"
     subplz rename -d "$directory" --lang-ext "ab" --lang-ext-original "ja"

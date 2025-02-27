@@ -13,7 +13,7 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 - **Provide Multiple Video Subtitle Options**: Combines other features to allow you to have multiple alignment & generation subs available to you, for easy auto-selecting of your preferred version  (dependent on video player support)
 
 
-For a glimpse of some of the technologies & techniques we're using depending on the arguments, here's a short list: 
+For a glimpse of some of the technologies & techniques we're using depending on the arguments, here's a short list:
 - **faster-whisper**: for using AI to generate subtitles fast
 - **stable-ts**: for more accurate Whisper time stamps
 - **Silero VAD**: for Voice Activity Detection
@@ -319,11 +319,20 @@ Notice you can also set fields and tags manually. You can set multiple tags. Or 
 8. Run the command below
 
 
+*IMPORTANT* Currently the folder, `m4b`, and `srt` file must share the same name. So:
+
+```
+/sync/
+└── /NeoOtaku Uprising Audiobook/
+   ├── NeoOtaku Uprising Audiobook.m4b
+   ├── NeoOtaku Uprising Audiobook.srt
+```
+
 Command:
-`./anki.sh "<full_folder_path>"`
+`./anki_importer/anki.sh "<full_folder_path>"`
 
 Example:
-`./anki.sh "/mnt/d/sync/kokoro/"`
+`./anki_importer/anki.sh "/mnt/d/sync/kokoro/"`
 
 
 # FAQ

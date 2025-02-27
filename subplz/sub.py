@@ -169,7 +169,9 @@ def ffmpeg_extract(video_path: Path, output_subtitle_path: Path) -> None:
         return output_subtitle_path
     except ffmpeg.Error as e:
         raise RuntimeError(
-            f"Failed to extract subtitles: {e.stderr.decode()}\nCommand: {str(e.cmd)}"
+            f"❗Failed to extract subtitles from {video_path}. "
+            "You may need to provide an external subtitle file."
+            "If the error above Stream map '0:s:0' matches no streams, then no embedded subtitles found in the file"
         )
 
 
