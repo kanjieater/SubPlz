@@ -39,11 +39,13 @@ Current State of Alass alignments:
 - Once Alass get's thrown off it may stay misaligned for the rest of the episode
 - SubPlz can extract the first subtitle embedded, but doesn't try to get the longest one. Sometimes you'll get Informational or Commentary subs which can't be used for alignments of the spoken dialog. We may be able to automate this in the future
 
+
+
+# Support
+
 Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
 
 Support for any tool by KanjiEater can be found [on KanjiEater's Discord](https://discord.com/invite/agbwB4p)
-
-# Support
 
 The Deep Weeb Podcast - Sub Please 😉
 
