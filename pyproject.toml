@@ -27,7 +27,6 @@ dependencies = [
     "ffmpeg_python ~= 0.2.0",
     "rapidfuzz ~= 3.8.1",
     "numpy ~= 1.24.3",
-    "openai_whisper == 20240930",
     "regex ~= 2023.12.25",
     "wcwidth >= 0.2.13",
     "natsort == 8.4.0",
