@@ -173,6 +173,23 @@
       ],
     },
     {
+      "name": "Convert format",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "sync",
+        "-d",
+        "/mnt/v/ja-anime/media/A Certain Magical Index/Season 01",
+        "--lang-ext",
+        "ak",
+        "--lang-ext-original",
+        "ab",
+        "--model",
+        "large-v3"
+      ]
+    },
+    {
       "name": "Multiple MP3s",
       "type": "debugpy",
       "request": "launch",

@@ -22,7 +22,7 @@ def transcribe(streams, model, be):
         "word_timestamps": be.word_timestamps,
         "denoiser": be.denoiser,
         "vad": be.vad,
-        "vad_onnx": True,
+        "onnx": True,
     }
     # TODO: not faster-whisper
     # logprob_threshold

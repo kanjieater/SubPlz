@@ -36,7 +36,7 @@ def rename(inputs):
     lang_ext_original = inputs.lang_ext_original
     overwrite = inputs.overwrite
     if not lang_ext:
-        print("❗ Failed to rename. You must include a language extension --lang_ext to add to the output file name.")
+        print("❗ Failed to rename. You must include a language extension --lang-ext to add to the output file name.")
         return
 
     rename_texts = []

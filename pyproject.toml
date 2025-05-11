@@ -20,11 +20,22 @@ classifiers = [
 ]
 
 dependencies = [
-    "natsort ~= 8.4.0",
-    "tqdm ~= 4.67.1",
+    "beautifulsoup4 ~= 4.12.0",
+    "biopython ~= 1.83",
+    "EbookLib ~= 0.18",
+    "faster_whisper ~= 1.0.1",
+    "ffmpeg_python ~= 0.2.0",
+    "rapidfuzz ~= 3.8.1",
+    "numpy ~= 1.24.3",
+    "openai_whisper == 20240930",
+    "regex ~= 2023.12.25",
+    "wcwidth >= 0.2.13",
+    "natsort == 8.4.0",
+    "tqdm ~= 4.66.4",
     "pysbd ~= 0.3.4",
-    "stable-ts ~= 2.18.3",
-    "ats@git+https://github.com/kanjieater/ats#egg=master",
+    "stable-ts ~= 2.19.0",
+    "ctranslate2==4.4.0",
+
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]
 
