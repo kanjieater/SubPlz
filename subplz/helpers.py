@@ -2,8 +2,16 @@ from typing import List
 from pathlib import Path
 from collections import defaultdict
 import shutil
-from subplz.files import SUPPORTED_AUDIO_FORMATS, get_true_stem, get_text, get_audio, match_files, get_audio
+from subplz.files import (
+    SUPPORTED_AUDIO_FORMATS,
+    get_true_stem,
+    get_text,
+    get_audio,
+    match_files,
+    get_audio,
+)
 from subplz.cli import CopyParams
+
 
 def find(directories: List[str]) -> List[str]:
     audio_dirs = []
@@ -27,8 +35,11 @@ def find(directories: List[str]) -> List[str]:
 
 
 def get_rerun_file_path(output_path: Path, orig) -> Path:
-    cache_file = output_path.parent / f"{get_true_stem(output_path)}.{orig}{output_path.suffix}"
+    cache_file = (
+        output_path.parent / f"{get_true_stem(output_path)}.{orig}{output_path.suffix}"
+    )
     return cache_file
+
 
 def rename(inputs):
     directories = inputs.dirs
@@ -36,7 +47,9 @@ def rename(inputs):
     lang_ext_original = inputs.lang_ext_original
     overwrite = inputs.overwrite
     if not lang_ext:
-        print("❗ Failed to rename. You must include a language extension --lang-ext to add to the output file name.")
+        print(
+            "❗ Failed to rename. You must include a language extension --lang-ext to add to the output file name."
+        )
         return
 
     rename_texts = []
@@ -44,12 +57,16 @@ def rename(inputs):
         for directory in directories:
             texts = get_text(directory)
             audios = get_audio(directory)
-            matched_audios, matched_texts = match_files(audios, texts, directory, False, None)
+            matched_audios, matched_texts = match_files(
+                audios, texts, directory, False, None
+            )
             for audio, text in zip(matched_audios, matched_texts):
                 audio_path = Path(audio[0])
                 text_path = Path(text[0])
                 true_stem = get_true_stem(audio_path)
-                new_name = audio_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
+                new_name = (
+                    audio_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
+                )
                 rename_texts.append({str(text_path): new_name})
 
     else:
@@ -58,7 +75,9 @@ def rename(inputs):
                 if f".{lang_ext_original}." in text:
                     text_path = Path(text)
                     true_stem = get_true_stem(text_path)
-                    new_name = text_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
+                    new_name = (
+                        text_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
+                    )
                     rename_texts.append({str(text_path): new_name})
 
     for rename_text in rename_texts:
@@ -77,45 +96,50 @@ def rename(inputs):
         except Exception as e:
             print(f"❗ Failed to rename {old_path} to {new_name}: {e}")
 
+
 def copy(inputs: CopyParams):
- for directory in inputs.dirs:
-    dir_path = Path(directory)
-    if not dir_path.exists() or not dir_path.is_dir():
-        print(f"❗Skipping invalid directory: {directory}")
-        continue
-    audio_files = get_audio(dir_path)
-    subtitle_files = get_text(dir_path)
-    grouped_files = defaultdict(list)
-    audio_dict = {get_true_stem(Path(audio)): audio for audio in audio_files}
-    for subtitle in subtitle_files:
-        subtitle_path = Path(subtitle)
-        true_stem = get_true_stem(subtitle_path)
-        if true_stem in audio_dict:
-            grouped_files[audio_dict[true_stem]].append(subtitle)
+    for directory in inputs.dirs:
+        dir_path = Path(directory)
+        if not dir_path.exists() or not dir_path.is_dir():
+            print(f"❗Skipping invalid directory: {directory}")
+            continue
+        audio_files = get_audio(dir_path)
+        subtitle_files = get_text(dir_path)
+        grouped_files = defaultdict(list)
+        audio_dict = {get_true_stem(Path(audio)): audio for audio in audio_files}
+        for subtitle in subtitle_files:
+            subtitle_path = Path(subtitle)
+            true_stem = get_true_stem(subtitle_path)
+            if true_stem in audio_dict:
+                grouped_files[audio_dict[true_stem]].append(subtitle)
 
-    for audio, subs in grouped_files.items():
-        copied = False
-        for ext in inputs.lang_ext_priority:
-            if copied:
-                break
+        for audio, subs in grouped_files.items():
+            copied = False
+            for ext in inputs.lang_ext_priority:
+                if copied:
+                    break
 
-            for subtitle_file in subs:
-                old_path = Path(subtitle_file)
-                if f".{ext}." in old_path.name:
-                    true_stem = get_true_stem(old_path)
-                    new_file = old_path.with_name(f"{true_stem}.{inputs.lang_ext}{old_path.suffix}")
+                for subtitle_file in subs:
+                    old_path = Path(subtitle_file)
+                    if f".{ext}." in old_path.name:
+                        true_stem = get_true_stem(old_path)
+                        new_file = old_path.with_name(
+                            f"{true_stem}.{inputs.lang_ext}{old_path.suffix}"
+                        )
 
-                    if new_file.exists() and not inputs.overwrite:
-                        print(f"Skipping copying {new_file} since it already exists")
-                        copied = True
-                        break
+                        if new_file.exists() and not inputs.overwrite:
+                            print(
+                                f"Skipping copying {new_file} since it already exists"
+                            )
+                            copied = True
+                            break
 
-                    try:
-                        shutil.copy(old_path, new_file)
-                        print(f"Copied {old_path} to {new_file}")
-                        copied = True
-                        break
-                    except Exception as e:
-                        print(f"Failed to copy {old_path} to {new_file}: {e}")
-                        copied = True
-                        break
+                        try:
+                            shutil.copy(old_path, new_file)
+                            print(f"Copied {old_path} to {new_file}")
+                            copied = True
+                            break
+                        except Exception as e:
+                            print(f"Failed to copy {old_path} to {new_file}: {e}")
+                            copied = True
+                            break

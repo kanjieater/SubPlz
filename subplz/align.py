@@ -50,7 +50,7 @@ def get_best_sub_n(
     sub_pos,
     max_subs,
     last_sub_to_test,
-    max_merge_count
+    max_merge_count,
 ):
     t_best_score = 0
     t_best_used_sub = 1
@@ -82,7 +82,13 @@ best_script_score_and_sub = {}
 
 
 def calc_best_score(
-    script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test, max_merge_count
+    script,
+    subs,
+    script_pos,
+    last_script_pos,
+    sub_pos,
+    last_sub_to_test,
+    max_merge_count,
 ):
     if script_pos >= len(script) or sub_pos >= len(subs):
         return 0
@@ -162,16 +168,36 @@ def get_best_sub_path(script_pos, n, last_script_pos, last_sub_to_test):
 
 
 def test_sub_pos(
-    script, subs, script_pos, last_script_pos, first_sub_to_test, last_sub_to_test, max_merge_count
+    script,
+    subs,
+    script_pos,
+    last_script_pos,
+    first_sub_to_test,
+    last_sub_to_test,
+    max_merge_count,
 ):
     for sub_pos in range(last_sub_to_test - 1, first_sub_to_test - 1, -1):
         calc_best_score(
-            script, subs, script_pos, last_script_pos, sub_pos, last_sub_to_test, max_merge_count
+            script,
+            subs,
+            script_pos,
+            last_script_pos,
+            sub_pos,
+            last_sub_to_test,
+            max_merge_count,
         )
 
 
 def recursively_find_match(
-    script, subs, result, first_script, last_script, first_sub, last_sub, max_merge_count, bar=None
+    script,
+    subs,
+    result,
+    first_script,
+    last_script,
+    first_sub,
+    last_sub,
+    max_merge_count,
+    bar=None,
 ):
     if bar is None:
         bar = tqdm(total=1, position=0, leave=True)
@@ -188,7 +214,9 @@ def recursively_find_match(
     end = min(mid + max_search_context, last_script)
 
     for script_pos in tqdm(range(end - 1, start - 1, -1), position=1, leave=False):
-        test_sub_pos(script, subs, script_pos, end, first_sub, last_sub, max_merge_count)
+        test_sub_pos(
+            script, subs, script_pos, end, first_sub, last_sub, max_merge_count
+        )
 
     best_path = get_best_sub_path(start, end - start, end, last_sub)
     if len(best_path) > 0:
@@ -204,7 +232,15 @@ def recursively_find_match(
         num_used_sub = mid_memo[1]
 
         recursively_find_match(
-            script, subs, result, first_script, script_pos, first_sub, sub_pos, max_merge_count, bar
+            script,
+            subs,
+            result,
+            first_script,
+            script_pos,
+            first_sub,
+            sub_pos,
+            max_merge_count,
+            bar,
         )
 
         scr_out = get_script(script, script_pos, num_used_script, "")
@@ -285,11 +321,12 @@ def read_subtitles(file):
 
     return subs
 
+
 def to_float(time_str):
     time_components = time_str.split(":")[::-1]
     total_seconds = 0
     for i, component in enumerate(time_components):
-        total_seconds += float(component) * (60 ** i)
+        total_seconds += float(component) * (60**i)
     return total_seconds
 
 
@@ -304,7 +341,9 @@ def nc_align(split_script, subs_file, max_merge_count):
     result = []
     print("🤝 Grouping based on transcript...")
     bar = tqdm(total=0)
-    recursively_find_match(script, subs, result, 0, len(script), 0, len(subs), max_merge_count, bar)
+    recursively_find_match(
+        script, subs, result, 0, len(script), 0, len(subs), max_merge_count, bar
+    )
     bar.close()
     for i, (script_pos, num_used_script, sub_pos, num_used_sub) in enumerate(
         tqdm(result)
@@ -349,16 +388,17 @@ def double_check_misaligned_pairs(segments):
 
     return adjusted_segments
 
+
 def handle_specific_pattern(segment, segments, index):
-    PATTERN_1 = r'」「(.{1,2})、$'  # Pattern for '」「ばか、'
-    PATTERN_2 = r'」「(.{1})、$'  # Pattern for '」「ば、'
-    combined_pattern = f'({PATTERN_1}|{PATTERN_2})'
+    PATTERN_1 = r"」「(.{1,2})、$"  # Pattern for '」「ばか、'
+    PATTERN_2 = r"」「(.{1})、$"  # Pattern for '」「ば、'
+    combined_pattern = f"({PATTERN_1}|{PATTERN_2})"
     match = re.search(combined_pattern, segment.text)
     if match:
         matched_text = match.group(0)
         if index < len(segments) - 1:
             segments[index + 1].text = matched_text + segments[index + 1].text
-            segment.text = segment.text[:match.start()]
+            segment.text = segment.text[: match.start()]
 
     return segment
 
@@ -369,15 +409,18 @@ def handle_starting_punctuation(segment, adjusted_segments, index):
         segment.text = segment.text[1:]
     return segment
 
+
 def handle_ending_punctuation(segment, segments, index):
     if segment.text and segment.text[-1] in START_PUNC and index < len(segments) - 1:
         segments[index + 1].text = segment.text[-1] + segments[index + 1].text
         segment.text = segment.text[:-1]
     return segment
 
+
 def find_punctuation_index(s: str) -> int:
     indices = [i for i, char in enumerate(s) if char in PUNCTUATION]
     return indices
+
 
 def has_ending_punctuation(s: str) -> bool:
     indices = [i for i, char in enumerate(s) if char in END_PUNC]
@@ -387,10 +430,10 @@ def has_ending_punctuation(s: str) -> bool:
 def has_punctuation(s: str) -> bool:
     return bool(find_punctuation_index(s))
 
+
 def has_double_comma(str_starts: str, str_ends: str) -> bool:
     comma = """、"""
     return str_starts[-1] == comma and str_ends[-1] == comma
-
 
 
 def count_non_punctuation(s: str) -> int:
@@ -415,6 +458,7 @@ def find_index_with_non_punctuation_start(indices: List[int]) -> List[int]:
 
     return result
 
+
 def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
     """Removes sequential indices, keeping only the last occurrence in a sequence."""
     if not indices:
@@ -427,11 +471,20 @@ def find_index_with_non_punctuation_end(indices: List[int]) -> List[int]:
     return result
 
 
-def trim_segments(segments: List['Segment']) -> List['Segment']:
-    return [Segment(text=segment.text.strip(), start=segment.start, end=segment.end) for segment in segments]
+def trim_segments(segments: List["Segment"]) -> List["Segment"]:
+    return [
+        Segment(text=segment.text.strip(), start=segment.start, end=segment.end)
+        for segment in segments
+    ]
 
 
-def print_modified_segments(segments, new_segments, final_segments,modified_new_segment_debug_log, modified_final_segment_debug_log):
+def print_modified_segments(
+    segments,
+    new_segments,
+    final_segments,
+    modified_new_segment_debug_log,
+    modified_final_segment_debug_log,
+):
     print("Modified Start segments:")
     for index in modified_new_segment_debug_log:
         print(f"""
@@ -445,6 +498,7 @@ def print_modified_segments(segments, new_segments, final_segments,modified_new_
             Original: {segments[index].text}
             Modified: {final_segments[index].text}
             """)
+
 
 def shift_align(segments: List[Segment]) -> List[Segment]:
     modified_new_segment_debug_log = []
@@ -465,18 +519,29 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
             # Case 2.c: Handle empty non-punctuation chunks
             # if the substring would result in an empty string if it were removed
             non_punc_count = count_non_punctuation(text[0:start_index])
-            if non_punc_count == 0 or \
-                count_non_punctuation(text[start_index+1:]) == 0:
+            if (
+                non_punc_count == 0
+                or count_non_punctuation(text[start_index + 1 :]) == 0
+            ):
                 new_segments.append(segment)
                 continue
             if non_punc_count <= 2:
                 # If the first segment has 2 or fewer non-punctuation characters
-                if i > 0 and len(new_segments) > 0 and not has_ending_punctuation(new_segments[-1].text[-1]) and not has_double_comma(new_segments[-1].text, text[:start_index + 1]):
+                if (
+                    i > 0
+                    and len(new_segments) > 0
+                    and not has_ending_punctuation(new_segments[-1].text[-1])
+                    and not has_double_comma(
+                        new_segments[-1].text, text[: start_index + 1]
+                    )
+                ):
                     # Move part of the text to the previous segment
                     prev_segment = new_segments.pop()
-                    prev_segment.text += text[:start_index + 1]  # Include the punctuation
+                    prev_segment.text += text[
+                        : start_index + 1
+                    ]  # Include the punctuation
                     new_segments.append(prev_segment)
-                    text = text[start_index + 1:]  # Exclude the punctuation
+                    text = text[start_index + 1 :]  # Exclude the punctuation
                     modified_new_segment_debug_log.append(i)
         new_segments.append(Segment(text, segment.start, segment.end))
 
@@ -487,18 +552,25 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
         if indices:
             last_index = find_index_with_non_punctuation_end(indices)[-1]
             non_punc_count = count_non_punctuation(text[last_index:])
-            if non_punc_count == 0 or \
-                (len(text[last_index:])) == len(text):
+            if non_punc_count == 0 or (len(text[last_index:])) == len(text):
                 final_segments.append(segment)
                 continue
-            if count_non_punctuation(text[indices[-1]:]) <= 2:
+            if count_non_punctuation(text[indices[-1] :]) <= 2:
                 # Move part of the text to the next segment
-                if i+1 < len(new_segments) and not has_ending_punctuation(new_segments[i+1].text[0]) and not has_double_comma(new_segments[i+1].text[0], text[:start_index + 1]):
+                if (
+                    i + 1 < len(new_segments)
+                    and not has_ending_punctuation(new_segments[i + 1].text[0])
+                    and not has_double_comma(
+                        new_segments[i + 1].text[0], text[: start_index + 1]
+                    )
+                ):
                     next_segment = segments[i + 1]
-                    next_segment.text = text[last_index+1:] + next_segment.text  # Keep the punctuation
-                    text = text[:last_index+1]  # Exclude the punctuation
+                    next_segment.text = (
+                        text[last_index + 1 :] + next_segment.text
+                    )  # Keep the punctuation
+                    text = text[: last_index + 1]  # Exclude the punctuation
                     final_segments.append(Segment(text, segment.start, segment.end))
-                    new_segments[i+1] = next_segment
+                    new_segments[i + 1] = next_segment
                     modified_final_segment_debug_log.append(i)
                     continue
         final_segments.append(Segment(text, segment.start, segment.end))

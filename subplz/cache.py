@@ -9,7 +9,7 @@ class Cache:
     enabled: bool
     memcache: dict = field(default_factory=dict)
     overwrite: bool = False
-    cached_msg: bool = True # probably a better way to do this
+    cached_msg: bool = True  # probably a better way to do this
 
     def get_name(self, filename, chid):
         return filename + "." + str(chid) + "." + self.model_name + ".subs"
@@ -27,7 +27,9 @@ class Cache:
         if (q := Path(self.cache_dir) / fn).exists():
             if self.cached_msg:
                 self.cached_msg = False
-                print(f"💾 Cache hit for '{fn}' found on disk. If you want to regenerate the transcript for this file use the `--overwrite-cache` flag")
+                print(
+                    f"💾 Cache hit for '{fn}' found on disk. If you want to regenerate the transcript for this file use the `--overwrite-cache` flag"
+                )
             return eval(q.read_bytes().decode("utf-8"))
 
     def put(self, filename, chid, content):

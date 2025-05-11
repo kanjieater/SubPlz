@@ -21,8 +21,7 @@ def transcribe(streams, model, be):
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
         "denoiser": be.denoiser,
-        "vad": be.vad,
-        "onnx": True,
+        "vad": be.vad,  # TODO: check that onnx is still working here after dep update
     }
     # TODO: not faster-whisper
     # logprob_threshold
@@ -34,9 +33,10 @@ def transcribe(streams, model, be):
             try:
                 audio.transcribe(model, **args)
             except Exception as e:
-                print(f"Error transcribing stream {stream_index}, segment {segment_index}: {e}")
+                print(
+                    f"Error transcribing stream {stream_index}, segment {segment_index}: {e}"
+                )
                 traceback.print_exc()
-
 
     print(f"⏱️  Transcribing took: {time.monotonic() - start_time:.2f}s")
     return streams

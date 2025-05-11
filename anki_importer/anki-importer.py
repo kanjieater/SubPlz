@@ -101,11 +101,13 @@ def validate_args(args):
             print("[E] --col is only supported with --no-anki-connect")
             exit(1)
 
+
 def get_mapping(mapping_path):
     with open(mapping_path) as f:
         mapping = json.load(f)
         print(f"Reading mapping: {mapping}")
     return mapping
+
 
 def parse_ac_response(response):
     if len(response) != 2:

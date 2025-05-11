@@ -1,5 +1,11 @@
 import whisper
-from whisper.audio import load_audio, log_mel_spectrogram, N_SAMPLES, N_FRAMES, pad_or_trim
+from whisper.audio import (
+    load_audio,
+    log_mel_spectrogram,
+    N_SAMPLES,
+    N_FRAMES,
+    pad_or_trim,
+)
 from whisper import decoding
 from whisper.decoding import DecodingOptions, DecodingResult
 from whisper.tokenizer import get_tokenizer
@@ -8,6 +14,7 @@ import numba
 import numpy as np
 from typing import Optional, Union, Tuple
 from types import MethodType
+
 
 class DecodingTask(decoding.DecodingTask):
     def _main_loop(self, audio_features, tokens):
@@ -66,10 +73,14 @@ class DecodingTask(decoding.DecodingTask):
 
         # repeat text tensors by the group size, for beam search or best-of-n sampling
         tokens = tokens.repeat_interleave(self.n_group, dim=0).to(audio_features.device)
-        audio_features = audio_features.repeat_interleave(self.n_group, dim=0) # Think this is a bug in the original impl?
+        audio_features = audio_features.repeat_interleave(
+            self.n_group, dim=0
+        )  # Think this is a bug in the original impl?
 
         # call the main sampling loop
-        tokens, sum_logprobs, no_speech_probs, logits = self._main_loop(audio_features, tokens)
+        tokens, sum_logprobs, no_speech_probs, logits = self._main_loop(
+            audio_features, tokens
+        )
 
         # reshape the tensors to have (n_audio, n_group) as the first two dimensions
         audio_features = audio_features[:: self.n_group]
@@ -124,6 +135,7 @@ class DecodingTask(decoding.DecodingTask):
             )
         ], logits
 
+
 @torch.no_grad()
 def decode(model, mel, options, **kwargs):
     if single := mel.ndim == 2:
@@ -135,32 +147,46 @@ def decode(model, mel, options, **kwargs):
     result, logits = DecodingTask(model, options).run(mel)
     return result[0] if single else result, logits
 
+
 def similarity(l1, l2):
     sm = torch.zeros([*l1.shape[:-2], l1.shape[-2], l2.shape[-2]])
-    for i in range(l1.shape[-2]): # sm = (l1 * l2).sum(-1) # The dream
+    for i in range(l1.shape[-2]):  # sm = (l1 * l2).sum(-1) # The dream
         m = l1[:, [i]] * l2
         sm[..., i, :] = -2 * (1 - m.sqrt().sum(-1)).sqrt() + 1
     return sm
+
 
 def traceback(c, traceback, mi, mj, fl, fs, sl, ss, tokenizer):
     ot = []
     t1, t2 = [], []
     tt1, tt2 = [], []
+
     def score(x):
-        return sum(x)/((5 + len(x))/6)
+        return sum(x) / ((5 + len(x)) / 6)
+
     def push():
         nonlocal t1, t2
-        print("t", tokenizer.decode_with_timestamps(t1[::-1]), tokenizer.decode_with_timestamps(t2[::-1]))
+        print(
+            "t",
+            tokenizer.decode_with_timestamps(t1[::-1]),
+            tokenizer.decode_with_timestamps(t2[::-1]),
+        )
         tt1.extend(t1)
         tt2.extend(t2)
-        if not len(t1) and not len(t2): return
-        s1, s2 = [fl[mi+k][t] for k, t in enumerate(reversed(t1))], [sl[mj+k][t] for k, t in enumerate(reversed(t2))]
+        if not len(t1) and not len(t2):
+            return
+        s1, s2 = (
+            [fl[mi + k][t] for k, t in enumerate(reversed(t1))],
+            [sl[mj + k][t] for k, t in enumerate(reversed(t2))],
+        )
         ot.extend(t1 if score(s1) > score(s2) else t2)
         t1, t2 = [], []
+
     while mi > 0 and mj > 0:
         # f = c[[mi-1, mi, mi-1], [mj-1, mj-1, mj]]
         # m = f.argmax()
-        if c[mi, mj] == 0: break
+        if c[mi, mj] == 0:
+            break
         m = traceback[mi, mj]
         # idx = [(y-1,x-1), (y-1, x), (y, x-1)]
         # if m == 0 or idx[f-1] in visited:
@@ -169,29 +195,30 @@ def traceback(c, traceback, mi, mj, fl, fs, sl, ss, tokenizer):
         # if f[m] == 0: break
         if m == 1:
             push()
-            t1.append(fs[mi-1])
-            t2.append(ss[mj-1])
-            mi, mj = mi-1, mj-1
+            t1.append(fs[mi - 1])
+            t2.append(ss[mj - 1])
+            mi, mj = mi - 1, mj - 1
         elif m == 3:
-            t2.append(ss[mj-1])
-            mj = mj-1
+            t2.append(ss[mj - 1])
+            mj = mj - 1
         else:
-            t1.append(fs[mi-1])
-            mi = mi-1
+            t1.append(fs[mi - 1])
+            mi = mi - 1
     push()
     print("F1", tokenizer.decode_with_timestamps(tt1[::-1]))
     print("F2", tokenizer.decode_with_timestamps(tt2[::-1]))
     return ot[::-1], mi, mj
 
+
 @numba.jit(nopython=True, parallel=True)
 def align(sm: np.ndarray, gap=-1):
     N, M = sm.shape[-2:]
-    cost = np.zeros((N+1, M+1), dtype=np.float32)
-    traceback = np.zeros((N+1, M+1), dtype=np.int32)
+    cost = np.zeros((N + 1, M + 1), dtype=np.float32)
+    traceback = np.zeros((N + 1, M + 1), dtype=np.int32)
     m, mi, mj = 0, 0, 0
-    for i in range(1, N+1):
-        for j in range(1, M+1):
-            c1 = cost[i - 1, j - 1] + sm[i-1, j-1]
+    for i in range(1, N + 1):
+        for j in range(1, M + 1):
+            c1 = cost[i - 1, j - 1] + sm[i - 1, j - 1]
             c2 = cost[i - 1, j] + gap
             c3 = cost[i, j - 1] + gap
             c = max(c2, c3, c1.item(), 0.0)
@@ -206,6 +233,7 @@ def align(sm: np.ndarray, gap=-1):
             if c > m:
                 m, mi, mj = c, i, j
     return traceback, cost, mi, mj
+
 
 # Only half done
 def transcribe(
@@ -226,7 +254,9 @@ def transcribe(
     overlap: int = 10,
     **decode_options,
 ):
-    if initial_prompt is not None: # Temperature and compression ratio are also ignored for now
+    if (
+        initial_prompt is not None
+    ):  # Temperature and compression ratio are also ignored for now
         raise Exception("Initial_prompt is not supported")
     dtype = torch.float16 if decode_options.get("fp16", True) else torch.float32
     if model.device == torch.device("cpu"):
@@ -280,20 +310,26 @@ def transcribe(
 
     left = 30 - overlap
     last = torch.zeros((1, 0, model.dims.n_vocab))
-    last_tokens = DecodingResult(audio_features=None, language=decode_options['language'])
+    last_tokens = DecodingResult(
+        audio_features=None, language=decode_options["language"]
+    )
     for i in range(0, audio.shape[0], left * 16000 * batches):
-        x = audio[i:i+left * 16000 * batches + overlap * 16000]
+        x = audio[i : i + left * 16000 * batches + overlap * 16000]
         mel = log_mel_spectrogram(x)
         mels = []
         for k in range(batches):
-            chunk = mel[:, k * left*100: k * left*100 + 3000]
-            if chunk.shape[-1] == 0: break
-            if chunk.shape[-1] < 3000: chunk = pad_or_trim(chunk, N_FRAMES)
+            chunk = mel[:, k * left * 100 : k * left * 100 + 3000]
+            if chunk.shape[-1] == 0:
+                break
+            if chunk.shape[-1] < 3000:
+                chunk = pad_or_trim(chunk, N_FRAMES)
             mels.append(chunk.unsqueeze(0))
         mels = torch.concat(mels, dim=0)
-        mels = mels.half() if decode_options['fp16'] else mels
+        mels = mels.half() if decode_options["fp16"] else mels
         audio_features = model.encoder(mels)
-        result, logits = model.decode(audio_features, DecodingOptions(**decode_options)) # TODO: options
+        result, logits = model.decode(
+            audio_features, DecodingOptions(**decode_options)
+        )  # TODO: options
         for i in result:
             print(tokenizer.decode_with_timestamps(i.tokens))
 
@@ -302,18 +338,26 @@ def transcribe(
             if i == 0:
                 fl, fs = last, np.array(last_tokens.tokens)
             else:
-                fl, fs = logits[i-1], np.array(result[i-1].tokens)
+                fl, fs = logits[i - 1], np.array(result[i - 1].tokens)
             sl, ss = logits[i].clone(), np.array(result[i].tokens)
-            fl, sl = fl[3: 3+len(fs)].log_softmax(-1), sl[3: 3+len(ss)].log_softmax(-1)
+            fl, sl = (
+                fl[3 : 3 + len(fs)].log_softmax(-1),
+                sl[3 : 3 + len(ss)].log_softmax(-1),
+            )
 
             # Edit the timestamps of sl relative to fl
-            if len(ss) > sl.shape[0]: # What? Feels like a bug
-                ss = ss[:sl.shape[0]-len(ss)]
+            if len(ss) > sl.shape[0]:  # What? Feels like a bug
+                ss = ss[: sl.shape[0] - len(ss)]
             timestamps = ss >= tokenizer.timestamp_begin
-            overlap_timestamps = int(tokenizer.timestamp_begin + overlap // 0.02)+1
-            left_timestamps = int(tokenizer.timestamp_begin + left // 0.02)+1
-            sl[timestamps, left_timestamps: int(tokenizer.timestamp_begin + 30//0.02+1)] = sl[timestamps, tokenizer.timestamp_begin:overlap_timestamps]
-            sl[timestamps, tokenizer.timestamp_begin:overlap_timestamps]  = -np.inf#sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
+            overlap_timestamps = int(tokenizer.timestamp_begin + overlap // 0.02) + 1
+            left_timestamps = int(tokenizer.timestamp_begin + left // 0.02) + 1
+            sl[
+                timestamps,
+                left_timestamps : int(tokenizer.timestamp_begin + 30 // 0.02 + 1),
+            ] = sl[timestamps, tokenizer.timestamp_begin : overlap_timestamps]
+            sl[
+                timestamps, tokenizer.timestamp_begin : overlap_timestamps
+            ] = -np.inf  # sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
             sm = similarity(fl.unsqueeze(0).exp(), sl.unsqueeze(0).exp())[0].numpy()
 
             tb, c, mi, mj = align(sm)
@@ -323,6 +367,7 @@ def transcribe(
             print()
         last = logits[-1]
         last_tokens = result[-1]
+
 
 def modify_model(model):
     model.decode = MethodType(decode, model)

@@ -19,7 +19,12 @@ from ats.main import (
 )
 from subplz.cache import Cache
 from subplz.text import split_sentences, split_sentences_from_input, Epub
-from subplz.sub import extract_all_subtitles, cleanup_subfail, SUBTITLE_FORMATS, normalize_text
+from subplz.sub import (
+    extract_all_subtitles,
+    cleanup_subfail,
+    SUBTITLE_FORMATS,
+    normalize_text,
+)
 from subplz.utils import grab_files, get_tmp_path
 
 AUDIO_FORMATS = [
@@ -149,7 +154,7 @@ class AudioSub(AudioStream):
                 cache=cache,
             )
             for chapter in info["chapters"]
-            if (float(chapter['end_time']) - float(chapter['start_time'])) > 1
+            if (float(chapter["end_time"]) - float(chapter["start_time"])) > 1
         ]
 
 
@@ -170,7 +175,6 @@ class sourceData:
     alass: bool = False
 
 
-
 def get_streams(audio, cache_inputs):
     streams = []
     for f in audio:
@@ -178,7 +182,6 @@ def get_streams(audio, cache_inputs):
         title, audio_subs = AudioSub.from_file(f, cache_inputs)
         streams.append((basename_f, title, audio_subs))
     return streams
-
 
 
 def get_chapters(text: List[str], lang, alass):
@@ -263,7 +266,7 @@ def match_lang_ext_original(audios, texts, expected_lang_ext):
     for text in texts:
         subtitle_path = Path(text)
         true_stem = get_true_stem(subtitle_path)
-        text_lang_ext = subtitle_path.stem.split('.')[-1]
+        text_lang_ext = subtitle_path.stem.split(".")[-1]
         if true_stem in audio_dict and text_lang_ext == expected_lang_ext:
             grouped_files[audio_dict[true_stem]].append(subtitle_path)
 
@@ -275,7 +278,6 @@ def match_lang_ext_original(audios, texts, expected_lang_ext):
             audios_filtered.append(audio)
             texts_filtered.append(subs[0])
     return audios_filtered, texts_filtered
-
 
 
 def match_files(audios, texts, folder, rerun, orig, alass=False):
@@ -302,9 +304,7 @@ def match_files(audios, texts, folder, rerun, orig, alass=False):
         destemed_audio = [
             str(Path(audio).parent / Path(audio).stem) for audio in audios
         ]
-        destemed_text = [
-            str(Path(text).parent / Path(text).stem) for text in texts
-        ]
+        destemed_text = [str(Path(text).parent / Path(text).stem) for text in texts]
         audios_unique = list(set(destemed_audio))
         texts_unique = list(set(destemed_text))
 
@@ -315,7 +315,9 @@ def match_files(audios, texts, folder, rerun, orig, alass=False):
             a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
         ]
     if len(audios_filtered) > 1 and len(texts_filtered) == 1 and len(already_run) == 0:
-        print("🤔 Multiple audio files found, but only one text... If you use an epub, each chapter will be mapped to a single audio file")
+        print(
+            "🤔 Multiple audio files found, but only one text... If you use an epub, each chapter will be mapped to a single audio file"
+        )
         return [audios_filtered], [[t] for t in texts_filtered]
 
     if len(audios_filtered) != len(texts_filtered):
@@ -335,8 +337,9 @@ def get_sources_from_dirs(input, cache_inputs):
             if input.alass:
                 extract_all_subtitles(audios, input.lang_ext, input.lang_ext_original)
             texts = get_text(folder)
-            a, t = match_files(audios, texts, folder, input.rerun, input.lang_ext_original)
-
+            a, t = match_files(
+                audios, texts, folder, input.rerun, input.lang_ext_original
+            )
 
             for matched_audio, matched_text in zip(a, t):
                 output_full_paths = get_output_full_paths(
@@ -393,7 +396,9 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
     else:
         if input.subcommand == "sync":
             if input.alass:
-                extract_all_subtitles(input.audio, input.lang_ext, input.lang_ext_original)
+                extract_all_subtitles(
+                    input.audio, input.lang_ext, input.lang_ext_original
+                )
             output_dir = setup_output_dir(input.output_dir, input.audio[0])
             output_full_paths = get_output_full_paths(
                 input.audio, output_dir, input.output_format, input.lang_ext
@@ -442,6 +447,7 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
             ]
     return sources
 
+
 def rename_existing_file_to_old(p, orig):
     path_obj = Path(p)
     new_filename = path_obj.with_suffix(f".{orig}{path_obj.suffix}")
@@ -457,7 +463,6 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
         output_paths = source.output_full_paths
         is_valid = True
         for op in output_paths:
-
             old_file = get_rerun_file_path(op, input)
             if not source.overwrite and op.exists():
                 print(f"🤔 SubPlz file '{op.name}' already exists, skipping.")
@@ -515,31 +520,34 @@ def get_existing_rerun_files(dir: str, orig) -> List[str]:
 
 
 def get_hearing_impaired_extensions() -> set:
-    return {'cc', 'hi', 'sdh'}
+    return {"cc", "hi", "sdh"}
 
 
 def get_true_stem(file_path: Path) -> str:
     stem = file_path.stem
-    stem_parts = stem.split('.')
+    stem_parts = stem.split(".")
     known_extensions = get_hearing_impaired_extensions()
 
     if stem_parts[-1] in known_extensions:
-        stem = '.'.join(stem_parts[:-1])
-        stem_parts = stem.split('.')
+        stem = ".".join(stem_parts[:-1])
+        stem_parts = stem.split(".")
 
     if len(stem_parts[-1]) > 0 and len(stem_parts[-1]) < 4:
-        stem = '.'.join(stem_parts[:-1])
+        stem = ".".join(stem_parts[:-1])
     return stem
     # return stem_parts[-1] if len(stem_parts) > 1 else stem
 
 
 def get_rerun_file_path(output_path: Path, input) -> Path:
-    orig_dot = ''
+    orig_dot = ""
     if input.subcommand == "sync":
         if input.lang_ext_original:
             orig_dot = f".{input.lang_ext_original}"
 
-    cache_file = output_path.parent / f"{get_true_stem(output_path)}{orig_dot}{output_path.suffix}"
+    cache_file = (
+        output_path.parent
+        / f"{get_true_stem(output_path)}{orig_dot}{output_path.suffix}"
+    )
     return cache_file
 
 
@@ -556,12 +564,12 @@ def rename_old_subs(source: sourceData, orig):
         sub_path = Path(sub)
 
         if len(source.text) == len(source.audio):
-            new_filename = Path(source.audio[i]).with_suffix(f".{orig}{sub_path.suffix}")
+            new_filename = Path(source.audio[i]).with_suffix(
+                f".{orig}{sub_path.suffix}"
+            )
         else:
             new_filename = sub_path.with_suffix(f".{orig}{sub_path.suffix}")
         sub_path.rename(new_filename)
-
-
 
 
 def post_process(sources: List[sourceData], subcommand):
@@ -583,7 +591,9 @@ def post_process(sources: List[sourceData], subcommand):
             print(f"❗ Failed to sync '{source.text}'")
 
         cleanup_subfail(source.output_full_paths)
-    alass_exists = getattr(sources[0], 'alass', None) if sources and len(sources) > 0 else None
+    alass_exists = (
+        getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
+    )
     if not sources:
         print(
             """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if the destination file already exists"""

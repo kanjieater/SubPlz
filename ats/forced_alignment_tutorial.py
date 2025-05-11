@@ -71,7 +71,9 @@ import matplotlib.pyplot as plt
 
 torch.random.manual_seed(0)
 
-SPEECH_FILE = torchaudio.utils.download_asset("tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav")
+SPEECH_FILE = torchaudio.utils.download_asset(
+    "tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav"
+)
 
 
 ######################################################################
@@ -414,6 +416,7 @@ plot_trellis_with_segments(trellis, segments, transcript)
 # listen to them to see if the segmentation is correct.
 #
 
+
 # Merge words
 def merge_words(segments, separator="|"):
     words = []
@@ -423,8 +426,12 @@ def merge_words(segments, separator="|"):
             if i1 != i2:
                 segs = segments[i1:i2]
                 word = "".join([seg.label for seg in segs])
-                score = sum(seg.score * seg.length for seg in segs) / sum(seg.length for seg in segs)
-                words.append(Segment(word, segments[i1].start, segments[i2 - 1].end, score))
+                score = sum(seg.score * seg.length for seg in segs) / sum(
+                    seg.length for seg in segs
+                )
+                words.append(
+                    Segment(word, segments[i1].start, segments[i2 - 1].end, score)
+                )
             i1 = i2 + 1
             i2 = i1
         else:
@@ -440,7 +447,9 @@ for word in word_segments:
 ################################################################################
 # Visualization
 # ~~~~~~~~~~~~~
-def plot_alignments(trellis, segments, word_segments, waveform, sample_rate=bundle.sample_rate):
+def plot_alignments(
+    trellis, segments, word_segments, waveform, sample_rate=bundle.sample_rate
+):
     trellis_with_path = trellis.clone()
     for i, seg in enumerate(segments):
         if seg.label != "|":
@@ -454,7 +463,9 @@ def plot_alignments(trellis, segments, word_segments, waveform, sample_rate=bund
     ax1.set_yticks([])
 
     for word in word_segments:
-        ax1.axvspan(word.start - 0.5, word.end - 0.5, edgecolor="white", facecolor="none")
+        ax1.axvspan(
+            word.start - 0.5, word.end - 0.5, edgecolor="white", facecolor="none"
+        )
 
     for i, seg in enumerate(segments):
         if seg.label != "|":
@@ -468,11 +479,17 @@ def plot_alignments(trellis, segments, word_segments, waveform, sample_rate=bund
         x0 = ratio * word.start
         x1 = ratio * word.end
         ax2.axvspan(x0, x1, facecolor="none", edgecolor="white", hatch="/")
-        ax2.annotate(f"{word.score:.2f}", (x0, sample_rate * 0.51), annotation_clip=False)
+        ax2.annotate(
+            f"{word.score:.2f}", (x0, sample_rate * 0.51), annotation_clip=False
+        )
 
     for seg in segments:
         if seg.label != "|":
-            ax2.annotate(seg.label, (seg.start * ratio, sample_rate * 0.55), annotation_clip=False)
+            ax2.annotate(
+                seg.label,
+                (seg.start * ratio, sample_rate * 0.55),
+                annotation_clip=False,
+            )
     ax2.set_xlabel("time [second]")
     ax2.set_yticks([])
     fig.tight_layout()
@@ -497,7 +514,9 @@ def display_segment(i):
     word = word_segments[i]
     x0 = int(ratio * word.start)
     x1 = int(ratio * word.end)
-    print(f"{word.label} ({word.score:.2f}): {x0 / bundle.sample_rate:.3f} - {x1 / bundle.sample_rate:.3f} sec")
+    print(
+        f"{word.label} ({word.score:.2f}): {x0 / bundle.sample_rate:.3f} - {x1 / bundle.sample_rate:.3f} sec"
+    )
     segment = waveform[:, x0:x1]
     return IPython.display.Audio(segment.numpy(), rate=bundle.sample_rate)
 

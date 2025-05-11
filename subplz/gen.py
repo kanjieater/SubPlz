@@ -1,10 +1,8 @@
-
 from ats.main import Segment
 from subplz.utils import get_tqdm
 from subplz.align import shift_align
 
 tqdm, trange = get_tqdm()
-
 
 
 def gen(source, model, streams, be):
@@ -26,7 +24,7 @@ def gen(source, model, streams, be):
     }
     print("🤖 Writing generated subs...")
     segments = []
-    offset = 0 
+    offset = 0
 
     with tqdm(streams) as bar:
         for ai, batches in enumerate(bar):
@@ -35,9 +33,7 @@ def gen(source, model, streams, be):
 
                 for seg in transcribed_segments:
                     adjusted_segment = Segment(
-                        seg['text'],
-                        seg['start'] + offset,
-                        seg['end'] + offset
+                        seg["text"], seg["start"] + offset, seg["end"] + offset
                     )
                     segments.append(adjusted_segment)
                 offset += s.duration

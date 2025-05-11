@@ -33,7 +33,9 @@ def match_start(audio, text, model):
             try:
                 l = ac[i].transcribe(None)
             except AttributeError as e:
-                print(f"🥺 Transcript not found! Attribute error occurred: {e}. If you ran with disabling the cache, delete your cached files.")
+                print(
+                    f"🥺 Transcript not found! Attribute error occurred: {e}. If you ran with disabling the cache, delete your cached files."
+                )
 
             lang = get_lang(l["language"])
             acontent = lang.normalize(
@@ -129,7 +131,6 @@ def sync(source: sourceData, model, streams, be):
     print("🔄 Syncing...")
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
-
             # bar.set_description(basename(streams[ai][2][0].path))
             offset, segments = 0, []
             for ajs, (chi, chjs), _ in tqdm(batches):
@@ -153,7 +154,9 @@ def sync(source: sourceData, model, streams, be):
                         )
                     )
                 else:
-                    print(f"❗No chapters were matched for {streams[ai][2][0].path}. Skipping...")
+                    print(
+                        f"❗No chapters were matched for {streams[ai][2][0].path}. Skipping..."
+                    )
 
                 offset += sum(a[1] for a in ach)
 

@@ -673,7 +673,9 @@ def setup_commands_cli(parser):
     optional_group_find = find.add_argument_group("Optional arguments")
     advanced_group_find = find.add_argument_group("Advanced arguments")
 
-    add_arguments_from_dataclass(main_group_find, FindParams, optional_group_find, advanced_group_find)
+    add_arguments_from_dataclass(
+        main_group_find, FindParams, optional_group_find, advanced_group_find
+    )
 
     # rename command
     rename = sp.add_parser(
@@ -686,7 +688,9 @@ def setup_commands_cli(parser):
     optional_group_rename = rename.add_argument_group("Optional arguments")
     advanced_group_rename = rename.add_argument_group("Advanced arguments")
 
-    add_arguments_from_dataclass(main_group_rename, RenameParams, optional_group_rename, advanced_group_rename)
+    add_arguments_from_dataclass(
+        main_group_rename, RenameParams, optional_group_rename, advanced_group_rename
+    )
 
     # copy command
     copy = sp.add_parser(
@@ -699,7 +703,9 @@ def setup_commands_cli(parser):
     optional_group_copy = copy.add_argument_group("Optional arguments")
     advanced_group_copy = copy.add_argument_group("Advanced arguments")
 
-    add_arguments_from_dataclass(main_group_copy, CopyParams, optional_group_copy, advanced_group_copy)
+    add_arguments_from_dataclass(
+        main_group_copy, CopyParams, optional_group_copy, advanced_group_copy
+    )
 
     return parser
 

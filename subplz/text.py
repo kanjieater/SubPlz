@@ -37,6 +37,7 @@ def split_sentences(input_file, output_path, lang):
 
     split_sentences_from_input(input_lines, output_path, lang)
 
+
 def get_segments(input_lines, lang):
     seg = pysbd.Segmenter(language=lang, clean=False)
     lines = []
@@ -46,6 +47,7 @@ def get_segments(input_lines, lang):
         s = seg.segment(text)
         lines += s
     return lines
+
 
 def split_sentences_from_input(input_lines, output_path, lang):
     lines = get_segments(input_lines, lang)
@@ -62,7 +64,9 @@ def flatten(t):
     return (
         [j for i in t for j in flatten(i)]
         if isinstance(t, (tuple, list))
-        else [t] if isinstance(t, epub.Link) else []
+        else [t]
+        if isinstance(t, epub.Link)
+        else []
     )
 
 

@@ -5,6 +5,7 @@ from Bio.Align import substitution_matrices
 from pprint import pprint
 from tqdm import tqdm
 
+
 def align_sub(coords, text, subs, thing=2):
     current = [0, 0]
     pos, toff = np.array([0, 0]), 0
@@ -19,12 +20,13 @@ def align_sub(coords, text, subs, thing=2):
 
         while current[1] < len(subs) and (pos[1] + len(subs[current[1]])) <= c[1]:
             if current[0] >= len(text):
-                return segments[:len(text)]
+                return segments[: len(text)]
             pos[1] += len(subs[current[1]])
-            if isgap: gaps += np.clip(pos - p, 0, None)[::-1]
+            if isgap:
+                gaps += np.clip(pos - p, 0, None)[::-1]
 
             diff = len(subs[current[1]]) + gaps[1] - gaps[0]
-            if diff > len(subs[current[1]])//4:
+            if diff > len(subs[current[1]]) // 4:
                 target = toff + diff + off
                 off = 0
                 c2 = 0
@@ -39,8 +41,10 @@ def align_sub(coords, text, subs, thing=2):
                     if (end - start) != 0:
                         region = text[current[0]][start:end]
                         prev = segments[-1]
-                        if end - start < thing or len(set(region) - set('。')) < thing:
-                            if len(prev): # and start - prev[-1][1] < 5: # Check for gaps
+                        if end - start < thing or len(set(region) - set("。")) < thing:
+                            if len(
+                                prev
+                            ):  # and start - prev[-1][1] < 5: # Check for gaps
                                 prev[-1][1] = end
                             else:
                                 prev.append([start, end, current[1]])
@@ -64,7 +68,9 @@ def align_sub(coords, text, subs, thing=2):
             else:
                 unused.append(subs[current[1]])
                 prev = segments[-1]
-                if toff >= len(text[current[0]])//2 and len(prev) and len(prev[-1]): # Check for gaps
+                if (
+                    toff >= len(text[current[0]]) // 2 and len(prev) and len(prev[-1])
+                ):  # Check for gaps
                     prev[-1][1] += diff
                     toff += diff
                 else:
@@ -73,16 +79,18 @@ def align_sub(coords, text, subs, thing=2):
             current[1] += 1
             s, gaps[...], p[:] = i, 0, np.maximum(pos, p)
 
-        if isgap: gaps += (c - p)[::-1]
+        if isgap:
+            gaps += (c - p)[::-1]
         p = c
 
+    return segments[: len(text)]
 
-    return segments[:len(text)]
 
 # """"""Heuristics"""""""
 def fix_punc(text, segments, prepend, append, nopend):
     for l, s in enumerate(segments):
-        if not s: continue
+        if not s:
+            continue
         t = text[l]
         for p, f in zip(s, s[1:] + [s[-1]]):
             connected = f[0] == p[1]
@@ -92,41 +100,50 @@ def fix_punc(text, segments, prepend, append, nopend):
                     break
                 if p[1] < len(t) and t[p[1]] in append:
                     p[1] += 1
-                elif t[p[1]-1] in prepend:
+                elif t[p[1] - 1] in prepend:
                     p[1] -= 1
-                elif (p[1] > 0 and t[p[1]-1] in nopend) or (p[1] < len(t) and t[p[1]] in nopend) or (p[1] < len(t)-1 and t[p[1]+1] in nopend):
-                    start, end = p[1]-1, p[1]
-                    if  p[1] < len(t)-1 and (t[p[1]+1] in nopend and 0x4e00 > ord(t[p[1]]) or ord(t[p[1]]) > 0x9faf): # Bail out if we end on a kanji
+                elif (
+                    (p[1] > 0 and t[p[1] - 1] in nopend)
+                    or (p[1] < len(t) and t[p[1]] in nopend)
+                    or (p[1] < len(t) - 1 and t[p[1] + 1] in nopend)
+                ):
+                    start, end = p[1] - 1, p[1]
+                    if p[1] < len(t) - 1 and (
+                        t[p[1] + 1] in nopend
+                        and 0x4E00 > ord(t[p[1]])
+                        or ord(t[p[1]]) > 0x9FAF
+                    ):  # Bail out if we end on a kanji
                         end += 1
 
                     while start > 0 and t[start] in nopend:
                         start -= 1
-                    while end < len(t)-1 and t[end] in nopend:
+                    while end < len(t) - 1 and t[end] in nopend:
                         end += 1
-
 
                     if t[start] in prepend:
                         if p[1] == start:
                             break
                         p[1] = start
                     elif t[start] in append:
-                        if p[1] == start+1:
+                        if p[1] == start + 1:
                             break
-                        p[1] = start+1
+                        p[1] = start + 1
                     elif end < len(t) and t[end] in prepend:
                         if p[1] == end:
                             break
                         p[1] = end
                     elif end < len(t) and t[end] in append:
-                        if p[1] == end+1:
+                        if p[1] == end + 1:
                             break
-                        p[1] = end+1
+                        p[1] = end + 1
                     else:
                         break
                 else:
                     break
                 loop += 1
-            if connected: f[0] = p[1]
+            if connected:
+                f[0] = p[1]
+
 
 def fix(lang, original, edited, segments):
     for l, s in enumerate(segments):
@@ -138,8 +155,8 @@ def fix(lang, original, edited, segments):
                 m[ei] = oi
                 ei += 1
             oi += 1
-        m[ei] = oi # Snap to end
-        m[0] = 0 # Snap to zero
+        m[ei] = oi  # Snap to end
+        m[0] = 0  # Snap to zero
 
         last = 0
         for i in range(len(e)):
@@ -152,18 +169,26 @@ def fix(lang, original, edited, segments):
             f[0] = m[min(max(f[0], 0), len(e))]
             f[1] = m[min(max(f[1], 0), len(e))]
 
+
 # This is structured like this to deal with references later
 def align(model, lang, transcript, text, references, prepend, append, nopend):
-    aligner = Align.PairwiseAligner(mode='global', match_score=1, open_gap_score=-0.8, mismatch_score=-0.6, extend_gap_score=-0.5)
+    aligner = Align.PairwiseAligner(
+        mode="global",
+        match_score=1,
+        open_gap_score=-0.8,
+        mismatch_score=-0.6,
+        extend_gap_score=-0.5,
+    )
 
     transcript_clean = [lang.clean(i) for i in transcript]
-    transcript_joined = ''.join(transcript_clean)
+    transcript_joined = "".join(transcript_clean)
 
     def inner(text):
         text_clean = [lang.clean(i) for i in text]
-        text_joined = ''.join(text_clean)
+        text_joined = "".join(text_clean)
 
-        if not len(text_joined) or not len(transcript_joined): return []
+        if not len(text_joined) or not len(transcript_joined):
+            return []
         alignment = aligner.align(text_joined, transcript_joined)[0]
         coords = alignment.coordinates
 
@@ -172,4 +197,4 @@ def align(model, lang, transcript, text, references, prepend, append, nopend):
         fix_punc(text, segments, prepend, append, nopend)
         return segments
 
-    return inner(text), [] #references
+    return inner(text), []  # references
