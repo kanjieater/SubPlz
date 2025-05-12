@@ -34,6 +34,7 @@ dependencies = [
     "pysbd ~= 0.3.4",
     "stable-ts ~= 2.19.0",
     "ctranslate2==4.4.0",
+    "stanza~=1.10.1",
 
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]

@@ -109,6 +109,16 @@ ARGUMENTS = {
             "action": "store_true",
         },
     },
+    "nlp": {
+        "flags": ["--nlp"],
+        "kwargs": {
+            "default": False,
+            "help": (
+                "Use nlp library for splitting sentences, can be slower."
+            ),
+            "action": "store_true",
+        },
+    },
     "alass": {
         "flags": ["--alass"],
         "kwargs": {
@@ -525,6 +535,7 @@ class SyncData:
     cache_dir: str = field(metadata={"category": "optional"})
     overwrite: bool = field(default=True, metadata={"category": "optional"})
     alass: bool = field(default=False, metadata={"category": "optional"})
+    nlp: bool = field(default=False, metadata={"category": "optional"})
 
 
 @dataclass
