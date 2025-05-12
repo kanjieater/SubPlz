@@ -151,6 +151,7 @@ class Cache:
 @dataclass(eq=True, frozen=True)
 class AudioStream:
     stream: ffmpeg.Stream
+    audio_probe: dict
     path: Path
     duration: float
     cn: str
@@ -158,7 +159,7 @@ class AudioStream:
 
     def audio(self):
         data, _ = self.stream.output(
-            "-", format="s16le", acodec="pcm_s16le", ac=1, ar="16k"
+            "-", format="s16le", acodec="pcm_s16le", ac=1, ar="16k", **{"map": f"0:{self.audio_probe.get('index', 0)}"}
         ).run(quiet=True, input="")
         return np.frombuffer(data, np.int16).astype(np.float32) / 32768.0
 

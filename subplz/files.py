@@ -1,5 +1,4 @@
 import os
-import re
 from collections import defaultdict
 from pathlib import Path
 from os import path
@@ -18,6 +17,7 @@ from ats.main import (
     write_vtt,
 )
 from subplz.cache import Cache
+from subplz.audio import get_audio_idx
 from subplz.text import split_sentences, split_sentences_from_input, Epub
 from subplz.sub import (
     extract_all_subtitles,
@@ -70,21 +70,6 @@ def get_video_duration(stream, file_path):
         raise RuntimeError(error_message)
 
 
-def get_matching_audio_stream(streams, lang):
-    audio_streams = [
-        stream for stream in streams if stream.get("codec_type", None) == "audio"
-    ]
-    audio_lang = lang
-    if lang == "ja":  # TODO support other languages
-        audio_lang = "jpn"
-    target_streams = [
-        stream
-        for stream in audio_streams
-        if stream.get("tags", {}).get("language", "").lower() == audio_lang.lower()
-    ]
-    return next((stream for stream in target_streams + audio_streams), None)
-
-
 class Writer:
     def __init__(self, output_format="srt"):
         self.written = False
@@ -102,9 +87,25 @@ class Writer:
                 return write_vtt(segments, o)
 
 
+def get_matching_audio_stream(streams, lang):
+    audio_streams = [
+        stream for stream in streams if stream.get("codec_type", None) == "audio"
+    ]
+    audio_lang = lang
+    if lang == "ja":  # TODO support other languages
+        audio_lang = "jpn"
+    target_streams = [
+        stream
+        for stream in audio_streams
+        if stream.get("tags", {}).get("language", "").lower() == audio_lang.lower()
+    ]
+    return next((stream for stream in target_streams + audio_streams), None)
+
+
 @dataclass(eq=True, frozen=True)
 class AudioSub(AudioStream):
     stream: ffmpeg.Stream
+    audio_probe: dict
     path: Path
     duration: float
     cn: str
@@ -127,13 +128,15 @@ class AudioSub(AudioStream):
             raise RuntimeError(f"'{path}' ffmpeg error: {e.stderr.decode('utf-8')}")
 
         title = info.get("format", {}).get("tags", {}).get("title", basename(path))
-
+        # path = handle_multiple_audio_streams(info["streams"], lang)
+        audio_probe = get_audio_idx(info["streams"], lang, path)
         if whole or "chapters" not in info or len(info["chapters"]) == 0:
             stream = get_matching_audio_stream(info["streams"], lang)
             duration = get_video_duration(stream, path)
             return title, [
                 cls(
                     stream=ffmpeg.input(path),
+                    audio_probe=audio_probe,
                     duration=duration,
                     path=path,
                     cn=title,
@@ -141,12 +144,12 @@ class AudioSub(AudioStream):
                     cache=cache,
                 )
             ]
-
         return title, [
             cls(
                 stream=ffmpeg.input(
                     path, ss=chapter["start_time"], to=chapter["end_time"]
                 ),
+                audio_probe=audio_probe,
                 duration=float(chapter["end_time"]) - float(chapter["start_time"]),
                 path=path,
                 cn=chapter.get("tags", {}).get("title", ""),

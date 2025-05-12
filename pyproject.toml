@@ -50,7 +50,7 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 [project.optional-dependencies]
 dev = [
   "black==24.4.2",
-  "ruff==0.4.4",
+  "ruff==0.5.3",
   "pytest==8.3.2"
 ]
 anki = [

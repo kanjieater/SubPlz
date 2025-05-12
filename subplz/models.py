@@ -21,7 +21,7 @@ def faster_transcribe(self, audio, name, **args):
     args["beam_size"] = args["beam_size"] if args["beam_size"] else 1
     args["patience"] = args["patience"] if args["patience"] else 1
     args["length_penalty"] = args["length_penalty"] if args["length_penalty"] else 1
-    result = self.transcribe_stable(audio, best_of=1, **args)
+    result = self.transcribe(audio, best_of=1, **args)
     # result = self.refine(audio, result, **args)
     result.pad(0.5, 0.5, word_level=False)
     segments, prev_end = [], 0
