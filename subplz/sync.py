@@ -154,7 +154,7 @@ def sync(source: sourceData, model, streams, be):
                     )
                 else:
                     print(
-                        f"❗No chapters were matched for {streams[ai][2][0].path}. Skipping..."
+                        f"🫠 No chapters were matched for {streams[ai][2][0].path}. We'll still try to sync..."
                     )
 
                 offset += sum(a[1] for a in ach)

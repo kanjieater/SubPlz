@@ -1,16 +1,19 @@
 #!/bin/bash
 
-# Check if a path argument is provided
-if [ "$#" -ne 1 ]; then
-  echo "Usage: $0 <path>"
+# Check if at least one argument is provided
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 <path> [--initial-rename]"
   exit 1
 fi
 
-# Get the directory path from the argument
+# Get the directory path from the first argument
 directories="$1"
 
-# Get the list of directories from the Python command
-# directories=$(subplz find -d "$input_path")
+# Check for optional second argument
+initial_rename=false
+if [ "$2" == "--initial-rename" ]; then
+  initial_rename=true
+fi
 
 # Check if directories variable is empty
 if [[ -z "$directories" ]]; then
@@ -32,6 +35,11 @@ echo "$directories" | tr -d "[]'" | tr ',' '\n' | while IFS= read -r directory; 
   if [[ "$directory" == *"Error accessing"* ]]; then
     echo "Skipping error message: $directory"
     continue
+  fi
+
+  if [[ "$initial_rename" == true ]]; then
+    echo "Performing initial rename (prep) in: $directory"
+    subplz rename -d "$directory" --lang-ext "ab"
   fi
 
   if [[ -n "$directory" ]]; then
