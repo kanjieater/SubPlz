@@ -30,27 +30,29 @@ def merge_short_lines_with_quotes(lines):
     return fixed
 
 
-def split_sentences(input_file, output_path, lang):
+def split_sentences(input_file, output_path, lang, nlp):
     # for file_name in input_file:
     with open(input_file, "r", encoding="UTF-8") as file:
         input_lines = file.readlines()
 
-    split_sentences_from_input(input_lines, output_path, lang)
+    split_sentences_from_input(input_lines, output_path, lang, nlp)
 
-
-def get_segments(input_lines, lang):
-    seg = pysbd.Segmenter(language=lang, clean=False)
+def get_segments(input_lines, lang, nlp):
+    if nlp is None:
+      seg = pysbd.Segmenter(language=lang, clean=False)
     lines = []
     print("✂️  Splitting transcript into sentences")
-    for text in tqdm(input_lines):
-        text = text.rstrip("\n")
-        s = seg.segment(text)
-        lines += s
+    if nlp is None:
+      for text in tqdm(input_lines):
+          text = text.rstrip("\n")
+          s = seg.segment(text)
+          lines += s
+    else:
+      lines = [sentence.text for sentence in nlp("\n\n".join(input_lines)).sentences if sentence.text.rstrip("\n")]
     return lines
 
-
-def split_sentences_from_input(input_lines, output_path, lang):
-    lines = get_segments(input_lines, lang)
+def split_sentences_from_input(input_lines, output_path, lang, nlp):
+    lines = get_segments(input_lines, lang, nlp)
     lines = fix_end_of_quotes(lines)
     lines = merge_short_lines_with_quotes(lines)
 

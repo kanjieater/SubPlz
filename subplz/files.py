@@ -7,6 +7,7 @@ from typing import List, Callable
 from dataclasses import dataclass
 import ffmpeg
 from natsort import os_sorted
+import stanza
 
 from pprint import pformat
 from ats.main import (
@@ -187,7 +188,7 @@ def get_streams(audio, cache_inputs):
     return streams
 
 
-def get_chapters(text: List[str], lang, alass):
+def get_chapters(text: List[str], lang, alass, nlp):
     # print("📖 Finding chapters...") #log
     sub_exts = ["." + extension for extension in SUBTITLE_FORMATS]
     chapters = []
@@ -201,14 +202,14 @@ def get_chapters(text: List[str], lang, alass):
             )
             epub = Epub.from_file(file_path)
             chapters.append((txt_path, epub.chapters))
-            split_sentences_from_input([p.text() for p in epub.text()], txt_path, lang)
+            split_sentences_from_input([p.text() for p in epub.text()], txt_path, lang, nlp)
             # chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
 
         elif file_ext in sub_exts:
             try:
                 txt_path = normalize_text(file_path)
                 if not alass:
-                    split_sentences(txt_path, txt_path, lang)
+                    split_sentences(txt_path, txt_path, lang, nlp)
 
             except ffmpeg.Error as e:
                 print(
@@ -221,7 +222,7 @@ def get_chapters(text: List[str], lang, alass):
                 Path(file_path).parent / f"{Path(file_path).stem}.txt"
             )
             if not alass:
-                split_sentences(file_path, txt_path, lang)
+                split_sentences(file_path, txt_path, lang, nlp)
             chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
     return chapters
 
@@ -331,7 +332,7 @@ def match_files(audios, texts, folder, rerun, orig, alass=False):
     return [[a] for a in audios_filtered], [[t] for t in texts_filtered]
 
 
-def get_sources_from_dirs(input, cache_inputs):
+def get_sources_from_dirs(input, cache_inputs, nlp):
     sources = []
     working_folders = get_working_folders(input.dirs)
     for folder in working_folders:
@@ -351,7 +352,7 @@ def get_sources_from_dirs(input, cache_inputs):
                 writer = Writer(input.output_format)
 
                 streams = get_streams(matched_audio, cache_inputs)
-                chapters = get_chapters(matched_text, input.lang, input.alass)
+                chapters = get_chapters(matched_text, input.lang, input.alass, nlp)
                 s = sourceData(
                     dirs=input.dirs,
                     audio=matched_audio,
@@ -394,8 +395,12 @@ def get_sources_from_dirs(input, cache_inputs):
 
 
 def setup_sources(input, cache_inputs) -> List[sourceData]:
+    nlp = None
+    if input.nlp:
+        stanza.download(input.lang)
+        nlp = stanza.Pipeline(lang=input.lang, processors='tokenize', use_gpu=False)
     if input.dirs:
-        sources = get_sources_from_dirs(input, cache_inputs)
+        sources = get_sources_from_dirs(input, cache_inputs, nlp)
     else:
         if input.subcommand == "sync":
             if input.alass:
@@ -407,7 +412,7 @@ def setup_sources(input, cache_inputs) -> List[sourceData]:
                 input.audio, output_dir, input.output_format, input.lang_ext
             )
             writer = Writer(input.output_format)
-            chapters = get_chapters(input.text, input.lang, input.alass)
+            chapters = get_chapters(input.text, input.lang, input.alass, nlp)
             streams = get_streams(input.audio, cache_inputs)
             sources = [
                 sourceData(
