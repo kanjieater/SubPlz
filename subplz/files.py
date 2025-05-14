@@ -396,7 +396,7 @@ def get_sources_from_dirs(input, cache_inputs, nlp):
 
 def setup_sources(input, cache_inputs) -> List[sourceData]:
     nlp = None
-    if input.nlp:
+    if hasattr(input, 'nlp') and input.nlp:
         stanza.download(input.lang)
         nlp = stanza.Pipeline(lang=input.lang, processors='tokenize', use_gpu=False)
     if input.dirs:
