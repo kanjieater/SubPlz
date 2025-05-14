@@ -30,7 +30,8 @@ def unload_model(model):
 
 def faster_transcribe(self, audio, name, **args):
     args["log_prob_threshold"] = args.pop("logprob_threshold")
-    args["beam_size"] = args["beam_size"] if args["beam_size"] else 1
+    args["beam_size"] = args["beam_size"] if args["beam_size"] else 5
+    args["batch_size"] = args["batch_size"] if args["batch_size"] else 8
     args["patience"] = args["patience"] if args["patience"] else 1
     args["length_penalty"] = args["length_penalty"] if args["length_penalty"] else 1
     result = self.transcribe(audio, best_of=1, **args)
@@ -86,6 +87,7 @@ def get_model(backend):
     compute_type = (
         "float32" if not quantize else ("int8" if device == "cpu" else "float16")
     )
+    #TODO: remove all but stable-ts as they do not work as they expect different parameters
     if faster_whisper:
         model = WhisperModel(
             model_name, device, local_files_only, compute_type, num_workers

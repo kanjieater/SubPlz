@@ -352,6 +352,14 @@ ARGUMENTS = {
             "help": "number of beams in beam search, only applicable when temperature is zero",
         },
     },
+    "batch_size": {
+        "flags": ["--batch-size"],
+        "kwargs": {
+            "type": int,
+            "default": None,
+            "help": "number of batches, only applicable for fast-whisper backend",
+        },
+    },
     "patience": {
         "flags": ["--patience"],
         "kwargs": {
@@ -534,6 +542,7 @@ class SyncParams:
     temperature: float = field(metadata={"category": "advanced"})
     temperature_increment_on_fallback: float = field(metadata={"category": "advanced"})
     beam_size: int = field(metadata={"category": "advanced"})
+    batch_size: int = field(metadata={"category": "advanced"})
     patience: float = field(metadata={"category": "advanced"})
     suppress_tokens: List[str] = field(metadata={"category": "advanced"})
     prepend_punctuations: str = field(metadata={"category": "advanced"})
@@ -622,6 +631,7 @@ class GenParams:
     temperature: float = field(metadata={"category": "advanced"})
     temperature_increment_on_fallback: float = field(metadata={"category": "advanced"})
     beam_size: int = field(metadata={"category": "advanced"})
+    batch_size: int = field(metadata={"category": "advanced"})
     patience: float = field(metadata={"category": "advanced"})
     suppress_tokens: List[str] = field(metadata={"category": "advanced"})
     prepend_punctuations: str = field(metadata={"category": "advanced"})
