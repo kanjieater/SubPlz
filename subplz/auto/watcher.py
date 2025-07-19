@@ -22,10 +22,14 @@ def format_duration(seconds: float) -> str:
     m = int((seconds // 60) % 60)
     s = seconds % 60
     parts = []
-    if d > 0: parts.append(f"{d}d")
-    if h > 0: parts.append(f"{h}h")
-    if m > 0: parts.append(f"{m}m")
-    if s > 0 or not parts: parts.append(f"{s:.2f}s")
+    if d > 0:
+        parts.append(f"{d}d")
+    if h > 0:
+        parts.append(f"{h}h")
+    if m > 0:
+        parts.append(f"{m}m")
+    if s > 0 or not parts:
+        parts.append(f"{s:.2f}s")
     return " ".join(parts) if parts else "0.00s"
 
 
@@ -44,7 +48,9 @@ def process_job_file(job_file_path, full_config):
 
         # Use our new smart function to get the correct path for the current environment
         local_target_dir = resolve_local_path(full_config, job_data["directory"])
-        local_episode_path = resolve_local_path(full_config, job_data.get("episode_path"))
+        local_episode_path = resolve_local_path(
+            full_config, job_data.get("episode_path")
+        )
 
         batch_inputs = BatchParams(
             subcommand="batch",
@@ -158,6 +164,7 @@ def get_next_job(job_dir):
         logger.error(f"Error scanning for next job: {e}")
         return None
 
+
 def process_job_queue(job_dir, full_config, job_completion_times):
     """Process all jobs in the directory, one at a time, in creation order."""
     while True:
@@ -208,7 +215,9 @@ class JobEventHandler(FileSystemEventHandler):
         if self.processing_lock.acquire(blocking=False):
             logger.info("Acquired lock. Starting job queue processing...")
             try:
-                process_job_queue(self.job_dir, self.full_config, self.job_completion_times)
+                process_job_queue(
+                    self.job_dir, self.full_config, self.job_completion_times
+                )
             finally:
                 logger.info("...job queue processing finished. Releasing lock.")
                 self.processing_lock.release()
@@ -241,7 +250,11 @@ def run_watcher(args):
         process_job_queue(job_dir, config, job_completion_times)
 
         logger.info(f"👀 Watching for .json files in: {job_dir}")
-        event_handler = JobEventHandler(full_config=config, job_dir=job_dir, job_completion_times=job_completion_times)
+        event_handler = JobEventHandler(
+            full_config=config,
+            job_dir=job_dir,
+            job_completion_times=job_completion_times,
+        )
         poll_interval = watcher_settings.get("polling_interval_seconds")
 
         if poll_interval is not None:

@@ -111,7 +111,6 @@ def sync_alass(source, input_sources, be):
                     og_subtitle_path, incorrect_subtitle_path
                 )
                 if validation_error:
-
                     logger.warning(f"{validation_error}: Skipping Alass")
                     continue
 

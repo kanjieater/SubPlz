@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "setuptools_scm[toml]>=8"]
+requires = ["setuptools>=68,<82", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -21,12 +21,12 @@ classifiers = [
 # faster_whisper must match a working docker version.
 # Python 3.12 can be enabled when stable-ts supports it (when official whisper does)
 dependencies = [
-    "beautifulsoup4~=4.13.3",
-    "biopython~=1.85",
-    "EbookLib~=0.18",
-    "faster_whisper==1.2.0",
+    "beautifulsoup4~=4.14.3",
+    "biopython~=1.87",
+    "EbookLib~=0.20",
+    "faster_whisper==1.2.1",
     "ffmpeg_python~=0.2.0",
-    "rapidfuzz~=3.12.1",
+    "rapidfuzz~=3.14.3",
     "numpy~=1.26.4",
     "regex~=2024.11.6", # Replace blackmagic regex in get_lang and remove
     "wcwidth >= 0.2.13",
@@ -35,12 +35,13 @@ dependencies = [
     "pysbd~=0.3.4",
     "stable-ts~=2.19.1",
     "ctranslate2==4.6.0",
-    "stanza~=1.10.1",
-    "PyYAML~=6.0.1",
+    "stanza~=1.11.1",
+    "PyYAML~=6.0.3",
     "lingua-language-detector~=2.1.1",
     "loguru~=0.7.3",
-    "pycountry~=24.6.1",
+    "pycountry~=26.2.16",
     "watchdog~=6.0.0",
+    "setuptools<82.0.0", # Required by ctranslate2 for whisper
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]
 
@@ -55,9 +56,10 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 
 [project.optional-dependencies]
 dev = [
-  "black==25.1.0",
-  "ruff==0.12.9",
-  "pytest==8.3.2"
+  "black==26.3.1",
+  "ruff==0.15.9",
+  "pytest==9.0.2",
+  "pytest-cov==7.1.0"
 ]
 anki = [
   "requests==2.26.0",

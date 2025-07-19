@@ -119,6 +119,6 @@ def get_audio_idx(all_streams: list, target_lang_code: str, path: str) -> dict |
         )
 
     print(
-        f"🚣 Selected stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Lang: {best_match['stream_info'].get('tags',{}).get('language','N/A')}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}"
+        f"🚣 Selected stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Lang: {best_match['stream_info'].get('tags', {}).get('language', 'N/A')}, Title: {best_match['stream_info'].get('tags', {}).get('title', 'N/A')}) for file: {path}"
     )
     return best_match["stream_info"]

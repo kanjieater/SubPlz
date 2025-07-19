@@ -320,3 +320,20 @@ def test_shift_align_unicode_parenthesis():
     assert len(result) == len(segments)
     assert result[0].text == "王都エクバターナより東へ四十ファルサング"
     assert result[1].text == "（約二百キロ）。"
+
+
+def test_shift_align_asterisk_marker():
+    segments = [
+        Segment(text="　陛下のご下問である。奉答せよ」　あた", start=0.00, end=2.00),
+        Segment(text="＊らしく", start=2.00, end=2.10),
+        Segment(
+            text="らしく冷水の壺を用意しようとしていたエラムは、", start=2.10, end=4.00
+        ),
+    ]
+
+    result = shift_align(segments)
+
+    assert len(result) == len(segments)
+    assert result[0].text == "陛下のご下問である。奉答せよ」　あた"
+    assert result[1].text == "＊らしく"
+    assert result[2].text == "らしく冷水の壺を用意しようとしていたエラムは、"
