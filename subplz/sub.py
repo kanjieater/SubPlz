@@ -193,8 +193,9 @@ def extract_subtitle(file, lang_ext, lang_ext_original):
 
 
 def extract_all_subtitles(files, lang_ext, lang_ext_original):
-    count = int(cpu_count() / 2 + 1)
+    # count = int(cpu_count() / 2 + 1) # doesn't work on network disk
+    count = 1
     with Pool(processes=count) as pool:
         list(tqdm(pool.imap(partial(extract_subtitle, lang_ext=lang_ext, lang_ext_original=lang_ext_original), files),
                    total=len(files),
-                   desc="Extracting Subtitles in Parallel (may take a while)"))
+                   desc="Extracting Embedded Subtitles (may take a while)"))
