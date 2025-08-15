@@ -35,7 +35,7 @@ dependencies = [
     "stable-ts ~= 2.19.0",
     "ctranslate2==4.4.0",
     "stanza~=1.10.1",
-
+    "lingua-language-detector~=4.15.0"
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]
 

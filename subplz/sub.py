@@ -7,7 +7,6 @@ from pathlib import Path
 import ffmpeg
 from subplz.utils import grab_files,  get_tmp_path, get_tqdm, get_iso639_2_lang_code
 
-
 tqdm, trange = get_tqdm()
 
 SUBTITLE_FORMATS = ["ass", "srt", "vtt", "ssa", "idx"]
@@ -256,12 +255,17 @@ def ffmpeg_extract(video_path: Path, output_subtitle_path: Path, stream_index: i
             "If the error above Stream map '0:s:0' matches no streams, then no embedded subtitles found in the file"
         )
 
+def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None):
+    lang_to_check = existence_check_lang if existence_check_lang is not None else lang_ext_original
+    path_to_check = get_subtitle_path(file, lang_to_check)
 
-def extract_subtitle(file, lang_ext, lang_ext_original):
-    subtitle_path = get_subtitle_path(file, lang_ext_original)
-    if subtitle_path.exists():
-        print(f"☑️ Subtitle for original language '{lang_ext_original}' already exists, skipping extraction.")
-        return
+    # The final output path is always determined by lang_ext
+    output_subtitle_path = get_subtitle_path(file, lang_ext)
+
+    if path_to_check.exists() and not overwrite:
+        print(f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction.")
+        # Return None because no new file was created in this run
+        return None
 
     try:
         print(f"🔎 Analyzing streams in {file} to find best '{lang_ext_original}' subtitle...")
@@ -270,11 +274,10 @@ def extract_subtitle(file, lang_ext, lang_ext_original):
         best_sub_stream = get_subtitle_idx(all_streams, lang_ext_original, str(file))
 
         if not best_sub_stream:
-            raise RuntimeError(f"No subtitle streams found for language '{lang_ext_original}'")
+            print(f"🤷 No suitable subtitle streams found '{lang_ext_original}' in {file}")
+            return None
 
         stream_index_in_file = best_sub_stream['index']
-        # FFmpeg's subtitle stream index is relative to other subtitle streams, not the global index.
-        # We need to find its position among only the subtitle streams.
         subtitle_only_streams = [s for s in all_streams if s.get("codec_type") == "subtitle"]
         relative_stream_index = 0
         for i, s in enumerate(subtitle_only_streams):
@@ -282,36 +285,30 @@ def extract_subtitle(file, lang_ext, lang_ext_original):
                 relative_stream_index = i
                 break
 
-        print(f"⛏️ Extracting best subtitle stream (absolute index: {stream_index_in_file}, relative index: {relative_stream_index}) from {file} to {subtitle_path}")
-        ffmpeg_extract(file, subtitle_path, relative_stream_index)
+        print(f"⛏️ Extracting best subtitle stream (index: {relative_stream_index}) from {file} to {output_subtitle_path}")
+        ffmpeg_extract(file, output_subtitle_path, relative_stream_index)
+
+        return output_subtitle_path
 
     except Exception as err:
-        error_message = f"❗ Failed to extract subtitles: {err}"
+        error_message = f"❗ Failed to extract subtitles from {file}: {err}"
         print(error_message)
-        target_subtitle_path = get_subtitle_path(file, lang_ext)
-        write_subfail(file, target_subtitle_path, error_message)
+        write_subfail(file, output_subtitle_path, error_message)
+        return None
 
-
-def extract(source, input_sources):
-    output_dir = Path("output")
-    output_dir.mkdir(exist_ok=True)
-
-    all_video_files = list(set([batches[2][0].path for batches in source.streams]))
-
-    # Extract the reference language (e.g., 'en' for alass)
-    if input_sources.lang_ext_original:
-        extract_all_subtitles(all_video_files, input_sources.lang_ext, input_sources.lang_ext_original)
-
-    # Extract the target/native language (e.g., 'ja' for the final untimed sub)
-    # This assumes your main script will add a 'lang_ext_target' attribute to the input_sources object
-    if hasattr(input_sources, 'lang_ext_target') and input_sources.lang_ext_target:
-        extract_all_subtitles(all_video_files, input_sources.lang_ext, input_sources.lang_ext_target)
-
-
-def extract_all_subtitles(files, lang_ext, lang_ext_original):
-    # count = int(cpu_count() / 2 + 1) # doesn't work on network disk
+def extract_all_subtitles(files, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None):
+    # Using a process count of 1 is safer for network drives
     count = 1
     with Pool(processes=count) as pool:
-        list(tqdm(pool.imap(partial(extract_subtitle, lang_ext=lang_ext, lang_ext_original=lang_ext_original), files),
-                   total=len(files),
-                   desc="Extracting Embedded Subtitles (may take a while)"))
+        func = partial(
+            extract_subtitle,
+            lang_ext=lang_ext,
+            lang_ext_original=lang_ext_original,
+            overwrite=overwrite,
+            existence_check_lang=existence_check_lang
+        )
+        results = list(tqdm(pool.imap(func, files),
+                      total=len(files),
+                      desc=f"Extracting '{lang_ext_original}' as '{lang_ext}'"))
+    extracted_paths = [path for path in results if path is not None]
+    return extracted_paths
