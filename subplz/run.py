@@ -2,6 +2,7 @@ from subplz.transcribe import transcribe
 from subplz.sync import sync
 from subplz.alass import sync_alass
 from subplz.gen import gen
+from subplz.sub import extract
 from subplz.helpers import find, rename, copy
 from subplz.files import get_sources, post_process
 from subplz.models import get_model, get_temperature
@@ -22,6 +23,9 @@ def execute_on_inputs():
         return
     if inputs.subcommand == "copy":
         copy(inputs)
+        return
+    if inputs.subcommand == "extract":
+        extract(inputs)
         return
 
     be = inputs.backend
