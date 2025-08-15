@@ -154,7 +154,7 @@ def copy(inputs: CopyParams):
 
 def extract(inputs: ExtractParams):
     """
-    Extracts embedded subtitles from media files by wrapping the core extract_all_subtitles function.
+    Extracts embedded subtitles from media files by wrapping the core extract function.
     """
     # --- 1. Validate Inputs ---
     if not inputs.lang_ext:
@@ -185,7 +185,8 @@ def extract(inputs: ExtractParams):
         lang_ext=inputs.lang_ext,
         lang_ext_original=inputs.lang_ext_original,
         overwrite=inputs.overwrite,
-        existence_check_lang=inputs.lang_ext
+        existence_check_lang=inputs.lang_ext,
+        strict=True
     )
     if not extracted_subs:
         print("🤔 No new subtitles were extracted")

@@ -58,19 +58,21 @@ def score_subtitle_stream(stream_info: dict, target_iso_lang: str | None) -> int
 
     return score
 
-
-def get_subtitle_idx(all_streams: list, target_lang_code: str, path: str) -> dict | None:
+def get_subtitle_idx(all_streams: list, path: str, target_lang_code: str = None) -> dict | None:
     """
-    Finds the best matching subtitle stream based on language and other heuristics.
-    Returns the stream's info dictionary or None.
+    Finds the best matching subtitle stream.
+    If target_lang_code is provided, it will be strict and only return a match for that language.
+    If target_lang_code is None, it will return the highest-scoring stream regardless of language.
     """
     subtitle_streams = [s for s in all_streams if s.get("codec_type") == "subtitle"]
     if not subtitle_streams:
         return None
 
-    standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
-    if not standardized_target_lang:
-        print(f"🦈Could not standardize input language code for subtitle stream '{target_lang_code}'. Will select based on other heuristics.")
+    standardized_target_lang = None
+    if target_lang_code:
+        standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
+        if not standardized_target_lang:
+            print(f"🦈 Could not standardize input language code '{target_lang_code}'.")
 
     scored_streams = []
     for stream in subtitle_streams:
@@ -83,15 +85,19 @@ def get_subtitle_idx(all_streams: list, target_lang_code: str, path: str) -> dic
         return None
 
     best_match = scored_streams[0]
+    best_match_lang = best_match["stream_info"].get("tags",{}).get("language","").lower()
+
+    # --- ADD THIS STRICT CHECK ---
+    # If a target language was specified, ensure the best match is actually that language.
+    if standardized_target_lang and best_match_lang != standardized_target_lang:
+        print(f"🦈 No subtitle stream with the required language '{target_lang_code}' was found in {path}")
+        return None
+    # --- END OF CHANGE ---
 
     if best_match["score"] < 0: # All tracks were undesirable
-        print(f"🦈All subtitle tracks scored negatively. Best undesirable match selected (score: {best_match['score']}) for file: {path}")
-    elif standardized_target_lang and best_match["stream_info"].get("tags",{}).get("language","").lower() != standardized_target_lang:
-        print(f"🦈No direct language match for the subtitle stream '{target_lang_code}' (standardized: '{standardized_target_lang}') for file: {path}")
-    elif not standardized_target_lang and target_lang_code:
-        print(f"🦈Target language for the subtitle stream '{target_lang_code}' was not recognized. Selected best available stream based on other heuristics for file: {path}")
+        print(f"🦈 All subtitle tracks scored negatively. Best undesirable match selected (score: {best_match['score']}) for file: {path}")
 
-    print(f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Lang: {best_match['stream_info'].get('tags',{}).get('language','N/A')}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}")
+    print(f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Lang: {best_match_lang or 'N/A'}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}")
     return best_match["stream_info"]
 
 
@@ -255,7 +261,7 @@ def ffmpeg_extract(video_path: Path, output_subtitle_path: Path, stream_index: i
             "If the error above Stream map '0:s:0' matches no streams, then no embedded subtitles found in the file"
         )
 
-def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None):
+def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None, strict=False):
     lang_to_check = existence_check_lang if existence_check_lang is not None else lang_ext_original
     path_to_check = get_subtitle_path(file, lang_to_check)
 
@@ -270,8 +276,10 @@ def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existen
     try:
         print(f"🔎 Analyzing streams in {file} to find best '{lang_ext_original}' subtitle...")
         all_streams = ffmpeg.probe(str(file))["streams"]
-
-        best_sub_stream = get_subtitle_idx(all_streams, lang_ext_original, str(file))
+        strict_lang = None
+        if strict:
+            strict_lang = lang_ext_original
+        best_sub_stream = get_subtitle_idx(all_streams, str(file), strict_lang)
 
         if not best_sub_stream:
             print(f"🤷 No suitable subtitle streams found '{lang_ext_original}' in {file}")
@@ -296,7 +304,7 @@ def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existen
         write_subfail(file, output_subtitle_path, error_message)
         return None
 
-def extract_all_subtitles(files, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None):
+def extract_all_subtitles(files, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None, strict=False):
     # Using a process count of 1 is safer for network drives
     count = 1
     with Pool(processes=count) as pool:
@@ -305,7 +313,8 @@ def extract_all_subtitles(files, lang_ext, lang_ext_original, overwrite=False, e
             lang_ext=lang_ext,
             lang_ext_original=lang_ext_original,
             overwrite=overwrite,
-            existence_check_lang=existence_check_lang
+            existence_check_lang=existence_check_lang,
+            strict=strict
         )
         results = list(tqdm(pool.imap(func, files),
                       total=len(files),
