@@ -41,7 +41,7 @@ AUDIO_FORMATS = [
     "wav",
     "m4b",
 ]
-VIDEO_FORMATS = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm"]
+VIDEO_FORMATS = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm", "mpg"]
 TEXT_FORMATS = ["epub", "txt"]
 WRITTEN_FORMATS = SUBTITLE_FORMATS + TEXT_FORMATS
 

@@ -58,6 +58,10 @@ anki = [
   "requests==2.26.0",
   "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=de536d1c983641cd590180aa93c080010b1c5665"
 ]
+automation = [
+  "PyYAML ~= 6.0.1",
+  "watchdog ~= 6.0.0"
+]
 
 [project.scripts]
 subplz = "subplz.__main__:main"
