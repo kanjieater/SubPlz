@@ -5,8 +5,6 @@ import os
 import subprocess
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-
-# Import the centralized config loader
 from .config import load_config, ConfigError
 
 class JobEventHandler(FileSystemEventHandler):
@@ -28,10 +26,8 @@ class JobEventHandler(FileSystemEventHandler):
             print(f"🚀 Launching consumer process...")
 
             try:
-                # Use Popen to launch the consumer as a new, independent process.
-                # The watcher does not wait for it to finish.
                 command = [
-                    sys.executable,  # Use the same python interpreter that's running this script
+                    sys.executable,
                     self.consumer_script_path,
                     self.config_path,
                     job_file_path
@@ -50,8 +46,8 @@ def main():
     try:
         config_file_path = sys.argv[1]
         config = load_config(config_file_path)
-        # Get the directory to watch from the correct config section
-        job_dir = config['job_consumer_settings']['job_directory']
+        # Get the directory to watch using the new keys
+        job_dir = config['consumer']['jobs']
     except (ConfigError, KeyError, FileNotFoundError) as e:
         print(f"FATAL: Could not load configuration: {e}")
         sys.exit(1)
@@ -60,8 +56,6 @@ def main():
         print(f"FATAL: Job queue directory specified in config does not exist: {job_dir}")
         sys.exit(1)
 
-    # Define the path to our consumer script.
-    # Assumes consumer.py is in the same directory as this watcher.py
     consumer_script = os.path.join(os.path.dirname(__file__), 'consumer.py')
     if not os.path.exists(consumer_script):
         print(f"FATAL: Consumer script not found at: {consumer_script}")

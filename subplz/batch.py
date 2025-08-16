@@ -1,66 +1,108 @@
+# batch.py
 from pathlib import Path
-from types import SimpleNamespace
 from subplz.helpers import extract, rename, copy
-from subplz.cli import RenameParams, ExtractParams, CopyParams, SyncData, GenData, SyncParams, GenParams, BatchParams, get_inputs
+from subplz.cli import get_inputs
 from subplz.sync import run_sync
 from subplz.gen import run_gen
+import yaml
+
+# A mapping from the command name (str) to the actual function to call.
+# This allows us to dynamically execute the correct logic based on the config.
+COMMAND_MAP = {
+    'rename': rename,
+    'extract': extract,
+    'sync': run_sync,
+    'gen': run_gen,
+    'copy': copy
+}
+
+
+def resolve_pipeline(inputs):
+    # This logic only runs if the user did NOT provide a --pipeline on the CLI
+    if not inputs.pipeline and inputs.config:
+        print(f"Loading pipeline from config file: {inputs.config}")
+        try:
+            with open(inputs.config, 'r', encoding='utf-8') as f:
+                config_data = yaml.safe_load(f)
+
+            loaded_pipeline = config_data.get('batch_pipeline', [])
+            inputs.pipeline = loaded_pipeline  # Modify the object in place
+
+            if not loaded_pipeline:
+                print(f"⚠️ Warning: 'batch_pipeline' key not found or empty in {inputs.config}")
+
+        except FileNotFoundError:
+            print(f"❌ Error: Config file not found at '{inputs.config}'.")
+            return None # Return None on failure
+        except yaml.YAMLError as e:
+            print(f"❌ Error parsing YAML file '{inputs.config}': {e}.")
+            return None # Return None on failure
+
+    if not inputs.pipeline:
+        print("❌ Error: No pipeline to run. Provide one via --pipeline or a valid --config file.")
+        return None # Return None if no pipeline is found
+
+    return inputs # Return the prepared inputs object on success
 
 
 def run_batch(inputs):
-    for directory in inputs.dirs:
-        dir_path = Path(directory)
+    """
+    Prepares and executes a command pipeline on a list of directories.
+    This is the main entry point for the batch process.
+    """
+    # First, resolve the pipeline from the config if necessary.
+    prepared_inputs = resolve_pipeline(inputs)
+
+    # If the resolution step failed, stop here.
+    if not prepared_inputs:
+        print("Batch processing halted due to configuration errors.")
+        return
+
+    # Now, the rest of the logic can proceed, confident that inputs.pipeline is populated.
+    pipeline = prepared_inputs.pipeline
+    directories = prepared_inputs.dirs
+
+    if not directories:
+        print("⚠️ Warning: No directories provided in 'inputs.dirs'. Nothing to do.")
+        return
+
+    for dir_string in directories:
+        dir_path = Path(dir_string)
         if not dir_path.is_dir():
             print(f"❗ Skipping invalid directory: {dir_path}")
             continue
 
-        print(f"\n--- Processing directory: {dir_path} ---")
+        print(f"\n=============================================")
+        print(f"--- Processing directory: {dir_path} ---")
+        print(f"=============================================")
 
-        # Rename ja -> ab
-        print("\n--- Renaming 'ja' subs to 'ab' for processing ---")
-        rename_ja_args = ['rename', '-d', str(dir_path), '--lang-ext', 'ab', '--lang-ext-original', 'ja', '--unique']
-        rename(get_inputs(rename_ja_args))
+        for i, step in enumerate(pipeline, 1):
+            step_name = step.get('name', f'Step {i}')
+            command_template = step.get('command')
 
-        # Extract ja -> tl
-        print("\n--- Extracting & Verifying Native Target Language ('ja' -> 'tl') ---")
-        extract_args = ['extract', '-d', str(dir_path), '--lang-ext', 'tl', '--lang-ext-original', 'ja', '--verify']
-        extract(get_inputs(extract_args))
+            if not command_template:
+                print(f"⚠️ Skipping invalid step (no 'command' found): {step_name}")
+                continue
 
-        # Alass Sync en -> as
-        print("\n--- Alass Syncing ('en' + 'ab' -> 'as') ---")
-        alass_args = [
-            'sync', '-d', str(dir_path), '--lang-ext', 'as',
-            '--lang-ext-original', 'en', '--lang-ext-incorrect', 'ab', '--alass'
-        ]
-        run_sync(get_inputs(alass_args))
+            print(f"\n[{i}/{len(pipeline)}] Executing: {step_name}")
 
-        # SubPlz Sync ab -> ak
-        print("\n--- SubPlz Syncing ('ab' -> 'ak') ---")
-        subplz_sync_args = [
-            'sync', '-d', str(dir_path), '--lang-ext', 'ak',
-            '--lang-ext-original', 'ab', '--model', 'large-v3'
-        ]
-        run_sync(get_inputs(subplz_sync_args))
+            # Substitute the {directory} placeholder
+            args = [str(arg).replace('{directory}', str(dir_path)) for arg in command_template]
 
-        # Gen az
-        print("\n--- Generating subs ('az') ---")
-        gen_args = ['gen', '-d', str(dir_path), '--lang-ext', 'az', '--model', 'large-v3']
-        run_gen(get_inputs(gen_args))
+            command_name = args[0]
+            func_to_call = COMMAND_MAP.get(command_name)
 
-        # Alass AI Sync az -> aa
-        print("\n--- Alass AI Syncing ('az' + 'ab' -> 'aa') ---")
-        alass_ai_args = [
-            'sync', '-d', str(dir_path), '--lang-ext', 'aa',
-            '--lang-ext-original', 'az', '--lang-ext-incorrect', 'ab', '--alass'
-        ]
-        run_sync(get_inputs(alass_ai_args))
+            if not func_to_call:
+                print(f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping.")
+                continue
 
-        # Copy prioritized -> ja
-        print("\n--- Copying best subtitle to 'ja' ---")
-        copy_args = [
-            'copy', '-d', str(dir_path), '--lang-ext', 'ja',
-            '--lang-ext-priority', "tl", "as", "aa", "ak", "az", "ab",
-            '--overwrite'
-        ]
-        copy(get_inputs(copy_args))
+            try:
+                print(f"  > subplz {' '.join(args)}")
+                # The get_inputs function prepares the arguments for the subplz library
+                parsed_args = get_inputs(args)
+                func_to_call(parsed_args)
+            except Exception as e:
+                print(f"❌ An error occurred during '{step_name}': {e}")
+                print("  > Moving to the next step.")
 
         print(f"\n--- All operations completed for: {dir_path} ---")

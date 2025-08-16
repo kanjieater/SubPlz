@@ -5,6 +5,7 @@ import multiprocessing
 import torch
 from pathlib import Path
 from dataclasses import dataclass, fields, field
+import yaml
 
 from subplz.files import get_working_folders
 
@@ -151,6 +152,24 @@ ARGUMENTS = {
                 "If only lang-ext & lang-ext-original are provided, we'll rename one ext to the other "
                 "without changing the contents of the sub."
             ),
+        },
+    },
+    "pipeline": {
+        "flags": ["--pipeline"],
+        "kwargs": {
+            "required": False,
+            "action": "append",
+            "nargs": "+",
+            "help": "Define a command. Use this flag multiple times to build a pipeline to be run in batch",
+        },
+    },
+    "config": {
+        "flags": ["-c", "--config"],
+        "kwargs": {
+            "type": str,
+            "default": None,
+            "metavar": "PATH",
+            "help": "Path to the YAML file to define what should be done with automation and batch",
         },
     },
     "overwrite": {
@@ -654,8 +673,11 @@ class ExtractParams:
 
 @dataclass
 class BatchParams:
+    # --- Required fields first ---
     subcommand: str = field(metadata={"category": "main"})
-    dirs: List[str] = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "optional"})
+    config: Optional[str] = field(default=None, metadata={"category": "main"})
+    pipeline: List[List[str]] = field(default_factory=list, metadata={"category": "optional"})
 
 
 def setup_commands_cli(parser):
