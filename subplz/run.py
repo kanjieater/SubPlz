@@ -1,15 +1,9 @@
-from subplz.transcribe import transcribe
-from subplz.sync import sync
-from subplz.alass import sync_alass
-from subplz.gen import gen
-from subplz.helpers import find, rename, copy, extract
-from subplz.files import get_sources, post_process
-from subplz.models import get_model, get_temperature
-from subplz.utils import get_threads
-from subplz.cli import get_inputs
-from subplz.utils import get_tqdm
 
-tqdm, trange = get_tqdm()
+from subplz.helpers import find, rename, copy, extract
+from subplz.batch import run_batch
+from subplz.sync import run_sync
+from subplz.gen import run_gen
+from subplz.cli import get_inputs
 
 
 def execute_on_inputs():
@@ -26,37 +20,10 @@ def execute_on_inputs():
     if inputs.subcommand == "extract":
         extract(inputs)
         return
-
-    be = inputs.backend
-
-    be.temperature = get_temperature(be)
-    be.threads = get_threads(be)
-
-    sources = get_sources(inputs.sources, inputs.cache)
-    alass_exists = (
-        getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
-    )
-    if not alass_exists:
-        model = get_model(be)
-    for source in tqdm(sources):
-        print(f"🐼 Starting '{source.audio}'...")
-
-        if inputs.subcommand == "sync" and source.alass:
-            sync_alass(source, inputs.sources, be)
-        elif inputs.subcommand == "sync":
-            transcribed_streams = transcribe(source.streams, model, be)
-            sync(
-                source,
-                model,
-                transcribed_streams,
-                be,
-            )
-        elif inputs.subcommand == "gen":
-            transcribed_streams = transcribe(source.streams, model, be)
-            gen(
-                source,
-                model,
-                transcribed_streams,
-                be,
-            )
-    post_process(sources, inputs.subcommand)
+    if inputs.subcommand == "batch":
+        run_batch(inputs)
+        return
+    if inputs.subcommand == "sync":
+        run_sync(inputs)
+    elif inputs.subcommand == "gen":
+        run_gen(inputs)

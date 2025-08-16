@@ -8,9 +8,13 @@ from ats import align
 from ats.lang import get_lang
 from rapidfuzz import fuzz
 
+from subplz.transcribe import transcribe
+from subplz.alass import sync_alass
+from subplz.files import get_sources, post_process
+from subplz.models import get_model, get_temperature
 from subplz.align import nc_align, shift_align
 from subplz.files import sourceData
-from subplz.utils import get_tqdm
+from subplz.utils import get_tqdm, get_threads
 
 tqdm, trange = get_tqdm()
 
@@ -170,3 +174,25 @@ def sync(source: sourceData, model, streams, be):
                     be.respect_grouping_count,
                 )
                 source.writer.write_sub(new_segments, source.output_full_paths[ai])
+
+
+def run_sync(inputs):
+    be = inputs.backend
+    be.temperature = get_temperature(be)
+    be.threads = get_threads(be)
+    sources = get_sources(inputs.sources, inputs.cache)
+    alass_exists = (
+        getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
+    )
+    if not alass_exists:
+        model = get_model(be)
+
+    for source in tqdm(sources):
+        print(f"🐼 Starting '{source.audio}'...")
+        if source.alass:
+            sync_alass(source, inputs.sources, be)
+        else:
+            transcribed_streams = transcribe(source.streams, model, be)
+            sync(source, model, transcribed_streams, be)
+    post_process(sources, "sync")
+

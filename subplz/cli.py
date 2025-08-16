@@ -635,6 +635,13 @@ class RenameParams:
     dry_run: bool = field(default=False, metadata={"category": "optional"})
     unique: bool = field(default=False, metadata={"category": "optional"})
 
+@dataclass
+class CopyParams:
+    subcommand: str = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "main"})
+    lang_ext: str = field(metadata={"category": "main"})
+    lang_ext_priority: Optional[str] = field(metadata={"category": "main"})
+    overwrite: bool = field(default=True, metadata={"category": "optional"})
 
 @dataclass
 class ExtractParams:
@@ -645,14 +652,10 @@ class ExtractParams:
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     verify: bool = field(default=False, metadata={"category": "optional"})
 
-
 @dataclass
-class CopyParams:
+class BatchParams:
     subcommand: str = field(metadata={"category": "main"})
     dirs: List[str] = field(metadata={"category": "main"})
-    lang_ext: str = field(metadata={"category": "main"})
-    lang_ext_priority: Optional[str] = field(metadata={"category": "main"})
-    overwrite: bool = field(default=True, metadata={"category": "optional"})
 
 
 def setup_commands_cli(parser):
@@ -752,14 +755,26 @@ def setup_commands_cli(parser):
         main_group_extract, ExtractParams, optional_group_extract, advanced_group_extract
     )
 
+    batch = sp.add_parser(
+        "batch",
+        help="Run a predefined batch of operations on a directory",
+        usage="subplz batch -d DIRS [DIRS ...] [--initial-rename]",
+    )
+    main_group_batch = batch.add_argument_group("Main arguments")
+    optional_group_batch = batch.add_argument_group("Optional arguments")
+    advanced_group_batch = batch.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_batch, BatchParams, optional_group_batch, advanced_group_batch
+    )
+
     return parser
 
 
-def get_args():
+def get_args(arg_list=None):
     parser = argparse.ArgumentParser(description="Match audio to a transcript")
-
     parser = setup_commands_cli(parser)
-    args = parser.parse_args()
+    # --- Use the provided list, or fall back to sys.argv ---
+    args = parser.parse_args(arg_list)
     return args
 
 
@@ -820,8 +835,8 @@ def get_source_data(args):
     return get_data(args, subcommand_to_dataclass)
 
 
-def get_inputs():
-    args = get_args()
+def get_inputs(arg_list=None):
+    args = get_args(arg_list)
     if args.subcommand in ["sync", "gen"]:
         inputs = SimpleNamespace(
             subcommand=args.subcommand,

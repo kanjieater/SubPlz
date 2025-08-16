@@ -1,6 +1,9 @@
 from ats.main import Segment
-from subplz.utils import get_tqdm
+from subplz.utils import get_tqdm, get_threads
 from subplz.align import shift_align
+from subplz.transcribe import transcribe
+from subplz.files import get_sources, post_process
+from subplz.models import get_model, get_temperature
 
 tqdm, trange = get_tqdm()
 
@@ -42,3 +45,17 @@ def gen(source, model, streams, be):
 
     shifted_segments = shift_align(segments)
     source.writer.write_sub(shifted_segments, source.output_full_paths[ai])
+
+
+def run_gen(inputs):
+    be = inputs.backend
+    be.temperature = get_temperature(be)
+    be.threads = get_threads(be)
+    sources = get_sources(inputs.sources, inputs.cache)
+    model = get_model(be)
+
+    for source in tqdm(sources):
+        print(f"🐼 Starting '{source.audio}'...")
+        transcribed_streams = transcribe(source.streams, model, be)
+        gen(source, model, transcribed_streams, be)
+    post_process(sources, "gen")
