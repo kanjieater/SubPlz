@@ -169,6 +169,14 @@ ARGUMENTS = {
             "action": "store_true",
         },
     },
+    "unique": {
+        "flags": ["--unique"],
+        "kwargs": {
+            "default": None,
+            "help": "Only rename if the file is unique to the other subs in the directory",
+            "action": "store_true",
+        },
+    },
     "dry_run": {
         "flags": ["--dry-run"],
         "kwargs": {
@@ -625,6 +633,7 @@ class RenameParams:
     lang_ext_original: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     dry_run: bool = field(default=False, metadata={"category": "optional"})
+    unique: bool = field(default=False, metadata={"category": "optional"})
 
 
 @dataclass

@@ -1,22 +1,16 @@
-#extract
-from subplz.sub import extract_all_subtitles
-from subplz.files import get_audio
-
 from typing import List
 from pathlib import Path
 from collections import defaultdict
 import shutil
+from subplz.sub import extract_all_subtitles
 from subplz.files import (
-    SUPPORTED_AUDIO_FORMATS,
     get_true_stem,
     get_text,
     get_audio,
-    match_files,
-    get_audio,
+    match_files
 )
-from subplz.cli import CopyParams, ExtractParams
+from subplz.cli import CopyParams, ExtractParams, RenameParams
 from subplz.text import detect_language
-
 
 
 def find(directories: List[str]) -> List[str]:
@@ -46,8 +40,23 @@ def get_rerun_file_path(output_path: Path, orig) -> Path:
     )
     return cache_file
 
+def are_files_identical(file1: Path, file2: Path) -> bool:
+    """
+    Compares the content of two files to see if they are identical.
+    Returns True if they match, False otherwise.
+    """
+    try:
+        # A simple and efficient way to compare is by reading the whole content.
+        # For larger files, you might compare chunk by chunk, but for subs this is fine.
+        if file1.read_text(encoding='utf-8') == file2.read_text(encoding='utf-8'):
+            return True
+        return False
+    except Exception as e:
+        print(f"⚠️  Could not compare files {file1.name} and {file2.name}: {e}")
+        return False
+    
 
-def rename(inputs):
+def rename(inputs: RenameParams):
     directories = inputs.dirs
     lang_ext = inputs.lang_ext
     lang_ext_original = inputs.lang_ext_original
@@ -90,7 +99,26 @@ def rename(inputs):
         text_path, new_name = list(rename_text.items())[0]
         old_path = Path(text_path)
         if new_name.exists() and not overwrite:
-            print(f"😐 Skipping renaming for {new_name} since it already exists.")
+            print(f"😐 Skipping renaming for '{new_name.name}': File already exists.")
+            continue
+        is_unique = True
+        if inputs.unique:
+            dir_path = old_path.parent
+            all_subs_in_dir = get_text(dir_path)
+            true_stem = get_true_stem(old_path)
+
+            other_subs = [
+                Path(p) for p in all_subs_in_dir
+                if get_true_stem(Path(p)) == true_stem and Path(p) != old_path
+            ]
+
+            for other_sub in other_subs:
+                if are_files_identical(old_path, other_sub):
+                    print(f"😐 Skipping rename for '{old_path}': Content is identical to '{other_sub}'.")
+                    is_unique = False
+                    break
+
+        if not is_unique:
             continue
         try:
             print(f"""

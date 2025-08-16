@@ -42,8 +42,7 @@ fi
 echo "Processing directory: $directory_to_process"
 
 echo "Renaming files in : $directory_to_process"
-subplz rename -d "$directory_to_process" --lang-ext "ab" --lang-ext-original "old"
-subplz rename -d "$directory_to_process" --lang-ext "ab" --lang-ext-original "ja"
+subplz rename -d "$directory_to_process" --lang-ext "ab" --lang-ext-original "ja" --unique
 
 echo "Extracting & Verifying Native Target Language subs if they exist"
 subplz extract -d "$directory_to_process" --lang-ext "tl" --lang-ext-original "ja" --verify
