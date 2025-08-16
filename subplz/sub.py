@@ -266,7 +266,7 @@ def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existen
     path_to_check = get_subtitle_path(file, lang_to_check)
 
     # The final output path is always determined by lang_ext
-    output_subtitle_path = get_subtitle_path(file, lang_ext)
+    output_subtitle_path = get_subtitle_path(file, lang_to_check)
 
     if path_to_check.exists() and not overwrite:
         print(f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction.")
@@ -318,6 +318,6 @@ def extract_all_subtitles(files, lang_ext, lang_ext_original, overwrite=False, e
         )
         results = list(tqdm(pool.imap(func, files),
                       total=len(files),
-                      desc=f"Extracting '{lang_ext_original}' as '{lang_ext}'"))
+                      desc=f"Extracting '{lang_ext_original}' to make '{lang_ext}'"))
     extracted_paths = [path for path in results if path is not None]
     return extracted_paths
