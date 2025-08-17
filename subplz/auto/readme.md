@@ -160,11 +160,11 @@ To make Bazarr a producer, you need to configure its **Custom Post-Processing** 
 4.  In the **Command** box, paste the following one-line command. **Crucially, you must replace `/subplz-jobs/` with the container-side path to your `watcher.jobs` directory.** This path must be a volume mount in your Bazarr Docker container.
 
     ```bash
-    echo "{\"directory\":\"$(echo "{{directory}}" | tr -d '\"')\"}" > /subplz/jobs/"{{episode_name}}"-bazarr.json
+    echo "{\"directory\":\"$(echo "{{directory}}" | tr -d '\"')\",\"episode_path\":\"$(echo "{{episode}}" | tr -d '\"')\",\"episode_name\":\"$(echo "{{episode_name}}" | tr -d '\"')\",\"subtitle_path\":\"$(echo "{{subtitles}}" | tr -d '\"')\",\"subtitles_language\":\"$(echo "{{subtitles_language}}" | tr -d '\"')\",\"subtitles_language_code2\":\"$(echo "{{subtitles_language_code2}}" | tr -d '\"')\",\"subtitles_language_code2_dot\":\"$(echo "{{subtitles_language_code2_dot}}" | tr -d '\"')\",\"subtitles_language_code3\":\"$(echo "{{subtitles_language_code3}}" | tr -d '\"')\",\"subtitles_language_code3_dot\":\"$(echo "{{subtitles_language_code3_dot}}" | tr -d '\"')\",\"episode_language\":\"$(echo "{{episode_language}}" | tr -d '\"')\",\"episode_language_code2\":\"$(echo "{{episode_language_code2}}" | tr -d '\"')\",\"episode_language_code3\":\"$(echo "{{episode_language_code3}}" | tr -d '\"')\",\"score\":$(echo "{{score}}" | tr -d '\"'),\"subtitle_id\":\"$(echo "{{subtitle_id}}" | tr -d '\"')\",\"provider\":\"$(echo "{{provider}}" | tr -d '\"')\",\"uploader\":\"$(echo "{{uploader}}" | tr -d '\"')\",\"release_info\":\"$(echo "{{release_info}}" | tr -d '\"')\",\"series_id\":\"$(echo "{{series_id}}" | tr -d '\"')\",\"episode_id\":\"$(echo "{{episode_id}}" | tr -d '\"')\",\"timestamp_utc\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > /subplz/jobs/"{{episode_name}}".json
     ```
     *Note: We only need the `directory` key for the job file. The filename is appended with `-bazarr.json` for easier identification in the queue.*
 
 5.  **Save** your settings.
-6.  If Bazarr is in the docker container or the host, double check that `/subplz/jobs/` exists 
+6.  If Bazarr is in the docker container or the host, double check that `/subplz/jobs/` exists
 
 Now, whenever Bazarr successfully downloads a new subtitle, it will create a job file in your queue, and your running `watcher` will immediately pick it up for processing.

@@ -389,7 +389,7 @@ def extract_all_subtitles(
             tqdm(
                 pool.imap(func, files),
                 total=len(files),
-                desc=f"Extracting '{lang_ext_original}' to make '{lang_ext}'",
+                desc=f"Checking if '{lang_ext_original}' exists or if we should extract to make '{lang_ext}'",
             )
         )
     extracted_paths = [path for path in results if path is not None]
