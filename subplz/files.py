@@ -199,7 +199,6 @@ def get_streams(audio, cache_inputs):
 
 
 def get_chapters(text: List[str], lang, alass, nlp):
-    # print("📖 Finding chapters...") #log
     sub_exts = ["." + extension for extension in SUBTITLE_FORMATS]
     chapters = []
     for file_path in text:
@@ -215,7 +214,6 @@ def get_chapters(text: List[str], lang, alass, nlp):
             split_sentences_from_input(
                 [p.text() for p in epub.text()], txt_path, lang, nlp
             )
-            # chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
 
         elif file_ext in sub_exts:
             try:
@@ -223,11 +221,11 @@ def get_chapters(text: List[str], lang, alass, nlp):
                 if not alass:
                     split_sentences(txt_path, txt_path, lang, nlp)
 
-            except ffmpeg.Error as e:
+            except Exception as e:
                 print(
                     f"❗Failed to normalize the subs. We can't process them. Try to get subs from a different source and try again: {e}"
                 )
-                return []
+                continue
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
         else:
             txt_path = get_tmp_path(

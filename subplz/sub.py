@@ -5,7 +5,8 @@ from multiprocessing import Pool
 from functools import partial
 from pathlib import Path
 import ffmpeg
-from subplz.utils import grab_files, get_tmp_path, get_tqdm, get_iso639_2_lang_code
+from .logger import logger
+from .utils import grab_files, get_tmp_path, get_tqdm, get_iso639_2_lang_code
 
 tqdm, trange = get_tqdm()
 
@@ -19,6 +20,15 @@ def score_subtitle_stream(stream_info: dict, target_iso_lang: str | None) -> int
     title = tags.get("title", "").lower()
     stream_lang = tags.get("language", "").lower()
     disposition = stream_info.get("disposition", {})
+    codec_name = stream_info.get("codec_name", "").lower()
+
+    image_based_codecs = [
+        "hdmv_pgs_subtitle",  # For Blu-ray (PGS)
+        "dvd_subtitle",  # For DVD (VOBSUB)
+        "dvb_subtitle",  # For DVB broadcasts
+    ]
+    if codec_name in image_based_codecs:
+        score -= 500
 
     # 1. Language Match (highest importance)
     if target_iso_lang and stream_lang == target_iso_lang:
@@ -75,39 +85,31 @@ def get_subtitle_idx(
     if target_lang_code:
         standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
         if not standardized_target_lang:
-            print(f"🦈 Could not standardize input language code '{target_lang_code}'.")
+            logger.warning(f"🦈 Could not standardize input language code '{target_lang_code}'.")
 
     scored_streams = []
     for stream in subtitle_streams:
         score = score_subtitle_stream(stream, standardized_target_lang)
         scored_streams.append({"score": score, "stream_info": stream})
 
-    scored_streams.sort(key=lambda x: x["score"], reverse=True)
-
-    if not scored_streams:
+    positive_streams = [s for s in scored_streams if s["score"] > 0]
+    if not positive_streams:
         return None
+    positive_streams.sort(key=lambda x: x["score"], reverse=True)
 
-    best_match = scored_streams[0]
+    best_match = positive_streams[0]
     best_match_lang = (
         best_match["stream_info"].get("tags", {}).get("language", "").lower()
     )
 
-    # --- ADD THIS STRICT CHECK ---
-    # If a target language was specified, ensure the best match is actually that language.
     if standardized_target_lang and best_match_lang != standardized_target_lang:
-        print(
+        logger.warning(
             f"🦈 No subtitle stream with the required language '{target_lang_code}' was found in {path}"
         )
         return None
-    # --- END OF CHANGE ---
 
-    if best_match["score"] < 0:  # All tracks were undesirable
-        print(
-            f"🦈 All subtitle tracks scored negatively. Best undesirable match selected (score: {best_match['score']}) for file: {path}"
-        )
-
-    print(
-        f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Lang: {best_match_lang or 'N/A'}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}"
+    logger.info(
+        f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Codec: {best_match['stream_info'].get('codec_name', 'N/A')}, Lang: {best_match_lang or 'N/A'}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}"
     )
     return best_match["stream_info"]
 
@@ -159,7 +161,7 @@ def cleanup_subfail(output_paths):
         }
         for successful_path in successful_paths:
             if successful_path.exists():
-                print(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
+                logger.info(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
                 os.remove(subfail_path)
 
 
@@ -180,9 +182,9 @@ def write_subfail(source, target_path, error_message):
             fail_file.write(
                 f"Error processing subtitle for {source}:\n{error_message}\n"
             )
-        print(f"🚨 Error log written to {failed_path}")
+        logger.error(f"🚨 Error log written to {failed_path}")
     except Exception as e:
-        print(f"❗ Failed to write error log to {failed_path}: {e}")
+        logger.critical(f"❗ Failed to write error log to {failed_path}: {e}")
 
 
 def get_subtitle_path(video_path, lang_ext):
@@ -211,19 +213,29 @@ def remove_timing_and_metadata(srt_path, txt_path):
     return str(txt_path)
 
 
-def convert_sub_format(full_original_path, full_sub_path):
-    stream = ffmpeg.input(full_original_path)
-    stream = ffmpeg.output(stream, full_sub_path, loglevel="error").global_args(
-        "-hide_banner"
-    )
-    ffmpeg.run(stream, overwrite_output=True)
+def check_empty_subs(subtitle_path):
+    """
+    Checks if a subtitle file is empty or invalid. Handles str or Path objects gracefully.
+    """
+    path_obj = Path(subtitle_path)
 
+    try:
+        # Use the Path object for all operations.
+        if not path_obj.exists() or path_obj.stat().st_size < 10:
+            if path_obj.exists():
+                path_obj.unlink()
+            raise ValueError("❗Subtitle file is empty or invalid.")
+    except Exception as e:
+        # Now, using .name is safe because path_obj is guaranteed to be a Path.
+        raise RuntimeError(f"❗Validation failed for subtitle file '{path_obj.name}': {e}") from e
 
 def convert_between_sub_format(full_original_path, full_sub_path, format="srt"):
-    stream = ffmpeg.input(full_original_path)
-    # Pass the format as a keyword argument
-    stream = ffmpeg.output(
-        stream, full_sub_path, format=format, loglevel="error"
+    original_path_str = str(full_original_path)
+    sub_path_str = str(full_sub_path)
+
+    # Use the string versions in the ffmpeg calls.
+    stream = ffmpeg.input(original_path_str)
+    stream = ffmpeg.output(stream, sub_path_str, format=format, loglevel="error"
     ).global_args("-hide_banner")
     ffmpeg.run(stream, overwrite_output=True)
 
@@ -233,7 +245,7 @@ def normalize_text(file_path):
     filename = file_path.stem
     srt_path = get_tmp_path(file_path.parent / f"{filename}.srt")
     txt_path = get_tmp_path(file_path.parent / f"{filename}.txt")
-    convert_sub_format(str(file_path), str(srt_path))
+    convert_between_sub_format(file_path, srt_path)
     txt_path = remove_timing_and_metadata(srt_path, txt_path)
     srt_path.unlink()
     return str(txt_path)
@@ -243,19 +255,24 @@ def normalize_sub(file_path):
     file_path = Path(file_path)
     filename = file_path.stem
     vtt_path = get_tmp_path(file_path.parent / f"{filename}.ass")
-    convert_between_sub_format(str(file_path), str(vtt_path), format="ass")
-    convert_between_sub_format(str(vtt_path), str(file_path))
+    convert_between_sub_format(file_path, vtt_path, format="ass")
+    convert_between_sub_format(vtt_path, file_path)
     vtt_path.unlink()
     return str(file_path)
 
 
 def sanitize_subtitle(subtitle_path: Path) -> None:
+    """
+    Checks if a subtitle file is valid and normalizes its format.
+    Raises an error if the file is empty or invalid.
+    """
+
     try:
         normalize_sub(subtitle_path)
-        print(f"🧼 Sanitized subtitles at {subtitle_path}")
-
+        logger.debug(f"🧼 Sanitized subtitles at {subtitle_path}")
     except Exception as e:
-        print(f"❗ Failed to sanitize subtitles: {e}")
+        # If normalization fails, it's also a critical error
+        raise RuntimeError(f"❗Failed to normalize subtitles for '{subtitle_path.name}': {e}") from e
 
 
 def ffmpeg_extract(
@@ -264,9 +281,7 @@ def ffmpeg_extract(
     try:
         stream_specifier = f"0:s:{stream_index}"
         (
-            ffmpeg
-            # --- KEY CHANGES ARE HERE ---
-            .input(
+            ffmpeg.input(
                 str(video_path),
                 # Tell ffmpeg to analyze only the first 10MB of the file to find streams.
                 # This avoids scanning the entire file over the network.
@@ -275,7 +290,6 @@ def ffmpeg_extract(
                 # Value is in microseconds.
                 analyzeduration="10000000",
             )
-            # --------------------------
             .output(
                 str(output_subtitle_path),
                 map=stream_specifier,
@@ -306,17 +320,14 @@ def extract_subtitle(
         existence_check_lang if existence_check_lang is not None else lang_ext_original
     )
     path_to_check = get_subtitle_path(file, lang_to_check)
-
-    # The final output path is always determined by lang_ext
     output_subtitle_path = get_subtitle_path(file, lang_to_check)
 
     if path_to_check.exists() and not overwrite:
-        print(f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction.")
-        # Return None because no new file was created in this run
+        logger.info(f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction.")
         return None
 
     try:
-        print(
+        logger.info(
             f"🔎 Analyzing streams in {file} to find best '{lang_ext_original}' subtitle..."
         )
         all_streams = ffmpeg.probe(str(file))["streams"]
@@ -326,7 +337,7 @@ def extract_subtitle(
         best_sub_stream = get_subtitle_idx(all_streams, str(file), strict_lang)
 
         if not best_sub_stream:
-            print(
+            logger.info(
                 f"🤷 No suitable subtitle streams found '{lang_ext_original}' in {file}"
             )
             return None
@@ -341,7 +352,7 @@ def extract_subtitle(
                 relative_stream_index = i
                 break
 
-        print(
+        logger.info(
             f"⛏️ Extracting best subtitle stream (index: {relative_stream_index}) from {file} to {output_subtitle_path}"
         )
         ffmpeg_extract(file, output_subtitle_path, relative_stream_index)
@@ -350,7 +361,7 @@ def extract_subtitle(
 
     except Exception as err:
         error_message = f"❗ Failed to extract subtitles from {file}: {err}"
-        print(error_message)
+        logger.error(error_message)
         write_subfail(file, output_subtitle_path, error_message)
         return None
 

@@ -134,6 +134,17 @@
       ],
     },
     {
+      "name": "Watch",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "watch",
+        "--config",
+        "/mnt/rd/subplz/config.yml"
+      ],
+    },
+    {
       "name": "Alass",
       "type": "debugpy",
       "request": "launch",
