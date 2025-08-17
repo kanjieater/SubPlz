@@ -1,66 +1,70 @@
-# automation/scanner.py
 import os
 import sys
 import json
 import time
-from .config import load_config
+from ..logger import logger
 
-# Assuming VIDEO_FORMATS is defined elsewhere
-VIDEO_FORMATS = ['mkv', 'mp4', 'avi']
+# Assuming VIDEO_FORMATS is defined elsewhere, or define it here
+VIDEO_FORMATS = ['mkv', 'mp4', 'avi', 'mov', 'webm']
 
 def create_job_file(job_dir, media_dir_path):
-    # ... (this function remains the same)
     timestamp = int(time.time() * 1000)
     safe_basename = os.path.basename(media_dir_path).replace(" ", "_")
     job_filename = f"scanner_{safe_basename}_{timestamp}.json"
     job_filepath = os.path.join(job_dir, job_filename)
 
+    # Standardize on the 'directory' key
     job_data = {
-        "media_directory": media_dir_path,
-        "source": "library_scanner",
-        "task": "ensure_all_subs_exist"
+        "directory": media_dir_path,
+        "source": "library_scanner"
     }
 
     with open(job_filepath, 'w', encoding='utf-8') as f:
         json.dump(job_data, f, indent=2)
 
-    print(f"  ✅ Created job for directory: {os.path.basename(media_dir_path)}")
+    logger.success(f"Created job for directory: {os.path.basename(media_dir_path)}")
 
 
 def scan_library(config):
     """Scans the library for videos missing ANY of the target subtitles."""
-    settings = config['scanner']
-    content_dirs = config.get('consumer', {}).get('path_map', {}).values()
-    job_dir = config['consumer']['jobs']
+    # Use the logger instead of print
+    scanner_settings = config.get('scanner', {})
+    watcher_settings = config.get('watcher', {})
 
-    print("\n--- Starting Library Scan ---")
+    # The scanner needs to know where the media directories are and where to put the jobs.
+    content_dirs = [v for k, v in watcher_settings.get('path_map', {}).items()]
+    job_dir = watcher_settings.get('jobs')
 
-    # --- KEY CHANGE: Read a list of extensions ---
-    target_exts = settings.get('target_sub_extensions', [])
-    if not target_exts:
-        print("Warning: 'target_sub_extensions' is empty in config. Nothing to scan for.")
+    if not content_dirs:
+        logger.error("No 'path_map' directories found in watcher settings. Cannot scan library.")
+        return
+    if not job_dir:
+        logger.error("No 'jobs' directory found in watcher settings. Cannot create jobs.")
         return
 
-    print(f"Checking for {len(target_exts)} required subtitle extensions: {', '.join(target_exts)}")
+    logger.info("--- Starting Library Scan ---")
+    target_exts = scanner_settings.get('target_sub_extensions', [])
+    if not target_exts:
+        logger.warning("'target_sub_extensions' is empty in config. Nothing to scan for.")
+        return
 
-    blacklist_files = [fn.lower() for fn in settings.get('blacklist_filenames', [])]
-    blacklist_dirs = settings.get('blacklist_dirs', [])
+    logger.info(f"Checking for {len(target_exts)} required subtitle extensions: {', '.join(target_exts)}")
+
+    blacklist_files = [fn.lower() for fn in scanner_settings.get('blacklist_filenames', [])]
+    blacklist_dirs = scanner_settings.get('blacklist_dirs', [])
     video_exts = ['.' + ext.lower() for ext in VIDEO_FORMATS]
-
     job_counter = 0
-    # --- KEY CHANGE: Keep track of directories we've already created jobs for ---
     jobs_created_for_dir = set()
 
     for content_dir in content_dirs:
-        print(f"\nScanning directory: {content_dir}...")
+        logger.info(f"Scanning directory: {content_dir}...")
         if not os.path.isdir(content_dir):
-            print(f"  ⚠️ Warning: Directory not found, skipping: {content_dir}")
+            logger.warning(f"Directory not found, skipping: {content_dir}")
             continue
 
         for root, dirs, files in os.walk(content_dir):
-            # Stop processing this directory if a job has already been created for it
             if root in jobs_created_for_dir:
-                dirs[:] = [] # Prune subdirectories from os.walk
+                dirs[:] = []
                 continue
 
             dirs[:] = [d for d in dirs if d not in blacklist_dirs]
@@ -71,37 +75,27 @@ def scan_library(config):
 
                 file_basename, file_ext = os.path.splitext(file)
                 if file_ext.lower() in video_exts:
-                    # --- KEY CHANGE: Loop through all required extensions ---
                     for expected_ext in target_exts:
                         expected_sub_path = os.path.join(root, file_basename + expected_ext)
-
                         if not os.path.exists(expected_sub_path):
-                            print(f"  - Missing '{expected_ext}' for: {file}")
-
-                            # Create a job for the directory, but only once per scan
+                            logger.info(f"Missing '{expected_ext}' for video: {file}")
                             if root not in jobs_created_for_dir:
                                 create_job_file(job_dir, root)
                                 jobs_created_for_dir.add(root)
                                 job_counter += 1
+                            break
 
-                            # Once we find one missing sub, we can stop checking for this directory
-                            break # Exit the inner loop (for expected_ext)
+    logger.success(f"--- Scan Complete. Created {job_counter} new jobs. ---")
 
-    print(f"\n--- Scan Complete. Created {job_counter} new jobs. ---")
 
-def main():
-    """Main function to be called by the script entry point."""
-    if len(sys.argv) < 2:
-        print("Usage: python ./automation/scanner.py <path_to_config.yml>")
-        sys.exit(1)
+def run_scanner(args):
+    """Main entry point for the scanner command."""
+    config = args.config_data
 
+    logger.info("Scanner command initiated.")
     try:
-        config_file_path = sys.argv[1]
-        config = load_config(config_file_path)
         scan_library(config)
-    except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.info("Scanner command finished successfully.")
+    except Exception:
+        logger.opt(exception=True).critical("A fatal error occurred during the library scan.")
         sys.exit(1)
-
-if __name__ == "__main__":
-    main()

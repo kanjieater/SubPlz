@@ -1,14 +1,11 @@
-# subplz/watcher.py
 import time
 import sys
 import os
-import yaml
 import json
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
-# We only need to import 'logger' now, not the configuration function
 from ..logger import logger
 from ..cli import BatchParams
 from ..batch import run_batch
@@ -83,12 +80,8 @@ class JobEventHandler(FileSystemEventHandler):
 
 def run_watcher(args):
     """Main function to start the watcher, called by the CLI."""
-    try:
-        with open(args.config, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-    except Exception as e:
-        logger.critical(f"Watcher command failed because it could not load the config file at '{args.config}': {e}")
-        sys.exit(1)
+    # --- KEY CHANGE: Get the pre-loaded config object ---
+    config = args.config_data
 
     try:
         logger.info(f"Starting watcher with config file: {args.config}")

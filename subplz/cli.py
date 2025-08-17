@@ -685,6 +685,11 @@ class watchParams:
     subcommand: str = field(metadata={"category": "main"})
     config: str = field(metadata={"category": "main"})
 
+@dataclass
+class ScannerParams:
+    subcommand: str = field(metadata={"category": "main"})
+    config: str = field(metadata={"category": "main"})
+
 
 def setup_commands_cli(parser):
     sp = parser.add_subparsers(
@@ -806,6 +811,21 @@ def setup_commands_cli(parser):
     add_arguments_from_dataclass(
         main_group_watch, watchParams, optional_group_watch, advanced_group_watch
     )
+
+    scanner = sp.add_parser(
+        "scanner",
+        help="Scans the library for media missing subtitles and creates job files.",
+        usage="subplz scanner -c PATH",
+    )
+    main_group_scanner = scanner.add_argument_group("Main arguments")
+    optional_group_scanner = scanner.add_argument_group("Optional arguments")
+    advanced_group_scanner = scanner.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_scanner, ScannerParams, optional_group_scanner, advanced_group_scanner
+    )
+
+    return parser
+
 
     return parser
 
