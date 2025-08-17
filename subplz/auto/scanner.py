@@ -4,8 +4,8 @@ import json
 import time
 from ..logger import logger
 
-# Assuming VIDEO_FORMATS is defined elsewhere, or define it here
-VIDEO_FORMATS = ['mkv', 'mp4', 'avi', 'mov', 'webm']
+# --- KEY CHANGE #1: Import the centralized format lists ---
+from ..files import VIDEO_FORMATS, AUDIO_FORMATS
 
 def create_job_file(job_dir, media_dir_path):
     timestamp = int(time.time() * 1000)
@@ -52,7 +52,10 @@ def scan_library(config):
 
     blacklist_files = [fn.lower() for fn in scanner_settings.get('blacklist_filenames', [])]
     blacklist_dirs = scanner_settings.get('blacklist_dirs', [])
-    video_exts = ['.' + ext.lower() for ext in VIDEO_FORMATS]
+
+    # --- KEY CHANGE #2: Combine both lists for comprehensive media detection ---
+    media_exts = ['.' + ext.lower() for ext in VIDEO_FORMATS + AUDIO_FORMATS]
+
     job_counter = 0
     jobs_created_for_dir = set()
 
@@ -74,11 +77,12 @@ def scan_library(config):
                     continue
 
                 file_basename, file_ext = os.path.splitext(file)
-                if file_ext.lower() in video_exts:
+                # --- KEY CHANGE #3: Check against the new combined list ---
+                if file_ext.lower() in media_exts:
                     for expected_ext in target_exts:
                         expected_sub_path = os.path.join(root, file_basename + expected_ext)
                         if not os.path.exists(expected_sub_path):
-                            logger.info(f"Missing '{expected_ext}' for video: {file}")
+                            logger.info(f"Missing '{expected_ext}' for media file: {file}")
                             if root not in jobs_created_for_dir:
                                 create_job_file(job_dir, root)
                                 jobs_created_for_dir.add(root)
