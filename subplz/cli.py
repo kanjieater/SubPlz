@@ -166,6 +166,7 @@ ARGUMENTS = {
     "config": {
         "flags": ["-c", "--config"],
         "kwargs": {
+            "required": True,
             "type": str,
             "default": None,
             "metavar": "PATH",
@@ -679,6 +680,11 @@ class BatchParams:
     config: Optional[str] = field(default=None, metadata={"category": "main"})
     pipeline: List[List[str]] = field(default_factory=list, metadata={"category": "optional"})
 
+@dataclass
+class watchParams:
+    subcommand: str = field(metadata={"category": "main"})
+    config: str = field(metadata={"category": "main"})
+
 
 def setup_commands_cli(parser):
     sp = parser.add_subparsers(
@@ -787,6 +793,18 @@ def setup_commands_cli(parser):
     advanced_group_batch = batch.add_argument_group("Advanced arguments")
     add_arguments_from_dataclass(
         main_group_batch, BatchParams, optional_group_batch, advanced_group_batch
+    )
+
+    watch = sp.add_parser(
+        "watch",
+        help="Watch a directory for new jobs and process them automatically.",
+        usage="subplz watch -c PATH",
+    )
+    main_group_watch = watch.add_argument_group("Main arguments")
+    optional_group_watch = watch.add_argument_group("Optional arguments")
+    advanced_group_watch = watch.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_watch, watchParams, optional_group_watch, advanced_group_watch
     )
 
     return parser
