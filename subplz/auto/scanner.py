@@ -7,6 +7,7 @@ from ..logger import logger
 # --- KEY CHANGE #1: Import the centralized format lists ---
 from ..files import VIDEO_FORMATS, AUDIO_FORMATS
 
+
 def create_job_file(job_dir, media_dir_path):
     timestamp = int(time.time() * 1000)
     safe_basename = os.path.basename(media_dir_path).replace(" ", "_")
@@ -14,12 +15,9 @@ def create_job_file(job_dir, media_dir_path):
     job_filepath = os.path.join(job_dir, job_filename)
 
     # Standardize on the 'directory' key
-    job_data = {
-        "directory": media_dir_path,
-        "source": "library_scanner"
-    }
+    job_data = {"directory": media_dir_path, "source": "library_scanner"}
 
-    with open(job_filepath, 'w', encoding='utf-8') as f:
+    with open(job_filepath, "w", encoding="utf-8") as f:
         json.dump(job_data, f, indent=2)
 
     logger.success(f"Created job for directory: {os.path.basename(media_dir_path)}")
@@ -28,33 +26,43 @@ def create_job_file(job_dir, media_dir_path):
 def scan_library(config):
     """Scans the library for videos missing ANY of the target subtitles."""
     # Use the logger instead of print
-    scanner_settings = config.get('scanner', {})
-    watcher_settings = config.get('watcher', {})
+    scanner_settings = config.get("scanner", {})
+    watcher_settings = config.get("watcher", {})
 
     # The scanner needs to know where the media directories are and where to put the jobs.
-    content_dirs = [v for k, v in watcher_settings.get('path_map', {}).items()]
-    job_dir = watcher_settings.get('jobs')
+    content_dirs = [v for k, v in watcher_settings.get("path_map", {}).items()]
+    job_dir = watcher_settings.get("jobs")
 
     if not content_dirs:
-        logger.error("No 'path_map' directories found in watcher settings. Cannot scan library.")
+        logger.error(
+            "No 'path_map' directories found in watcher settings. Cannot scan library."
+        )
         return
     if not job_dir:
-        logger.error("No 'jobs' directory found in watcher settings. Cannot create jobs.")
+        logger.error(
+            "No 'jobs' directory found in watcher settings. Cannot create jobs."
+        )
         return
 
     logger.info("--- Starting Library Scan ---")
-    target_exts = scanner_settings.get('target_sub_extensions', [])
+    target_exts = scanner_settings.get("target_sub_extensions", [])
     if not target_exts:
-        logger.warning("'target_sub_extensions' is empty in config. Nothing to scan for.")
+        logger.warning(
+            "'target_sub_extensions' is empty in config. Nothing to scan for."
+        )
         return
 
-    logger.info(f"Checking for {len(target_exts)} required subtitle extensions: {', '.join(target_exts)}")
+    logger.info(
+        f"Checking for {len(target_exts)} required subtitle extensions: {', '.join(target_exts)}"
+    )
 
-    blacklist_files = [fn.lower() for fn in scanner_settings.get('blacklist_filenames', [])]
-    blacklist_dirs = scanner_settings.get('blacklist_dirs', [])
+    blacklist_files = [
+        fn.lower() for fn in scanner_settings.get("blacklist_filenames", [])
+    ]
+    blacklist_dirs = scanner_settings.get("blacklist_dirs", [])
 
     # --- KEY CHANGE #2: Combine both lists for comprehensive media detection ---
-    media_exts = ['.' + ext.lower() for ext in VIDEO_FORMATS + AUDIO_FORMATS]
+    media_exts = ["." + ext.lower() for ext in VIDEO_FORMATS + AUDIO_FORMATS]
 
     job_counter = 0
     jobs_created_for_dir = set()
@@ -80,9 +88,13 @@ def scan_library(config):
                 # --- KEY CHANGE #3: Check against the new combined list ---
                 if file_ext.lower() in media_exts:
                     for expected_ext in target_exts:
-                        expected_sub_path = os.path.join(root, file_basename + expected_ext)
+                        expected_sub_path = os.path.join(
+                            root, file_basename + expected_ext
+                        )
                         if not os.path.exists(expected_sub_path):
-                            logger.info(f"Missing '{expected_ext}' for media file: {file}")
+                            logger.info(
+                                f"Missing '{expected_ext}' for media file: {file}"
+                            )
                             if root not in jobs_created_for_dir:
                                 create_job_file(job_dir, root)
                                 jobs_created_for_dir.add(root)
@@ -101,5 +113,7 @@ def run_scanner(args):
         scan_library(config)
         logger.info("Scanner command finished successfully.")
     except Exception:
-        logger.opt(exception=True).critical("A fatal error occurred during the library scan.")
+        logger.opt(exception=True).critical(
+            "A fatal error occurred during the library scan."
+        )
         sys.exit(1)

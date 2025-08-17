@@ -45,7 +45,6 @@ def vad_and_write(audio):
         audio[l[i] : l[i + 1]] = -1
 
     import wave
-    import numpy as np
 
     samplerate = 16000
 

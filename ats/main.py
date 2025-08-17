@@ -1,6 +1,5 @@
 import os
 import argparse
-from pprint import pprint
 from types import MethodType
 from ats.lang import get_lang
 from wcwidth import wcswidth
@@ -24,8 +23,7 @@ if is_notebook():
 else:
     from tqdm import tqdm, trange
 
-import operator
-from functools import partialmethod, reduce
+from functools import partialmethod
 from itertools import groupby, takewhile
 from dataclasses import dataclass
 from pathlib import Path
@@ -159,7 +157,12 @@ class AudioStream:
 
     def audio(self):
         data, _ = self.stream.output(
-            "-", format="s16le", acodec="pcm_s16le", ac=1, ar="16k", **{"map": f"0:{self.audio_probe.get('index', 0)}"}
+            "-",
+            format="s16le",
+            acodec="pcm_s16le",
+            ac=1,
+            ar="16k",
+            **{"map": f"0:{self.audio_probe.get('index', 0)}"},
         ).run(quiet=True, input="")
         return np.frombuffer(data, np.int16).astype(np.float32) / 32768.0
 
@@ -809,9 +812,11 @@ if __name__ == "__main__":
             model,
             device,
             local_files_only=local_only,
-            compute_type="float32"
-            if not quantize
-            else ("int8" if device == "cpu" else "float16"),
+            compute_type=(
+                "float32"
+                if not quantize
+                else ("int8" if device == "cpu" else "float16")
+            ),
             num_workers=threads,
         )
         model.transcribe2 = model.transcribe
@@ -834,9 +839,11 @@ if __name__ == "__main__":
         (os.path.basename(f), *AudioStream.from_file(f)) for f in args.pop("audio")
     ]
     chapters = [
-        (os.path.basename(i), Epub.from_file(i))
-        if i.split(".")[-1] == "epub"
-        else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))])
+        (
+            (os.path.basename(i), Epub.from_file(i))
+            if i.split(".")[-1] == "epub"
+            else (os.path.basename(i), [TextFile(path=i, title=os.path.basename(i))])
+        )
         for i in args.pop("text")
     ]
 

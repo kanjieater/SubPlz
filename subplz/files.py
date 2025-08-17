@@ -1,9 +1,8 @@
 import os
 from collections import defaultdict
 from pathlib import Path
-from os import path
 from os.path import basename, splitext, isdir, join
-from typing import List, Callable
+from typing import List
 from dataclasses import dataclass
 import ffmpeg
 from natsort import os_sorted
@@ -11,7 +10,6 @@ import stanza
 
 from pprint import pformat
 from ats.main import (
-    TextFile,
     AudioStream,
     TextFile,
     write_srt,
@@ -41,7 +39,19 @@ AUDIO_FORMATS = [
     "wav",
     "m4b",
 ]
-VIDEO_FORMATS = ["3g2", "3gp", "avi", "flv", "m4v", "mkv", "mov", "mp4", "mpeg", "webm", "mpg"]
+VIDEO_FORMATS = [
+    "3g2",
+    "3gp",
+    "avi",
+    "flv",
+    "m4v",
+    "mkv",
+    "mov",
+    "mp4",
+    "mpeg",
+    "webm",
+    "mpg",
+]
 TEXT_FORMATS = ["epub", "txt"]
 WRITTEN_FORMATS = SUBTITLE_FORMATS + TEXT_FORMATS
 
@@ -202,7 +212,9 @@ def get_chapters(text: List[str], lang, alass, nlp):
             )
             epub = Epub.from_file(file_path)
             chapters.append((txt_path, epub.chapters))
-            split_sentences_from_input([p.text() for p in epub.text()], txt_path, lang, nlp)
+            split_sentences_from_input(
+                [p.text() for p in epub.text()], txt_path, lang, nlp
+            )
             # chapters.append((txt_path, [TextFile(path=file_path, title=file_name)]))
 
         elif file_ext in sub_exts:
@@ -396,9 +408,9 @@ def get_sources_from_dirs(input, cache_inputs, nlp):
 
 def setup_sources(input, cache_inputs) -> List[sourceData]:
     nlp = None
-    if hasattr(input, 'nlp') and input.nlp:
+    if hasattr(input, "nlp") and input.nlp:
         stanza.download(input.lang)
-        nlp = stanza.Pipeline(lang=input.lang, processors='tokenize', use_gpu=False)
+        nlp = stanza.Pipeline(lang=input.lang, processors="tokenize", use_gpu=False)
     if input.dirs:
         sources = get_sources_from_dirs(input, cache_inputs, nlp)
     else:

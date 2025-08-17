@@ -1,12 +1,7 @@
 import pytest
-from unittest.mock import patch
 from subplz.align import (
     shift_align,
-    ScriptLine,
-    read_script,
-    read_subtitles,
     Segment,
-    recursively_find_match,
 )
 from ats.main import Segment
 

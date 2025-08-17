@@ -9,11 +9,11 @@ import yaml
 # A mapping from the command name (str) to the actual function to call.
 # This allows us to dynamically execute the correct logic based on the config.
 COMMAND_MAP = {
-    'rename': rename,
-    'extract': extract,
-    'sync': run_sync,
-    'gen': run_gen,
-    'copy': copy
+    "rename": rename,
+    "extract": extract,
+    "sync": run_sync,
+    "gen": run_gen,
+    "copy": copy,
 }
 
 
@@ -22,27 +22,31 @@ def resolve_pipeline(inputs):
     if not inputs.pipeline and inputs.config:
         print(f"Loading pipeline from config file: {inputs.config}")
         try:
-            with open(inputs.config, 'r', encoding='utf-8') as f:
+            with open(inputs.config, "r", encoding="utf-8") as f:
                 config_data = yaml.safe_load(f)
 
-            loaded_pipeline = config_data.get('batch_pipeline', [])
+            loaded_pipeline = config_data.get("batch_pipeline", [])
             inputs.pipeline = loaded_pipeline  # Modify the object in place
 
             if not loaded_pipeline:
-                print(f"⚠️ Warning: 'batch_pipeline' key not found or empty in {inputs.config}")
+                print(
+                    f"⚠️ Warning: 'batch_pipeline' key not found or empty in {inputs.config}"
+                )
 
         except FileNotFoundError:
             print(f"❌ Error: Config file not found at '{inputs.config}'.")
-            return None # Return None on failure
+            return None  # Return None on failure
         except yaml.YAMLError as e:
             print(f"❌ Error parsing YAML file '{inputs.config}': {e}.")
-            return None # Return None on failure
+            return None  # Return None on failure
 
     if not inputs.pipeline:
-        print("❌ Error: No pipeline to run. Provide one via --pipeline or a valid --config file.")
-        return None # Return None if no pipeline is found
+        print(
+            "❌ Error: No pipeline to run. Provide one via --pipeline or a valid --config file."
+        )
+        return None  # Return None if no pipeline is found
 
-    return inputs # Return the prepared inputs object on success
+    return inputs  # Return the prepared inputs object on success
 
 
 def run_batch(inputs):
@@ -72,13 +76,13 @@ def run_batch(inputs):
             print(f"❗ Skipping invalid directory: {dir_path}")
             continue
 
-        print(f"\n=============================================")
+        print("\n=============================================")
         print(f"--- Processing directory: {dir_path} ---")
-        print(f"=============================================")
+        print("=============================================")
 
         for i, step in enumerate(pipeline, 1):
-            step_name = step.get('name', f'Step {i}')
-            command_template = step.get('command')
+            step_name = step.get("name", f"Step {i}")
+            command_template = step.get("command")
 
             if not command_template:
                 print(f"⚠️ Skipping invalid step (no 'command' found): {step_name}")
@@ -87,13 +91,18 @@ def run_batch(inputs):
             print(f"\n[{i}/{len(pipeline)}] Executing: {step_name}")
 
             # Substitute the {directory} placeholder
-            args = [str(arg).replace('{directory}', str(dir_path)) for arg in command_template]
+            args = [
+                str(arg).replace("{directory}", str(dir_path))
+                for arg in command_template
+            ]
 
             command_name = args[0]
             func_to_call = COMMAND_MAP.get(command_name)
 
             if not func_to_call:
-                print(f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping.")
+                print(
+                    f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping."
+                )
                 continue
 
             try:

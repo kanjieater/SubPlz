@@ -1,13 +1,9 @@
-import argparse
-import sys, os
+import os
 import stable_whisper
 import ffmpeg
-import multiprocessing
 from os import path
 from pathlib import Path
 from datetime import datetime, timedelta
-from tqdm.contrib.concurrent import process_map
-from tqdm import tqdm
 from pprint import pprint
 from utils import read_vtt, write_sub, grab_files, check_workdir_content
 from split_sentences import split_sentences

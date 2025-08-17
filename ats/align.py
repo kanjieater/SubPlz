@@ -1,9 +1,5 @@
 import numpy as np
-import sys
 from Bio import Align
-from Bio.Align import substitution_matrices
-from pprint import pprint
-from tqdm import tqdm
 
 
 def align_sub(coords, text, subs, thing=2):

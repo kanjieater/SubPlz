@@ -487,17 +487,21 @@ def print_modified_segments(
 ):
     print("Modified Start segments:")
     for index in modified_new_segment_debug_log:
-        print(f"""
+        print(
+            f"""
             Original: {segments[index].text}
             Modified: {new_segments[index].text}
-            """)
+            """
+        )
 
     print("Modified End segments:")
     for index in modified_final_segment_debug_log:
-        print(f"""
+        print(
+            f"""
             Original: {segments[index].text}
             Modified: {final_segments[index].text}
-            """)
+            """
+        )
 
 
 def shift_align(segments: List[Segment]) -> List[Segment]:

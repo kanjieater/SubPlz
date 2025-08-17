@@ -38,19 +38,25 @@ def split_sentences(input_file, output_path, lang, nlp):
 
     split_sentences_from_input(input_lines, output_path, lang, nlp)
 
+
 def get_segments(input_lines, lang, nlp):
     if nlp is None:
-      seg = pysbd.Segmenter(language=lang, clean=False)
+        seg = pysbd.Segmenter(language=lang, clean=False)
     lines = []
     print("✂️  Splitting transcript into sentences")
     if nlp is None:
-      for text in tqdm(input_lines):
-          text = text.rstrip("\n")
-          s = seg.segment(text)
-          lines += s
+        for text in tqdm(input_lines):
+            text = text.rstrip("\n")
+            s = seg.segment(text)
+            lines += s
     else:
-      lines = [sentence.text for sentence in nlp("\n\n".join(input_lines)).sentences if sentence.text.rstrip("\n")]
+        lines = [
+            sentence.text
+            for sentence in nlp("\n\n".join(input_lines)).sentences
+            if sentence.text.rstrip("\n")
+        ]
     return lines
+
 
 def split_sentences_from_input(input_lines, output_path, lang, nlp):
     lines = get_segments(input_lines, lang, nlp)
@@ -67,9 +73,7 @@ def flatten(t):
     return (
         [j for i in t for j in flatten(i)]
         if isinstance(t, (tuple, list))
-        else [t]
-        if isinstance(t, epub.Link)
-        else []
+        else [t] if isinstance(t, epub.Link) else []
     )
 
 
@@ -186,14 +190,18 @@ def detect_language(file_path: Path) -> str | None:
         A two-letter ISO 639-1 language code (e.g., 'en', 'ja') if detection is successful,
         otherwise None.
     """
-    DETECTOR = LanguageDetectorBuilder.from_all_languages().with_preloaded_language_models().build()
+    DETECTOR = (
+        LanguageDetectorBuilder.from_all_languages()
+        .with_preloaded_language_models()
+        .build()
+    )
 
     if not file_path.exists():
         print(f"❗ Cannot detect language: File does not exist at '{file_path}'")
         return None
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         if not content.strip():
@@ -211,5 +219,7 @@ def detect_language(file_path: Path) -> str | None:
             return None
 
     except Exception as e:
-        print(f"❗An error occurred during language detection for '{file_path.name}': {e}")
+        print(
+            f"❗An error occurred during language detection for '{file_path.name}': {e}"
+        )
         return None

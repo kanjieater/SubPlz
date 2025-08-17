@@ -14,6 +14,7 @@ tqdm, trange = get_tqdm()
 alass_dir = Path(__file__).parent
 alass_path = alass_dir / "alass-linux64"
 
+
 # FIX 1: Add the custom exception class definition
 class SubtitleProcessingError(Exception):
     pass
@@ -49,14 +50,18 @@ def validate_subtitle_paths(og_subtitle_path, incorrect_subtitle_path):
     if str(og_subtitle_path) == str(incorrect_subtitle_path):
         return "❗ Skipping sync: Original and incorrect subtitles are the same file."
 
-    return None # Indicates success
+    return None  # Indicates success
 
 
-def run_alass_alignment(og_subtitle_path, incorrect_subtitle_path, target_subtitle_path):
+def run_alass_alignment(
+    og_subtitle_path, incorrect_subtitle_path, target_subtitle_path
+):
     """
     Executes the alass command-line tool to align subtitles.
     """
-    print(f"🤝 Aligning {incorrect_subtitle_path.name} based on {og_subtitle_path.name}")
+    print(
+        f"🤝 Aligning {incorrect_subtitle_path.name} based on {og_subtitle_path.name}"
+    )
     cmd = [
         str(alass_path),
         str(og_subtitle_path),
@@ -129,7 +134,9 @@ def sync_alass(source, input_sources, be):
 
                     incorrect_sub = incorrect_subtitle_path
                     if incorrect_subtitle_path.suffix != ".srt":
-                        temp_incorrect_path = perform_srt_conversion(incorrect_subtitle_path)
+                        temp_incorrect_path = perform_srt_conversion(
+                            incorrect_subtitle_path
+                        )
                         incorrect_sub = temp_incorrect_path
                         temp_files_to_clean.append(temp_incorrect_path)
                 except Exception as err:

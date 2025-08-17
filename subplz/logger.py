@@ -2,20 +2,31 @@ import sys
 import os
 from loguru import logger
 
+
 class StreamToLogger:
-    def __init__(self, level="INFO"): self._level = level
+    def __init__(self, level="INFO"):
+        self._level = level
+
     def write(self, buffer):
-        for line in buffer.rstrip().splitlines(): logger.log(self._level, line.rstrip())
-    def flush(self): pass
+        for line in buffer.rstrip().splitlines():
+            logger.log(self._level, line.rstrip())
+
+    def flush(self):
+        pass
+
 
 class TqdmToLogger:
     def write(self, buffer):
         message = buffer.strip()
-        if message: logger.log("TQDM", message)
-    def flush(self): pass
+        if message:
+            logger.log("TQDM", message)
+
+    def flush(self):
+        pass
+
 
 def configure_logging(config: dict):
-    log_config = config.get('log', {})
+    log_config = config.get("log", {})
     logger.remove()
     logger.level("TQDM", no=15, color="<yellow>")
 
@@ -23,22 +34,21 @@ def configure_logging(config: dict):
         sys.stderr,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
         level="INFO",
-        filter=lambda record: record["level"].name != "TQDM"
+        filter=lambda record: record["level"].name != "TQDM",
     )
     logger.add(
         sys.stderr,
         format="{message}",
         level="TQDM",
-        filter=lambda record: record["level"].name == "TQDM"
+        filter=lambda record: record["level"].name == "TQDM",
     )
 
     # File handler gets an updated format
-    log_dir = log_config.get('dir')
+    log_dir = log_config.get("dir")
     if log_dir:
         try:
             os.makedirs(log_dir, exist_ok=True)
             log_file_path = os.path.join(log_dir, "subplz.log")
-
 
             logger.add(
                 log_file_path,
@@ -50,7 +60,7 @@ def configure_logging(config: dict):
                 encoding="utf-8",
                 backtrace=True,
                 diagnose=True,
-                filter=lambda record: record["level"].name != "TQDM"
+                filter=lambda record: record["level"].name != "TQDM",
             )
             logger.success(f"File logging enabled. Log directory: {log_dir}")
         except Exception as e:
@@ -58,4 +68,6 @@ def configure_logging(config: dict):
 
     sys.stdout = StreamToLogger(level="INFO")
     sys.stderr = StreamToLogger(level="ERROR")
-    logger.info("Logging configured. Standard output and errors are now being captured.")
+    logger.info(
+        "Logging configured. Standard output and errors are now being captured."
+    )

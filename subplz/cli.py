@@ -3,9 +3,7 @@ from types import SimpleNamespace
 from typing import List, Optional
 import multiprocessing
 import torch
-from pathlib import Path
 from dataclasses import dataclass, fields, field
-
 
 
 START_PUNC = """『「(（《｟[{"'“¿""" + """'“"¿([{-『「（〈《〔【｛［｟＜<‘“〝※"""
@@ -112,9 +110,7 @@ ARGUMENTS = {
         "flags": ["--nlp"],
         "kwargs": {
             "default": False,
-            "help": (
-                "Use nlp library for splitting sentences, can be slower."
-            ),
+            "help": ("Use nlp library for splitting sentences, can be slower."),
             "action": "store_true",
         },
     },
@@ -653,6 +649,7 @@ class RenameParams:
     dry_run: bool = field(default=False, metadata={"category": "optional"})
     unique: bool = field(default=False, metadata={"category": "optional"})
 
+
 @dataclass
 class CopyParams:
     subcommand: str = field(metadata={"category": "main"})
@@ -660,6 +657,7 @@ class CopyParams:
     lang_ext: str = field(metadata={"category": "main"})
     lang_ext_priority: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=True, metadata={"category": "optional"})
+
 
 @dataclass
 class ExtractParams:
@@ -670,18 +668,23 @@ class ExtractParams:
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     verify: bool = field(default=False, metadata={"category": "optional"})
 
+
 @dataclass
 class BatchParams:
     # --- Required fields first ---
     subcommand: str = field(metadata={"category": "main"})
     dirs: List[str] = field(metadata={"category": "optional"})
     config: Optional[str] = field(default=None, metadata={"category": "main"})
-    pipeline: List[List[str]] = field(default_factory=list, metadata={"category": "optional"})
+    pipeline: List[List[str]] = field(
+        default_factory=list, metadata={"category": "optional"}
+    )
+
 
 @dataclass
 class watchParams:
     subcommand: str = field(metadata={"category": "main"})
     config: str = field(metadata={"category": "main"})
+
 
 @dataclass
 class ScannerParams:
@@ -773,7 +776,6 @@ def setup_commands_cli(parser):
         main_group_copy, CopyParams, optional_group_copy, advanced_group_copy
     )
 
-
     extract = sp.add_parser(
         "extract",
         help="Extract one subtitle from a video file",
@@ -783,7 +785,10 @@ def setup_commands_cli(parser):
     optional_group_extract = extract.add_argument_group("Optional arguments")
     advanced_group_extract = extract.add_argument_group("Advanced arguments")
     add_arguments_from_dataclass(
-        main_group_extract, ExtractParams, optional_group_extract, advanced_group_extract
+        main_group_extract,
+        ExtractParams,
+        optional_group_extract,
+        advanced_group_extract,
     )
 
     batch = sp.add_parser(
@@ -819,11 +824,13 @@ def setup_commands_cli(parser):
     optional_group_scanner = scanner.add_argument_group("Optional arguments")
     advanced_group_scanner = scanner.add_argument_group("Advanced arguments")
     add_arguments_from_dataclass(
-        main_group_scanner, ScannerParams, optional_group_scanner, advanced_group_scanner
+        main_group_scanner,
+        ScannerParams,
+        optional_group_scanner,
+        advanced_group_scanner,
     )
 
     return parser
-
 
     return parser
 

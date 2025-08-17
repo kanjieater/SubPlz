@@ -2,7 +2,6 @@ import argparse
 import csv
 import requests
 import os
-import tempfile
 import json
 import shutil
 import multiprocessing

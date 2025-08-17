@@ -1,6 +1,5 @@
 from ats.main import (
     expand_matches,
-    print_batches,
     to_subs,
 )
 import warnings
@@ -195,4 +194,3 @@ def run_sync(inputs):
             transcribed_streams = transcribe(source.streams, model, be)
             sync(source, model, transcribed_streams, be)
     post_process(sources, "sync")
-

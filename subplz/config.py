@@ -6,22 +6,21 @@ from .logger import logger
 # --- 1. Define the default configuration structure ---
 # This serves as the base, ensuring no part of the app crashes if a key is missing.
 DEFAULT_CONFIG = {
-    'log': {
-        'dir': os.path.join(os.getcwd(), 'logs')
+    "log": {"dir": os.path.join(os.getcwd(), "logs")},
+    "watcher": {
+        "jobs": None,
+        "path_map": {},
+        "error_directory": None,
+        "polling_interval_seconds": None,
     },
-    'watcher': {
-        'jobs': None,
-        'path_map': {},
-        'error_directory': None,
-        'polling_interval_seconds': None
+    "scanner": {
+        "target_sub_extensions": [],
+        "blacklist_filenames": [],
+        "blacklist_dirs": [],
     },
-    'scanner': {
-        'target_sub_extensions': [],
-        'blacklist_filenames': [],
-        'blacklist_dirs': []
-    },
-    'batch_pipeline': []
+    "batch_pipeline": [],
 }
+
 
 def deep_merge(source, destination):
     """Recursively merge dictionary source into destination."""
@@ -33,6 +32,7 @@ def deep_merge(source, destination):
         else:
             destination[key] = value
     return destination
+
 
 def load_config(config_path: str | None) -> dict:
     """
@@ -52,9 +52,9 @@ def load_config(config_path: str | None) -> dict:
 
     try:
         if not os.path.exists(config_path):
-             raise FileNotFoundError(f"Config file not found at '{config_path}'")
+            raise FileNotFoundError(f"Config file not found at '{config_path}'")
 
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             user_config = yaml.safe_load(f)
             if not user_config:
                 raise yaml.YAMLError("Config file is empty or invalid.")

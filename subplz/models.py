@@ -4,7 +4,6 @@ from types import MethodType
 import torch
 from copy import copy
 import numpy as np
-from copy import deepcopy
 from subplz.utils import get_tqdm
 
 tqdm = get_tqdm()[0]

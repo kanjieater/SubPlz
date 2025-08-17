@@ -1,6 +1,5 @@
 import whisper
 from whisper.audio import (
-    load_audio,
     log_mel_spectrogram,
     N_SAMPLES,
     N_FRAMES,
@@ -355,9 +354,9 @@ def transcribe(
                 timestamps,
                 left_timestamps : int(tokenizer.timestamp_begin + 30 // 0.02 + 1),
             ] = sl[timestamps, tokenizer.timestamp_begin : overlap_timestamps]
-            sl[
-                timestamps, tokenizer.timestamp_begin : overlap_timestamps
-            ] = -np.inf  # sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
+            sl[timestamps, tokenizer.timestamp_begin : overlap_timestamps] = (
+                -np.inf
+            )  # sl[sl.ge(tokenizer.timestamp_begin): tokenizer.timestamp_begin + left / 0.02: tokenizer.timestamp_begin + 30/0.02] =
             sm = similarity(fl.unsqueeze(0).exp(), sl.unsqueeze(0).exp())[0].numpy()
 
             tb, c, mi, mj = align(sm)
