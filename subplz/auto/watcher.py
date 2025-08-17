@@ -2,6 +2,7 @@ import time
 import sys
 import os
 import json
+from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
@@ -30,27 +31,41 @@ def get_host_path(config, path_from_job):
 
 
 def process_job_file(job_file_path, full_config):
-    """Reads a single job file and triggers the full batch pipeline."""
     logger.info(f"--- Processing Job: {os.path.basename(job_file_path)} ---")
     try:
         time.sleep(1)
-        with open(job_file_path, "r", encoding="utf-8") as f:
+        with open(job_file_path, 'r', encoding='utf-8') as f:
             job_data = json.load(f)
 
-        path_from_job = job_data.get("directory")
+        path_from_job = job_data.get('directory')
         if not path_from_job:
             raise ValueError("Job file is missing the required 'directory' key.")
 
-        host_target_dir = get_host_path(full_config, path_from_job)
-        logger.info(f"🚀 Triggering full batch pipeline for: {host_target_dir}")
+        episode_path_from_job = job_data.get('episode_path')
 
-        pipeline = full_config.get("batch_pipeline")
+        host_target_dir = get_host_path(full_config, path_from_job)
+
+        # Translate the episode path as well, if it exists
+        host_episode_path = None
+        if episode_path_from_job:
+            host_episode_path = get_host_path(full_config, episode_path_from_job)
+
+        logger.info(f"🚀 Triggering batch pipeline for dir: {host_target_dir}")
+        if host_episode_path:
+            logger.info(f"   Focused on file: {Path(host_episode_path).name}")
+
+        pipeline = full_config.get('batch_pipeline')
         if not pipeline:
             raise ValueError("Missing 'batch_pipeline' in config file.")
 
         batch_inputs = BatchParams(
-            subcommand="batch", dirs=[host_target_dir], pipeline=pipeline, config=None
+            subcommand='batch',
+            dirs=[host_target_dir],
+            file=host_episode_path,
+            pipeline=pipeline,
+            config=None
         )
+
         run_batch(batch_inputs)
 
         logger.success(

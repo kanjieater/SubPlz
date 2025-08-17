@@ -66,6 +66,7 @@ def run_batch(inputs):
     # Now, the rest of the logic can proceed, confident that inputs.pipeline is populated.
     pipeline = prepared_inputs.pipeline
     directories = prepared_inputs.dirs
+    target_file = prepared_inputs.file
 
     if not directories:
         logger.warning("⚠️ Warning: No directories provided in 'inputs.dirs'. Nothing to do.")
@@ -92,6 +93,7 @@ def run_batch(inputs):
             # Substitute the {directory} placeholder
             args = [
                 str(arg).replace("{directory}", str(dir_path))
+                        .replace("{file}", str(target_file))
                 for arg in command_template
             ]
 

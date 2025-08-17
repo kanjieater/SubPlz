@@ -340,6 +340,30 @@ def match_files(audios, texts, folder, rerun, orig, alass=False):
     return [[a] for a in audios_filtered], [[t] for t in texts_filtered]
 
 
+def filter_sources_by_target_file(all_audios, all_texts, target_file: str | None):
+    """
+    Filters matched audio/text pairs based on a specific target media file.
+    If target_file is None, it returns all pairs.
+    """
+    all_pairs = list(zip(all_audios, all_texts))
+
+    if not target_file:
+        return all_pairs # Return all pairs if no specific file is targeted
+
+    logger.debug(f"Filtering sources to focus on target file: {Path(target_file).name}")
+    target_file_path = Path(target_file)
+
+    filtered_pairs = [
+        (audio_list, text_list) for audio_list, text_list in all_pairs
+        if Path(audio_list[0]) == target_file_path
+    ]
+
+    if not filtered_pairs:
+        logger.warning(f"Target file '{target_file_path.name}' had no matching text")
+
+    return filtered_pairs
+
+
 def get_sources_from_dirs(input, cache_inputs, nlp):
     sources = []
     working_folders = get_working_folders(input.dirs)
@@ -347,13 +371,20 @@ def get_sources_from_dirs(input, cache_inputs, nlp):
         audios = get_audio(folder)
         if input.subcommand == "sync":
             if input.alass:
-                extract_all_subtitles(audios, input.lang_ext, input.lang_ext_original)
+                audios_to_process = audios
+                target_file = getattr(input, 'file', None)
+                if target_file:
+                    target_path = Path(target_file)
+                    audios_to_process = [a for a in audios if Path(a) == target_path]
+                extract_all_subtitles(audios_to_process, input.lang_ext, input.lang_ext_original)
             texts = get_text(folder)
             a, t = match_files(
                 audios, texts, folder, input.rerun, input.lang_ext_original
             )
+            target_file = getattr(input, 'file', None)
+            final_filtered_pairs = filter_sources_by_target_file(a, t, target_file)
 
-            for matched_audio, matched_text in zip(a, t):
+            for matched_audio, matched_text in final_filtered_pairs:
                 output_full_paths = get_output_full_paths(
                     matched_audio, folder, input.output_format, input.lang_ext
                 )
@@ -378,7 +409,16 @@ def get_sources_from_dirs(input, cache_inputs, nlp):
                 )
                 sources.append(s)
         else:
-            for matched_audio in audios:
+            target_file = getattr(input, 'file', None)
+            filtered_audios = audios
+            if target_file:
+                target_file_path = Path(target_file)
+                filtered_audios = [
+                    audio_path for audio_path in audios
+                    if Path(audio_path) == target_file_path
+                ]
+
+            for matched_audio in filtered_audios:
                 output_full_paths = get_output_full_paths(
                     [matched_audio], folder, input.output_format, input.lang_ext
                 )

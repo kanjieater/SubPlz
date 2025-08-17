@@ -32,6 +32,15 @@ ARGUMENTS = {
             "help": "list of audio files to process (in the correct order)",
         },
     },
+    "file": {
+        "flags": ["--file"],
+        "kwargs": {
+            "type": str,
+            "default": None,
+            "required": False,
+            "help": "This is the single media file to focus on from a dir of it's matching text",
+        },
+    },
     "lang_ext": {
         "flags": ["--lang-ext"],
         "kwargs": {
@@ -566,6 +575,7 @@ class SyncData:
     overwrite: bool = field(default=True, metadata={"category": "optional"})
     alass: bool = field(default=False, metadata={"category": "optional"})
     nlp: bool = field(default=False, metadata={"category": "optional"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -583,6 +593,7 @@ class GenData:
     cache_dir: str = field(metadata={"category": "optional"})
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     alass: bool = field(default=False, metadata={"category": "optional"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -667,14 +678,15 @@ class ExtractParams:
     lang_ext_original: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     verify: bool = field(default=False, metadata={"category": "optional"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
 class BatchParams:
-    # --- Required fields first ---
     subcommand: str = field(metadata={"category": "main"})
     dirs: List[str] = field(metadata={"category": "optional"})
     config: Optional[str] = field(default=None, metadata={"category": "main"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
     pipeline: List[List[str]] = field(
         default_factory=list, metadata={"category": "optional"}
     )

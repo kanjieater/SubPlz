@@ -94,6 +94,9 @@ def get_subtitle_idx(
 
     positive_streams = [s for s in scored_streams if s["score"] > 0]
     if not positive_streams:
+        logger.warning(
+            f"🦈 No subtitle stream scored positively for {path}"
+        )
         return None
     positive_streams.sort(key=lambda x: x["score"], reverse=True)
 
