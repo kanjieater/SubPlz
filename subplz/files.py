@@ -15,16 +15,17 @@ from ats.main import (
     write_srt,
     write_vtt,
 )
-from subplz.cache import Cache
-from subplz.audio import get_audio_idx
-from subplz.text import split_sentences, split_sentences_from_input, Epub
-from subplz.sub import (
+from .logger import logger
+from .cache import Cache
+from .audio import get_audio_idx
+from .text import split_sentences, split_sentences_from_input, Epub
+from .sub import (
     extract_all_subtitles,
     cleanup_subfail,
     SUBTITLE_FORMATS,
     normalize_text,
 )
-from subplz.utils import grab_files, get_tmp_path
+from .utils import grab_files, get_tmp_path
 
 AUDIO_FORMATS = [
     "aac",
@@ -71,7 +72,6 @@ def get_video_duration(stream, file_path):
         else:
             probe = ffmpeg.probe(file_path)
             duration = float(probe["format"]["duration"])
-        # print(f"Duration: {duration}") #log
         return duration
     except ffmpeg.Error as e:
         error_message = f"ffmpeg error: {e.stderr.decode('utf-8')}"
@@ -89,7 +89,6 @@ class Writer:
     def write_sub(self, segments, output_full_path):
         self.output_format = self.output_format
         with output_full_path.open("w", encoding="utf8") as o:
-            # print(f"Writing to '{output_full_path}'") # log-
             if self.output_format == "srt":
                 self.written = True
                 return write_srt(segments, o)
@@ -139,7 +138,6 @@ class AudioSub(AudioStream):
             raise RuntimeError(f"'{path}' ffmpeg error: {e.stderr.decode('utf-8')}")
 
         title = info.get("format", {}).get("tags", {}).get("title", basename(path))
-        # path = handle_multiple_audio_streams(info["streams"], lang)
         audio_probe = get_audio_idx(info["streams"], lang, path)
         if whole or "chapters" not in info or len(info["chapters"]) == 0:
             stream = get_matching_audio_stream(info["streams"], lang)
@@ -222,10 +220,10 @@ def get_chapters(text: List[str], lang, alass, nlp):
                     split_sentences(txt_path, txt_path, lang, nlp)
 
             except Exception as e:
-                print(
-                    f"❗Failed to normalize the subs. We can't process them. Try to get subs from a different source and try again: {e}"
+                logger.opt(exception=True).error(
+                    f"❗Failed to normalize the sub '{file_name}'. We can't process them. Try to get subs from a different source and try again: {e}"
                 )
-                continue
+                return []
             chapters.append((txt_path, [TextFile(path=txt_path, title=file_name)]))
         else:
             txt_path = get_tmp_path(
@@ -303,7 +301,7 @@ def match_files(audios, texts, folder, rerun, orig, alass=False):
         audios_filtered = audios
         texts_filtered = already_run
     elif orig:
-        # We're only going to match up files that are already in have the original lang ext to the audio file
+        # We're only going to match up files that are already have the original lang ext to the audio file
         audios_filtered, texts_filtered = match_lang_ext_original(audios, texts, orig)
     else:
         # TODO: reconsider if any of this is worthwhile after switching to language code switches
@@ -329,13 +327,13 @@ def match_files(audios, texts, folder, rerun, orig, alass=False):
             a for a in audios if str(Path(a).parent / Path(a).stem) in audios_unique
         ]
     if len(audios_filtered) > 1 and len(texts_filtered) == 1 and len(already_run) == 0:
-        print(
+        logger.info(
             "🤔 Multiple audio files found, but only one text... If you use an epub, each chapter will be mapped to a single audio file"
         )
         return [audios_filtered], [[t] for t in texts_filtered]
 
     if len(audios_filtered) != len(texts_filtered):
-        print(
+        logger.warning(
             "🤔 The number of text files didn't match the number of audio files... Matching them based on sort order. You should probably double-check this."
         )
 
@@ -483,29 +481,29 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
         for op in output_paths:
             old_file = get_rerun_file_path(op, input)
             if not source.overwrite and op.exists():
-                print(f"🤔 SubPlz file '{op.name}' already exists, skipping.")
+                logger.info(f"🤔 SubPlz file '{op.name}' already exists, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
             if old_file.exists() and (str(old_file) == str(op)) and not source.rerun:
-                print(
+                logger.info(
                     f"🤔 {old_file.name} already exists but you don't want it overwritten, skipping. If you do, add --rerun"
                 )
                 invalid_sources.append(source)
                 is_valid = False
                 break
             if not source.audio:
-                print(f"❗ {op.name}'s audio is missing, skipping.")
+                logger.error(f"❗ {op.name}'s audio is missing, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
             if not source.text and input.subcommand == "sync":
-                print(f"❗ {source.audio}'s text is missing, skipping.")
+                logger.error(f"❗ {source.audio}'s text is missing, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
             if not source.chapters and input.subcommand == "sync":
-                print(f"❗ {source.text}'s couldn't be parsed, skipping.")
+                logger.error(f"❗ {source.text}'s couldn't be parsed, skipping.")
                 invalid_sources.append(source)
                 is_valid = False
                 break
@@ -517,7 +515,7 @@ def get_sources(input, cache_inputs) -> List[sourceData]:
 
     if input.subcommand == "sync":
         for source in valid_sources:
-            print(f"🎧 {pformat(source.audio)}' ➕ 📖 {pformat(source.text)}...")
+            logger.info(f"🎧 {pformat(source.audio)}' ➕ 📖 {pformat(source.text)}...")
         cleanup(invalid_sources)
     return valid_sources
 
@@ -553,7 +551,6 @@ def get_true_stem(file_path: Path) -> str:
     if len(stem_parts[-1]) > 0 and len(stem_parts[-1]) < 4:
         stem = ".".join(stem_parts[:-1])
     return stem
-    # return stem_parts[-1] if len(stem_parts) > 1 else stem
 
 
 def get_rerun_file_path(output_path: Path, input) -> Path:
@@ -600,27 +597,27 @@ def post_process(sources: List[sourceData], subcommand):
     for source in sorted_sources:
         if source.writer.written:
             output_paths = [str(o) for o in source.output_full_paths]
-            print(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
+            logger.success(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         elif source.alass and not source.writer.written:
             complete_success = False
-            print(f"❗ Alass failed for '{source.audio[0]}'")
+            logger.error(f"❗ Alass failed for '{source.audio[0]}'")
         else:
             complete_success = False
-            print(f"❗ Failed to sync '{source.text}'")
+            logger.error(f"❗ Failed to sync '{source.text}'")
 
         cleanup_subfail(source.output_full_paths)
     alass_exists = (
         getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
     )
     if not sources:
-        print(
+        logger.warning(
             """😐 We didn't do anything. This may or may not be intentional. If this was unintentional, check if the destination file already exists"""
         )
     elif complete_success:
-        print("🎉 Everything went great!")
+        logger.success("🎉 Everything went great!")
     else:
         if alass_exists:
-            print(
+            logger.error(
                 """😭 At least one of the files failed to sync.
                 Possible reasons:
                 1. Alass failed to run or match subtitles
@@ -640,7 +637,7 @@ def post_process(sources: List[sourceData], subcommand):
                 """
             )
         else:
-            print(
+            logger.error(
                 """😭 At least one of the files failed to sync.
                 Possible reasons:
                 1. The audio didn't match the text.
