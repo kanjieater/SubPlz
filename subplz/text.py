@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from dataclasses import dataclass
 from ebooklib import epub
 import urllib
+from lingua import LanguageDetectorBuilder
 
 import pysbd
 from tqdm import tqdm
@@ -172,3 +173,43 @@ class Epub:
             title=file.title.strip() or path.name,
             chapters=chapters,
         )
+
+
+def detect_language(file_path: Path) -> str | None:
+    """
+    Detects the language of a given text file.
+
+    Args:
+        file_path: The path to the text or subtitle file.
+
+    Returns:
+        A two-letter ISO 639-1 language code (e.g., 'en', 'ja') if detection is successful,
+        otherwise None.
+    """
+    DETECTOR = LanguageDetectorBuilder.from_all_languages().with_preloaded_language_models().build()
+
+    if not file_path.exists():
+        print(f"❗ Cannot detect language: File does not exist at '{file_path}'")
+        return None
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        if not content.strip():
+            print(f"⚠️ Verification skipped for '{file_path.name}': No content found.")
+            return None
+
+        detected_language = DETECTOR.detect_language_of(content)
+
+        if detected_language:
+            detected_code = detected_language.iso_code_639_1.name.lower()
+            print(f"Detected language of '{file_path.name}' as '{detected_code}'.")
+            return detected_code
+        else:
+            print(f"⚠️ Could not reliably detect language for '{file_path.name}'.")
+            return None
+
+    except Exception as e:
+        print(f"❗An error occurred during language detection for '{file_path.name}': {e}")
+        return None

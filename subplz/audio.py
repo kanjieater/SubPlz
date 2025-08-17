@@ -1,20 +1,4 @@
-import pycountry
-
-def get_iso639_2_lang_code(lang_code_input: str) -> str | None:
-    # ... (as defined before) ...
-    if not lang_code_input: return None
-    lang_code_input = lang_code_input.lower()
-    try:
-        lang = pycountry.languages.get(alpha_2=lang_code_input)
-        if lang: return getattr(lang, 'bibliographic', getattr(lang, 'alpha_3', None))
-    except KeyError: pass
-    try:
-        lang = pycountry.languages.get(alpha_3=lang_code_input)
-        if lang: return getattr(lang, 'bibliographic', getattr(lang, 'alpha_3', None))
-    except KeyError: pass
-    print(f"❗Language code '{lang_code_input}' not recognized by pycountry.")
-    return None
-
+from subplz.utils import get_iso639_2_lang_code
 
 def score_audio_stream(stream_info: dict, target_iso_lang: str | None) -> int:
     """Assigns a preference score to an audio stream."""

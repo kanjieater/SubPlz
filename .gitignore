@@ -6,6 +6,7 @@ build/
 *.egg-info
 
 SyncCache/
+logs/
 
 mapping.json
 sub.json

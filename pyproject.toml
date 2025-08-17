@@ -20,22 +20,24 @@ classifiers = [
 ]
 
 dependencies = [
-    "beautifulsoup4 ~= 4.13.3",
-    "biopython ~= 1.85",
-    "EbookLib ~= 0.18",
-    "faster_whisper ~= 1.1.1",
-    "ffmpeg_python ~= 0.2.0",
-    "rapidfuzz ~= 3.12.1",
-    "numpy ~= 1.26.4",
-    "regex ~= 2024.11.6",
+    "beautifulsoup4~=4.13.3",
+    "biopython~=1.85",
+    "EbookLib~=0.18",
+    "faster_whisper~=1.1.1",
+    "ffmpeg_python~=0.2.0",
+    "rapidfuzz~=3.12.1",
+    "numpy~=1.26.4",
+    "regex~=2024.11.6",
     "wcwidth >= 0.2.13",
     "natsort == 8.4.0",
-    "tqdm ~= 4.67.1",
-    "pysbd ~= 0.3.4",
-    "stable-ts ~= 2.19.0",
+    "tqdm~=4.67.1",
+    "pysbd~=0.3.4",
+    "stable-ts~=2.19.0",
     "ctranslate2==4.4.0",
     "stanza~=1.10.1",
-
+    "PyYAML~=6.0.1",
+    "lingua-language-detector~=4.15.0",
+    "loguru~=0.7.3"
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]
 
@@ -57,6 +59,9 @@ dev = [
 anki = [
   "requests==2.26.0",
   "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=de536d1c983641cd590180aa93c080010b1c5665"
+]
+automation = [
+  "watchdog~=6.0.0"
 ]
 
 [project.scripts]

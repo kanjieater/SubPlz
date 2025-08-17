@@ -5,13 +5,57 @@ https://user-images.githubusercontent.com/32607317/219973521-5a5c2bf2-4df1-422b-
 
 🫴 Generate, sync, and manage subtitle files for any media; Generate your own audiobook subs similar to Kindle's Immersion Reading 📖🎧
 
+## Table of Contents
+
+- [SubPlz🫴: Get Incredibly Accurate Subs for Anything](#subplz-get-incredibly-accurate-subs-for-anything)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Automation Suite](#automation-suite)
+  - [Technologies \& Techniques](#technologies--techniques)
+  - [Support](#support)
+- [How to Use](#how-to-use)
+  - [Quick Guide](#quick-guide)
+    - [Sync](#sync)
+    - [Gen](#gen)
+    - [Batch](#batch)
+    - [Alass](#alass)
+    - [Rename (When Sub Names Don't Match)](#rename-when-sub-names-dont-match)
+    - [Rename a Language Extension (When Sub Names Match)](#rename-a-language-extension-when-sub-names-match)
+- [Installation](#installation)
+  - [Run from Colab](#run-from-colab)
+  - [Running from Docker](#running-from-docker)
+    - [Running from Docker: Batch](#running-from-docker-batch)
+  - [Setup from source](#setup-from-source)
+  - [Usage Notes](#usage-notes)
+  - [Sort Order](#sort-order)
+  - [Overwrite](#overwrite)
+  - [Tuning Recommendations](#tuning-recommendations)
+    - [For Audiobooks](#for-audiobooks)
+    - [For Realigning Subtitles](#for-realigning-subtitles)
+- [Generating All Subtitle Algorithms in Batch](#generating-all-subtitle-algorithms-in-batch)
+- [Anki Support](#anki-support)
+  - [Setup Instructions](#setup-instructions)
+- [FAQ](#faq)
+  - [Can I run this with multiple Audio files and _One_ script?](#can-i-run-this-with-multiple-audio-files-and-one-script)
+  - [How do I get a bunch of MP3's into one file then?](#how-do-i-get-a-bunch-of-mp3s-into-one-file-then)
+- [Thanks](#thanks)
+- [Other Cool Projects](#other-cool-projects)
+
 ## Features
 - **Sync Existing Subtitles**: Multiple options to automate synchronizing your subtitles with various techniques in bulk
 - **Accurately Subtitle Narrated Media**: Leverage the original source text of an ebook to provide highly accurate subtitles
 - **Create New Subtitles**: Generate new subtitles from the audio of a media file
 - **File Management**: Automatically organize and rename your subtitles to match your media files
-- **Provide Multiple Video Subtitle Options**: Combines other features to allow you to have multiple alignment & generation subs available to you, for easy auto-selecting of your preferred version  (dependent on video player support)
+- **Provide Multiple Video Subtitle Options**: Combines other features to allow you to have multiple alignment & generation subs available to you, for easy auto-selecting of your preferred version (dependent on video player support)
+- **Powerful Automation Suite**: Includes a real-time file watcher (`watch`) and a scheduled library scanner (`scanner`) to fully automate your subtitle processing pipeline.
 
+## Automation Suite
+
+SubPlz includes a powerful automation system built around a file watcher and library scanner. This allows for a "set it and forget it" approach to subtitle processing, triggered by tools like Bazarr or a scheduled cron job.
+
+For a complete guide on configuring the watcher, scanner, and setting up Bazarr integration, see the detailed **[Automation Suite README](subplz/auto/readme.md)**.
+
+## Technologies & Techniques
 
 For a glimpse of some of the technologies & techniques we're using depending on the arguments, here's a short list:
 - **faster-whisper**: for using AI to generate subtitles fast
@@ -39,11 +83,9 @@ Current State of Alass alignments:
 - Once Alass get's thrown off it may stay misaligned for the rest of the episode
 - SubPlz can extract the first subtitle embedded, but doesn't try to get the longest one. Sometimes you'll get Informational or Commentary subs which can't be used for alignments of the spoken dialog. We may be able to automate this in the future
 
+## Support
 
-
-# Support
-
-Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  [on The Moe Way Discord](https://learnjapanese.moe/join/)
+Support for this tool can be found [on KanjiEater's thread](https://discord.com/channels/617136488840429598/1076966013268148314)  or community support on [The Moe Way Discord](https://learnjapanese.moe/join/)
 
 Support for any tool by KanjiEater can be found [on KanjiEater's Discord](https://discord.com/invite/agbwB4p)
 
@@ -92,6 +134,33 @@ If you can't contribute monetarily please consider following on a social platfor
 1. List the directories you want to run this on. The `-d` parameter can multiple files to process like: `subplz gen -d "/mnt/d/NeoOtaku Uprising The Anime" --model large-v3`
 2. Run `subplz gen -d "<full folder path>" --model large-v3` using something like `/mnt/d/sync/NeoOtaku Uprising The Anime`. Large models are highly recommended for `gen` (unlike `sync`)
 3. From there, use a video player like MPV or Plex. You can also use `--lang-ext az` to set a language you wouldn't otherwise need as a designated "AI subtitle", and use it as a fallback when sync doesn't work or you don't have existing subtitles already
+
+### Batch
+1. Define your desired workflow in the `batch_pipeline` section of your `config.yml`. See the [Automation Suite README](subplz/auto/readme.md) for configuration examples.
+2. Place media files that you want to process in a directory.
+
+```bash
+/media/
+└── /My Awesome Anime/
+   ├── Episode 01.mkv
+   └── Episode 01.ja.srt
+```
+
+3. Run `subplz batch -d "<full folder path>" -c "/path/to/your/config.yml"`. This will execute every step in your batch_pipeline against the target directory.
+4. The output will be a combination of all the steps in your pipeline. For example, if your pipeline includes `extract`, `sync`, `alass`, and `gen`, the final directory might look like this:
+
+```bash
+/media/
+└── /My Awesome Anime/
+   ├── Episode 01.mkv
+   ├── Episode 01.ja.srt (Original subtitle file)
+   ├── Episode 01.en.srt (Result of extract - embedded subs)
+   ├── Episode 01.ak.srt (Result of sync - SubPlz AI alignment)
+   ├── Episode 01.as.srt (Result of alass - Alass alignment)
+   └── Episode 01.az.srt (Result of gen - FasterWhisper generation)
+```
+
+This gives you multiple subtitle options to choose from, allowing you to quickly switch between different algorithms while watching to find the best one for your content.
 
 ### Alass
 1. Put a video(s) with embdedded subs & sub file(s) that need alignment in a folder.
@@ -169,8 +238,7 @@ If you can't contribute monetarily please consider following on a social platfor
    └── NeoOtaku Uprising With No Embedded Eng Subs EP01.jp.srt
 ```
 
-
-# Install
+# Installation
 
 Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 22.04 on WSL2. Primarily supports Japanese, but other languages may work as well with limited dev support.
 
@@ -193,7 +261,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    sync -d "/sync/<content folder>/"
    ```
 
-   Example:
+   **Example:**
 
    ```bash
    /mnt/d/sync/
@@ -210,19 +278,18 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    kanjieater/subplz:latest \
    sync -d "/sync/"
    ```
-   a. Optional: `--gpus all` will allow you to run with GPU. If this doesn't work make sure you've enabled your GPU in docker (outside the scope of this project)
 
-   b. `-v <your folder path>:/sync` ex: `-v /mnt/d/sync:/sync` This is where your files that you want to sync are at. The part to the left of the `:` if your machine, the part to the right is what the app will see as the folder name.
-
-   c. The SyncCache part is the same thing as the folder syncing. This is just mapping where things are locally to your machine. As long as the app can find the SyncCache folder, it will be able to resync things much faster.
-
-   d. Optional: `-v <your config cache path>:/config/.cache` ex: `-v /mnt/d/ModelCache:/config/.cache` This maps a local directory to store additionally downloaded models, like large-v3. This helps in avoiding re-downloading the models every time you run the container.
-
-   e. `<command> <params>` ex: `sync -d /sync/`, this runs a `subplz <command> <params>` as you would outside of docker
+   **Parameters explained:**
+   - **Optional**: `--gpus all` will allow you to run with GPU. If this doesn't work make sure you've enabled your GPU in docker (outside the scope of this project)
+   - `-v <your folder path>:/sync` ex: `-v /mnt/d/sync:/sync` This is where your files that you want to sync are at. The part to the left of the `:` if your machine, the part to the right is what the app will see as the folder name.
+   - The SyncCache part is the same thing as the folder syncing. This is just mapping where things are locally to your machine. As long as the app can find the SyncCache folder, it will be able to resync things much faster.
+   - **Optional**: `-v <your config cache path>:/config/.cache` ex: `-v /mnt/d/ModelCache:/config/.cache` This maps a local directory to store additionally downloaded models, like large-v3. This helps in avoiding re-downloading the models every time you run the container.
+   - `<command> <params>` ex: `sync -d /sync/`, this runs a `subplz <command> <params>` as you would outside of docker
 
 ### Running from Docker: Batch
-1. `➜ docker run --entrypoint ./helpers/subplz.sh -it --rm --name subplz --gpus all -v "/mnt/v/Videos/J-Anime Shows/Under Ninja/Season 01":/sync -v /home/ke/code/subplz/SyncCache:/app/SyncCache kanjieater/subplz:latest /sync/`
-
+```bash
+docker run --entrypoint ./helpers/subplz.sh -it --rm --name subplz --gpus all -v "/mnt/v/Videos/J-Anime Shows/Under Ninja/Season 01":/sync -v /home/ke/code/subplz/SyncCache:/app/SyncCache kanjieater/subplz:latest /sync/
+```
 
 ## Setup from source
 
@@ -238,7 +305,8 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 5. If you're using a single file for the entire audiobook with chapters you are good to go. If an file with audio is too long it may use up all of your RAM. You can use the docker image  [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation) to make a chaptered audio file. Trust me, you want the improved codec's that are included in the docker image. I tested both and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality if you plan to listen to the audio file.
 
 
-## Note
+## Usage Notes
+
 - This can be GPU intense, RAM intense, and CPU intense script part. `subplz sync -d "<full folder path>"` eg `subplz sync -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a character level transcript. It then creates a sub format that can be matched to the `script.txt`. Each character level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file. The video or audio file then can be watched with `MPV`, playing audio in time with the subtitle.
 - Users with a modern CPU with lots of threads won't notice much of a difference between using CUDA/GPU & CPU
 
@@ -248,20 +316,22 @@ By default, the `-d` parameter will pick up the supported files in the directory
 ## Overwrite
 By default the tool will overwrite any existing srt named after the audio file's name. If you don't want it to do this you must explicitly tell it not to.
 
-`subplz sync -d "/mnt/v/somefolder" --no-overwrite`
+```bash
+subplz sync -d "/mnt/v/somefolder" --no-overwrite
+```
 
 ## Tuning Recommendations
 For different use cases, different parameters may be optimal.
 
 ### For Audiobooks
-- Recommended: `subplz sync -d "/mnt/d/sync/Harry Potter"`
+- **Recommended**: `subplz sync -d "/mnt/d/sync/Harry Potter"`
 - A chapter `m4b` file will allow us to split up the audio and do things in parallel
 - There can be slight variations between `epub` and `txt` files, like where full character spaces aren't pickedup in `epub` but are in `txt`. A chaptered `epub` may be faster, but you can have more control over what text gets synced from a `txt` file if you need to manually remove things (but `epub` is still probably the easier option, and very reliable)
 - If the audio and the text differ greatly - like full sections of the book are read in different order, you will want to use `--no-respect-grouping` to let the algorithm remove content for you
 - The default `--model "tiny"` seems to work well, and is much faster than other models. If your transcript is inaccurate, consider using a larger model to compensate
 
 ### For Realigning Subtitles
-- Recommended: `subplz sync --model large-v3 -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
+- **Recommended**: `subplz sync --model large-v3 -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
 - Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
 
@@ -273,11 +343,13 @@ Just run `./helpers/subplz.sh` with a sub like `sub1.ja.srt` and `video1.mkv` an
 | Algorithm    | Default Language Code | Mnemonic | Description |
 | -------- | ------- | -------- | ------- |
 | Bazarr  | ab    | B for Bazarr | Default potentially untimed subs in target language|
-| Alass | as     | S for Ala_ss_ | Subs that have been aligned using `en` & `ab` subs via Alass|
+| Alass | as | S for Ala_ss_ | Subs that have been aligned using `en` & `ab` subs via Alass |
 | SubPlz    | ak    | K for KanjiEater | Generated alignment from AI with the `ab` subs text |
+| Alass Variant | av     | V for variant  | Ignore the embedded subs, and  use subs that have been aligned using `az` for timing and `ab` subs content via Alass|
 | FasterWhisper    | az    | Z for the last option | Generated purely based on audio. Surprisingly accurate but not perfect. |
 | Original    | en    | Animes subs tend to be in EN | This would be the original timings used for Alass, and what would be extracted from you videos automatically|
 | Preferred    | ja    | Your target language | This is a copy of one of the other options, named with your target language so it plays this by default |
+| Embedded    | tl    | Target Language (that was embdedded) | Explitly extract the target language sub from your media if it existed so you can use it as the Preferred sub in a media player like Plex by default |
 
 # Anki Support
 
@@ -286,6 +358,7 @@ Just run `./helpers/subplz.sh` with a sub like `sub1.ja.srt` and `video1.mkv` an
 
 The Anki support currently takes your m4b file in `<full_folder_path>` named `<name>.m4b`, where `<name>` is the name of the media, and it outputs srs audio and a TSV file that can is sent via AnkiConnect to Anki. This is useful for searching across [GoldenDict](https://www.youtube.com/playlist?list=PLV9y64Yrq5i-1ztReLQQ2oyg43uoeyri-) to find sentences that use a word, or to merge automatically with custom scripts (more releases to support this coming hopefully).
 
+## Setup Instructions
 
 1. Install ankiconnect add-on to Anki.
 2. I recommend using `ANKICONNECT` as an environment variable. Set `export ANKICONNECT=localhost:8755` or `export ANKICONNECT="$(hostname).local:8765"` in your `~/.zshrc` or bashrc & activate it.
@@ -313,7 +386,8 @@ My actual config looks like this:
   ]
 }
 ```
-The number next to the Expression and Audio maps to the fields like so
+
+The number next to the Expression and Audio maps to the fields like so:
 ```
 1: Text of subtitle: `パルスに援軍を求めてきたのである。`
 2: Timestamps of sub: `90492-92868`
@@ -324,8 +398,7 @@ The number next to the Expression and Audio maps to the fields like so
 Notice you can also set fields and tags manually. You can set multiple tags. Or like in my example, you can set `Vocab` to be empty, even though it's my first field in Anki.
 8. Run the command below
 
-
-*IMPORTANT* Currently the folder, `m4b`, and `srt` file must share the same name. So:
+**IMPORTANT** Currently the folder, `m4b`, and `srt` file must share the same name. So:
 
 ```
 /sync/
@@ -334,12 +407,15 @@ Notice you can also set fields and tags manually. You can set multiple tags. Or 
    ├── NeoOtaku Uprising Audiobook.srt
 ```
 
-Command:
-`./anki_importer/anki.sh "<full_folder_path>"`
+**Command:**
+```bash
+./anki_importer/anki.sh "<full_folder_path>"
+```
 
-Example:
-`./anki_importer/anki.sh "/mnt/d/sync/kokoro/"`
-
+**Example:**
+```bash
+./anki_importer/anki.sh "/mnt/d/sync/kokoro/"
+```
 
 # FAQ
 ## Can I run this with multiple Audio files and _One_ script?
@@ -347,7 +423,7 @@ It's not recommended. You will have a bad time.
 
 If your audiobook is huge (eg 38 hours long & 31 audio files), then break up each section into an m4b or audio file with a text file for it: one text file per one audio file. This will work fine.
 
-But it _can_ work in very specific circumstances. The exception to the Sort Order rule, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub`. This only works if the `epub` chapters and the `mp3` match. `Txt ` files don't work very well for this case currently. I still don't recommend it.
+But it _can_ work in very specific circumstances. The exception to the Sort Order rule, is if we find one transcript and multiple audio files. We'll assume that's something like a bunch of `mp3`s or other audio files that you want to sync to a single transcript like an `epub`. This only works if the `epub` chapters and the `mp3` match. `Txt` files don't work very well for this case currently. I still don't recommend it.
 
 ## How do I get a bunch of MP3's into one file then?
 Please use m4b for audiobooks. I know you may have gotten them in mp3 and it's an extra step, but it's _the_ audiobook format.
@@ -357,7 +433,7 @@ I've heard of people using https://github.com/yermak/AudioBookConverter
 Personally, I use the docker image for [`m4b-tool`](https://github.com/sandreas/m4b-tool#installation). If you go down this route, make sure you use the docker version of m4b-tool as the improved codecs are included in it. I tested m4b-tool without the docker image and noticed a huge drop in sound quality without them. When lossy formats like mp3 are transcoded they lose quality so it's important to use the docker image to retain the best quality. I use the `helpers/merge2.sh` to merge audiobooks together in batch with this method.
 
 Alternatively you could use ChatGPT to help you combine them. Something like this:
-```
+```bash
 !for f in "/content/drive/MyDrive/name/成瀬は天下を取りに行く/"*.mp3; do echo "file '$f'" >> mylist.txt; done
 !ffmpeg -f concat -safe 0 -i mylist.txt -c copy output.mp3
 ```
@@ -366,11 +442,9 @@ Alternatively you could use ChatGPT to help you combine them. Something like thi
 
 Besides the other ones already mentioned & installed this project uses other open source projects subs2cia, & anki-csv-importer
 
-https://github.com/gsingh93/anki-csv-importer
-
-https://github.com/kanjieater/subs2cia
-
-https://github.com/ym1234/audiobooktextsync
+- https://github.com/gsingh93/anki-csv-importer
+- https://github.com/kanjieater/subs2cia
+- https://github.com/ym1234/audiobooktextsync
 
 # Other Cool Projects
 

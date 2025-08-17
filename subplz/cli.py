@@ -6,7 +6,6 @@ import torch
 from pathlib import Path
 from dataclasses import dataclass, fields, field
 
-from subplz.files import get_working_folders
 
 
 START_PUNC = """『「(（《｟[{"'“¿""" + """'“"¿([{-『「（〈《〔【｛［｟＜<‘“〝※"""
@@ -153,11 +152,46 @@ ARGUMENTS = {
             ),
         },
     },
+    "pipeline": {
+        "flags": ["--pipeline"],
+        "kwargs": {
+            "required": False,
+            "action": "append",
+            "nargs": "+",
+            "help": "Define a command. Use this flag multiple times to build a pipeline to be run in batch",
+        },
+    },
+    "config": {
+        "flags": ["-c", "--config"],
+        "kwargs": {
+            "required": True,
+            "type": str,
+            "default": None,
+            "metavar": "PATH",
+            "help": "Path to the YAML file to define what should be done with automation and batch",
+        },
+    },
     "overwrite": {
         "flags": ["--overwrite"],
         "kwargs": {
             "default": None,
             "help": "Overwrite any destination files",
+            "action": "store_true",
+        },
+    },
+    "verify": {
+        "flags": ["--verify"],
+        "kwargs": {
+            "default": None,
+            "help": "Verify the language of the text",
+            "action": "store_true",
+        },
+    },
+    "unique": {
+        "flags": ["--unique"],
+        "kwargs": {
+            "default": None,
+            "help": "Only rename if the file is unique to the other subs in the directory",
             "action": "store_true",
         },
     },
@@ -617,7 +651,7 @@ class RenameParams:
     lang_ext_original: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     dry_run: bool = field(default=False, metadata={"category": "optional"})
-
+    unique: bool = field(default=False, metadata={"category": "optional"})
 
 @dataclass
 class CopyParams:
@@ -626,6 +660,33 @@ class CopyParams:
     lang_ext: str = field(metadata={"category": "main"})
     lang_ext_priority: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=True, metadata={"category": "optional"})
+
+@dataclass
+class ExtractParams:
+    subcommand: str = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "main"})
+    lang_ext: str = field(metadata={"category": "main"})
+    lang_ext_original: Optional[str] = field(metadata={"category": "main"})
+    overwrite: bool = field(default=False, metadata={"category": "optional"})
+    verify: bool = field(default=False, metadata={"category": "optional"})
+
+@dataclass
+class BatchParams:
+    # --- Required fields first ---
+    subcommand: str = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "optional"})
+    config: Optional[str] = field(default=None, metadata={"category": "main"})
+    pipeline: List[List[str]] = field(default_factory=list, metadata={"category": "optional"})
+
+@dataclass
+class watchParams:
+    subcommand: str = field(metadata={"category": "main"})
+    config: str = field(metadata={"category": "main"})
+
+@dataclass
+class ScannerParams:
+    subcommand: str = field(metadata={"category": "main"})
+    config: str = field(metadata={"category": "main"})
 
 
 def setup_commands_cli(parser):
@@ -679,11 +740,9 @@ def setup_commands_cli(parser):
         help="Find all subdirectories that contain video or audio files",
         usage=""""subplz find [-h] [-d DIRS [DIRS ...]] """,
     )
-
     main_group_find = find.add_argument_group("Main arguments")
     optional_group_find = find.add_argument_group("Optional arguments")
     advanced_group_find = find.add_argument_group("Advanced arguments")
-
     add_arguments_from_dataclass(
         main_group_find, FindParams, optional_group_find, advanced_group_find
     )
@@ -694,11 +753,9 @@ def setup_commands_cli(parser):
         help="Rename one subtitle to another lang ext name",
         usage=""""subplz rename [-h] [-d DIRS [DIRS ...]] """,
     )
-
     main_group_rename = rename.add_argument_group("Main arguments")
     optional_group_rename = rename.add_argument_group("Optional arguments")
     advanced_group_rename = rename.add_argument_group("Advanced arguments")
-
     add_arguments_from_dataclass(
         main_group_rename, RenameParams, optional_group_rename, advanced_group_rename
     )
@@ -709,23 +766,73 @@ def setup_commands_cli(parser):
         help="Copy one subtitle to another lang ext name without removing it",
         usage=""""subplz rename [-h] [-d DIRS [DIRS ...]] """,
     )
-
     main_group_copy = copy.add_argument_group("Main arguments")
     optional_group_copy = copy.add_argument_group("Optional arguments")
     advanced_group_copy = copy.add_argument_group("Advanced arguments")
-
     add_arguments_from_dataclass(
         main_group_copy, CopyParams, optional_group_copy, advanced_group_copy
+    )
+
+
+    extract = sp.add_parser(
+        "extract",
+        help="Extract one subtitle from a video file",
+        usage=""""subplz extract [-h] [-d DIRS [DIRS ...]] """,
+    )
+    main_group_extract = extract.add_argument_group("Main arguments")
+    optional_group_extract = extract.add_argument_group("Optional arguments")
+    advanced_group_extract = extract.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_extract, ExtractParams, optional_group_extract, advanced_group_extract
+    )
+
+    batch = sp.add_parser(
+        "batch",
+        help="Run a predefined batch of operations on a directory",
+        usage="subplz batch -d DIRS [DIRS ...] [--initial-rename]",
+    )
+    main_group_batch = batch.add_argument_group("Main arguments")
+    optional_group_batch = batch.add_argument_group("Optional arguments")
+    advanced_group_batch = batch.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_batch, BatchParams, optional_group_batch, advanced_group_batch
+    )
+
+    watch = sp.add_parser(
+        "watch",
+        help="Watch a directory for new jobs and process them automatically.",
+        usage="subplz watch -c PATH",
+    )
+    main_group_watch = watch.add_argument_group("Main arguments")
+    optional_group_watch = watch.add_argument_group("Optional arguments")
+    advanced_group_watch = watch.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_watch, watchParams, optional_group_watch, advanced_group_watch
+    )
+
+    scanner = sp.add_parser(
+        "scanner",
+        help="Scans the library for media missing subtitles and creates job files.",
+        usage="subplz scanner -c PATH",
+    )
+    main_group_scanner = scanner.add_argument_group("Main arguments")
+    optional_group_scanner = scanner.add_argument_group("Optional arguments")
+    advanced_group_scanner = scanner.add_argument_group("Advanced arguments")
+    add_arguments_from_dataclass(
+        main_group_scanner, ScannerParams, optional_group_scanner, advanced_group_scanner
     )
 
     return parser
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description="Match audio to a transcript")
+    return parser
 
+
+def get_args(arg_list=None):
+    parser = argparse.ArgumentParser(description="Match audio to a transcript")
     parser = setup_commands_cli(parser)
-    args = parser.parse_args()
+    # --- Use the provided list, or fall back to sys.argv ---
+    args = parser.parse_args(arg_list)
     return args
 
 
@@ -786,8 +893,8 @@ def get_source_data(args):
     return get_data(args, subcommand_to_dataclass)
 
 
-def get_inputs():
-    args = get_args()
+def get_inputs(arg_list=None):
+    args = get_args(arg_list)
     if args.subcommand in ["sync", "gen"]:
         inputs = SimpleNamespace(
             subcommand=args.subcommand,

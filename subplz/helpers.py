@@ -2,15 +2,15 @@ from typing import List
 from pathlib import Path
 from collections import defaultdict
 import shutil
+from subplz.sub import extract_all_subtitles
 from subplz.files import (
-    SUPPORTED_AUDIO_FORMATS,
     get_true_stem,
     get_text,
     get_audio,
-    match_files,
-    get_audio,
+    match_files
 )
-from subplz.cli import CopyParams
+from subplz.cli import CopyParams, ExtractParams, RenameParams
+from subplz.text import detect_language
 
 
 def find(directories: List[str]) -> List[str]:
@@ -40,8 +40,23 @@ def get_rerun_file_path(output_path: Path, orig) -> Path:
     )
     return cache_file
 
+def are_files_identical(file1: Path, file2: Path) -> bool:
+    """
+    Compares the content of two files to see if they are identical.
+    Returns True if they match, False otherwise.
+    """
+    try:
+        # A simple and efficient way to compare is by reading the whole content.
+        # For larger files, you might compare chunk by chunk, but for subs this is fine.
+        if file1.read_text(encoding='utf-8') == file2.read_text(encoding='utf-8'):
+            return True
+        return False
+    except Exception as e:
+        print(f"⚠️  Could not compare files {file1.name} and {file2.name}: {e}")
+        return False
+    
 
-def rename(inputs):
+def rename(inputs: RenameParams):
     directories = inputs.dirs
     lang_ext = inputs.lang_ext
     lang_ext_original = inputs.lang_ext_original
@@ -84,7 +99,26 @@ def rename(inputs):
         text_path, new_name = list(rename_text.items())[0]
         old_path = Path(text_path)
         if new_name.exists() and not overwrite:
-            print(f"😐 Skipping renaming for {new_name} since it already exists.")
+            print(f"😐 Skipping renaming for '{new_name.name}': File already exists.")
+            continue
+        is_unique = True
+        if inputs.unique:
+            dir_path = old_path.parent
+            all_subs_in_dir = get_text(dir_path)
+            true_stem = get_true_stem(old_path)
+
+            other_subs = [
+                Path(p) for p in all_subs_in_dir
+                if get_true_stem(Path(p)) == true_stem and Path(p) != old_path
+            ]
+
+            for other_sub in other_subs:
+                if are_files_identical(old_path, other_sub):
+                    print(f"😐 Skipping rename for '{old_path}': Content is identical to '{other_sub}'.")
+                    is_unique = False
+                    break
+
+        if not is_unique:
             continue
         try:
             print(f"""
@@ -143,3 +177,57 @@ def copy(inputs: CopyParams):
                             print(f"Failed to copy {old_path} to {new_file}: {e}")
                             copied = True
                             break
+
+
+
+def extract(inputs: ExtractParams):
+    """
+    Extracts embedded subtitles from media files by wrapping the core extract function.
+    """
+    # --- 1. Validate Inputs ---
+    if not inputs.lang_ext:
+        print("❗ --lang-ext is required to specify the output subtitle language extension.")
+        return
+    if not inputs.lang_ext_original:
+        print("❗ --lang-ext-original is required to specify the language to search for and extract.")
+        return
+
+    # --- 2. Discover Files ---
+    media_files = []
+    for directory in inputs.dirs:
+        dir_path = Path(directory)
+        if dir_path.is_dir():
+            # get_audio finds all supported media containers (video and audio)
+            media_files.extend(get_audio(dir_path))
+        else:
+            print(f"❗ Skipping invalid directory: {dir_path}")
+
+    if not media_files:
+        print("🤷 No media files found to process.")
+        return
+
+    # --- 3. Call the Reused Function ---
+    # This now calls the core logic from sub.py with all the necessary parameters.
+    extracted_subs = extract_all_subtitles(
+        files=media_files,
+        lang_ext=inputs.lang_ext,
+        lang_ext_original=inputs.lang_ext_original,
+        overwrite=inputs.overwrite,
+        existence_check_lang=inputs.lang_ext,
+        strict=True
+    )
+    if not extracted_subs:
+        print("🤔 No new subtitles were extracted")
+        return
+    # --- 4. Verify Language if Requested ---
+    if not inputs.verify:
+        return
+
+    print("🕵️ Verifying language of newly extracted files...")
+    for sub_path in extracted_subs:
+        detected_lang = detect_language(sub_path)
+        if detected_lang != inputs.lang_ext_original:
+            print(f"❌ Language mismatch for '{sub_path.name}'! Expected '{inputs.lang_ext_original}', detected '{detected_lang}'.")
+            sub_path.unlink()
+        else:
+            print(f"✅ Language verified for '{sub_path.name}'.")

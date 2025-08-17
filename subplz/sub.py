@@ -5,12 +5,100 @@ from multiprocessing import Pool, cpu_count
 from functools import partial
 from pathlib import Path
 import ffmpeg
-from subplz.utils import grab_files,  get_tmp_path, get_tqdm
-
+from subplz.utils import grab_files,  get_tmp_path, get_tqdm, get_iso639_2_lang_code
 
 tqdm, trange = get_tqdm()
 
 SUBTITLE_FORMATS = ["ass", "srt", "vtt", "ssa", "idx"]
+
+
+def score_subtitle_stream(stream_info: dict, target_iso_lang: str | None) -> int:
+    """Assigns a preference score to a subtitle stream."""
+    score = 0
+    tags = stream_info.get("tags", {})
+    title = tags.get("title", "").lower()
+    stream_lang = tags.get("language", "").lower()
+    disposition = stream_info.get("disposition", {})
+
+    # 1. Language Match (highest importance)
+    if target_iso_lang and stream_lang == target_iso_lang:
+        score += 100
+
+    # 2. Avoid undesirable tracks (strong negative scores)
+    commentary_keywords = ["commentary", "comment", "comms"]
+    signs_songs_keywords = ["signs", "songs", "s&s", "sign", "song"]
+    forced_keywords = ["forced"]
+
+    if any(kw in title for kw in commentary_keywords) or disposition.get("comment", 0):
+        score -= 200
+    if any(kw in title for kw in signs_songs_keywords):
+        score -= 150
+    if any(kw in title for kw in forced_keywords) or disposition.get("forced", 0):
+        score -= 100
+
+    # 3. Prefer desirable tracks (positive scores)
+    full_keywords = ["full", "dialogue", "dialog"]
+    sdh_keywords = ["sdh", "cc", "hearing impaired"]
+
+    if any(kw in title for kw in full_keywords):
+        score += 20
+    if any(kw in title for kw in sdh_keywords):
+        score += 15
+
+    # 4. Prefer default track (good tie-breaker)
+    if disposition.get("default", 0):
+        score += 10
+
+    # 5. Format preference (minor tie-breaker)
+    codec_name = stream_info.get("codec_name", "").lower()
+    if codec_name == 'srt':
+        score += 5
+    elif codec_name == 'ass':
+        score += 2
+
+    return score
+
+def get_subtitle_idx(all_streams: list, path: str, target_lang_code: str = None) -> dict | None:
+    """
+    Finds the best matching subtitle stream.
+    If target_lang_code is provided, it will be strict and only return a match for that language.
+    If target_lang_code is None, it will return the highest-scoring stream regardless of language.
+    """
+    subtitle_streams = [s for s in all_streams if s.get("codec_type") == "subtitle"]
+    if not subtitle_streams:
+        return None
+
+    standardized_target_lang = None
+    if target_lang_code:
+        standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
+        if not standardized_target_lang:
+            print(f"🦈 Could not standardize input language code '{target_lang_code}'.")
+
+    scored_streams = []
+    for stream in subtitle_streams:
+        score = score_subtitle_stream(stream, standardized_target_lang)
+        scored_streams.append({"score": score, "stream_info": stream})
+
+    scored_streams.sort(key=lambda x: x["score"], reverse=True)
+
+    if not scored_streams:
+        return None
+
+    best_match = scored_streams[0]
+    best_match_lang = best_match["stream_info"].get("tags",{}).get("language","").lower()
+
+    # --- ADD THIS STRICT CHECK ---
+    # If a target language was specified, ensure the best match is actually that language.
+    if standardized_target_lang and best_match_lang != standardized_target_lang:
+        print(f"🦈 No subtitle stream with the required language '{target_lang_code}' was found in {path}")
+        return None
+    # --- END OF CHANGE ---
+
+    if best_match["score"] < 0: # All tracks were undesirable
+        print(f"🦈 All subtitle tracks scored negatively. Best undesirable match selected (score: {best_match['score']}) for file: {path}")
+
+    print(f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Lang: {best_match_lang or 'N/A'}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}")
+    return best_match["stream_info"]
 
 
 def sexagesimal(secs, use_comma=False):
@@ -156,46 +244,80 @@ def sanitize_subtitle(subtitle_path: Path) -> None:
         print(f"❗ Failed to sanitize subtitles: {e}")
 
 
-def ffmpeg_extract(video_path: Path, output_subtitle_path: Path) -> None:
-    # Need stdin flag for running from bash here
-    # https://stackoverflow.com/questions/25811022/incorporating-ffmpeg-in-a-bash-script
+def ffmpeg_extract(video_path: Path, output_subtitle_path: Path, stream_index: int) -> None:
     try:
+        stream_specifier = f"0:s:{stream_index}"
         (
             ffmpeg.input(str(video_path))
-            .output(str(output_subtitle_path), map="0:s:0", c="srt", loglevel='error')
+            .output(str(output_subtitle_path), map=stream_specifier, c="srt", loglevel='error')
             .global_args("-hide_banner", "-nostdin")
             .run(overwrite_output=True)
         )
         return output_subtitle_path
     except ffmpeg.Error as e:
         raise RuntimeError(
-            f"❗Failed to extract subtitles from {video_path}. "
+            f"❗Failed to extract subtitle stream index {stream_index} from {video_path}. FFmpeg error: {e.stderr.decode()}"
             "You may need to provide an external subtitle file."
             "If the error above Stream map '0:s:0' matches no streams, then no embedded subtitles found in the file"
         )
 
+def extract_subtitle(file, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None, strict=False):
+    lang_to_check = existence_check_lang if existence_check_lang is not None else lang_ext_original
+    path_to_check = get_subtitle_path(file, lang_to_check)
 
-def extract_subtitle(file, lang_ext, lang_ext_original):
-    subtitle_path = get_subtitle_path(file, lang_ext_original)
-    if subtitle_path.exists():
-        return
+    # The final output path is always determined by lang_ext
+    output_subtitle_path = get_subtitle_path(file, lang_to_check)
+
+    if path_to_check.exists() and not overwrite:
+        print(f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction.")
+        # Return None because no new file was created in this run
+        return None
 
     try:
-        print(f"⛏️ Extracting subtitles from {file} to {subtitle_path}")
-        ffmpeg_extract(file, subtitle_path)
+        print(f"🔎 Analyzing streams in {file} to find best '{lang_ext_original}' subtitle...")
+        all_streams = ffmpeg.probe(str(file))["streams"]
+        strict_lang = None
+        if strict:
+            strict_lang = lang_ext_original
+        best_sub_stream = get_subtitle_idx(all_streams, str(file), strict_lang)
+
+        if not best_sub_stream:
+            print(f"🤷 No suitable subtitle streams found '{lang_ext_original}' in {file}")
+            return None
+
+        stream_index_in_file = best_sub_stream['index']
+        subtitle_only_streams = [s for s in all_streams if s.get("codec_type") == "subtitle"]
+        relative_stream_index = 0
+        for i, s in enumerate(subtitle_only_streams):
+            if s['index'] == stream_index_in_file:
+                relative_stream_index = i
+                break
+
+        print(f"⛏️ Extracting best subtitle stream (index: {relative_stream_index}) from {file} to {output_subtitle_path}")
+        ffmpeg_extract(file, output_subtitle_path, relative_stream_index)
+
+        return output_subtitle_path
+
     except Exception as err:
-        error_message = (
-            f"❗ Failed to extract subtitles; file not found: {subtitle_path}"
-        )
-        print(err)
-        target_subtitle_path = get_subtitle_path(file, lang_ext)
-        write_subfail(file, target_subtitle_path, error_message)
+        error_message = f"❗ Failed to extract subtitles from {file}: {err}"
+        print(error_message)
+        write_subfail(file, output_subtitle_path, error_message)
+        return None
 
-
-def extract_all_subtitles(files, lang_ext, lang_ext_original):
-    # count = int(cpu_count() / 2 + 1) # doesn't work on network disk
+def extract_all_subtitles(files, lang_ext, lang_ext_original, overwrite=False, existence_check_lang=None, strict=False):
+    # Using a process count of 1 is safer for network drives
     count = 1
     with Pool(processes=count) as pool:
-        list(tqdm(pool.imap(partial(extract_subtitle, lang_ext=lang_ext, lang_ext_original=lang_ext_original), files),
-                   total=len(files),
-                   desc="Extracting Embedded Subtitles (may take a while)"))
+        func = partial(
+            extract_subtitle,
+            lang_ext=lang_ext,
+            lang_ext_original=lang_ext_original,
+            overwrite=overwrite,
+            existence_check_lang=existence_check_lang,
+            strict=strict
+        )
+        results = list(tqdm(pool.imap(func, files),
+                      total=len(files),
+                      desc=f"Extracting '{lang_ext_original}' to make '{lang_ext}'"))
+    extracted_paths = [path for path in results if path is not None]
+    return extracted_paths
