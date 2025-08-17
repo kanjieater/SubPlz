@@ -8,7 +8,7 @@ from .batch import run_batch
 from .sync import run_sync
 from .gen import run_gen
 from .cli import get_inputs
-from .watcher import run_watcher
+from .auto.watcher import run_watcher
 
 def setup_logging_from_args(inputs):
     """

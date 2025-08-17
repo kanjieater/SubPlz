@@ -9,9 +9,9 @@ from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
 # We only need to import 'logger' now, not the configuration function
-from .logger import logger
-from .cli import BatchParams
-from .batch import run_batch
+from ..logger import logger
+from ..cli import BatchParams
+from ..batch import run_batch
 
 def get_host_path(config, path_from_job):
     """Translates a container path to a host path using the path_map."""
