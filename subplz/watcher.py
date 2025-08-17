@@ -8,7 +8,8 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
-from .logger import configure_logging, logger
+# We only need to import 'logger' now, not the configuration function
+from .logger import logger
 from .cli import BatchParams
 from .batch import run_batch
 
@@ -85,15 +86,9 @@ def run_watcher(args):
     try:
         with open(args.config, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
-    except FileNotFoundError:
-        print(f"FATAL: Configuration file not found at {args.config}")
+    except Exception as e:
+        logger.critical(f"Watcher command failed because it could not load the config file at '{args.config}': {e}")
         sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"FATAL: Error parsing YAML file: {e}")
-        sys.exit(1)
-
-    # Configure the logger as the first step after loading the config
-    configure_logging(config)
 
     try:
         logger.info(f"Starting watcher with config file: {args.config}")
@@ -136,7 +131,6 @@ def run_watcher(args):
 
     except KeyboardInterrupt:
         logger.info("\nWatcher stopped by user (Ctrl+C).")
-        # Ensure the observer is stopped if it was started
         if 'observer' in locals() and observer.is_alive():
             observer.stop()
             observer.join()
