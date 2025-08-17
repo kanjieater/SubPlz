@@ -264,7 +264,18 @@ def ffmpeg_extract(
     try:
         stream_specifier = f"0:s:{stream_index}"
         (
-            ffmpeg.input(str(video_path))
+            ffmpeg
+            # --- KEY CHANGES ARE HERE ---
+            .input(
+                str(video_path),
+                # Tell ffmpeg to analyze only the first 10MB of the file to find streams.
+                # This avoids scanning the entire file over the network.
+                probesize="10M",
+                # Tell ffmpeg to analyze up to 10 seconds of video duration.
+                # Value is in microseconds.
+                analyzeduration="10000000",
+            )
+            # --------------------------
             .output(
                 str(output_subtitle_path),
                 map=stream_specifier,

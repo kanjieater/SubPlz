@@ -10,7 +10,7 @@ from rapidfuzz import fuzz
 from subplz.transcribe import transcribe
 from subplz.alass import sync_alass
 from subplz.files import get_sources, post_process
-from subplz.models import get_model, get_temperature
+from subplz.models import get_model, get_temperature, unload_model
 from subplz.align import nc_align, shift_align
 from subplz.files import sourceData
 from subplz.utils import get_tqdm, get_threads
@@ -183,14 +183,19 @@ def run_sync(inputs):
     alass_exists = (
         getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
     )
-    if not alass_exists:
-        model = get_model(be)
 
-    for source in tqdm(sources):
-        print(f"🐼 Starting '{source.audio}'...")
-        if source.alass:
-            sync_alass(source, inputs.sources, be)
-        else:
-            transcribed_streams = transcribe(source.streams, model, be)
-            sync(source, model, transcribed_streams, be)
-    post_process(sources, "sync")
+    model = None
+    try:
+        if not alass_exists:
+            model = get_model(be)
+
+        for source in tqdm(sources):
+            print(f"🐼 Starting '{source.audio}'...")
+            if source.alass:
+                sync_alass(source, inputs.sources, be)
+            else:
+                transcribed_streams = transcribe(source.streams, model, be)
+                sync(source, model, transcribed_streams, be)
+        post_process(sources, "sync")
+    finally:
+        unload_model(model)

@@ -3,7 +3,7 @@ from subplz.utils import get_tqdm, get_threads
 from subplz.align import shift_align
 from subplz.transcribe import transcribe
 from subplz.files import get_sources, post_process
-from subplz.models import get_model, get_temperature
+from subplz.models import get_model, get_temperature, unload_model
 
 tqdm, trange = get_tqdm()
 
@@ -52,10 +52,14 @@ def run_gen(inputs):
     be.temperature = get_temperature(be)
     be.threads = get_threads(be)
     sources = get_sources(inputs.sources, inputs.cache)
-    model = get_model(be)
+    model = None
+    try:
+        model = get_model(be)
 
-    for source in tqdm(sources):
-        print(f"🐼 Starting '{source.audio}'...")
-        transcribed_streams = transcribe(source.streams, model, be)
-        gen(source, model, transcribed_streams, be)
-    post_process(sources, "gen")
+        for source in tqdm(sources):
+            print(f"🐼 Starting '{source.audio}'...")
+            transcribed_streams = transcribe(source.streams, model, be)
+            gen(source, model, transcribed_streams, be)
+        post_process(sources, "gen")
+    finally:
+        unload_model(model)

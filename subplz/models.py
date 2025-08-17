@@ -1,21 +1,34 @@
+import gc
 from faster_whisper import WhisperModel
 import whisper
 from types import MethodType
 import torch
 from copy import copy
 import numpy as np
-from subplz.utils import get_tqdm
+
+from .logger import logger
+from .utils import get_tqdm
 
 tqdm = get_tqdm()[0]
-# from huggingface import modify_model
-# from quantization import ptdq_linear
 
-# from ats.main import faster_transcribe
+
+def unload_model(model):
+    """
+    Explicitly unloads a model from VRAM to free up memory.
+    """
+    if model is None:
+        return
+    try:
+        del model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.debug("Model successfully unloaded from memory.")
+    except Exception as e:
+        logger.warning(f"An error occurred while unloading the model: {e}")
 
 
 def faster_transcribe(self, audio, name, **args):
-    # name = args.pop('name')
-
     args["log_prob_threshold"] = args.pop("logprob_threshold")
     args["beam_size"] = args["beam_size"] if args["beam_size"] else 1
     args["patience"] = args["patience"] if args["patience"] else 1
@@ -67,7 +80,7 @@ def get_model(backend):
     num_workers = backend.threads
     if device == "cuda" and not torch.cuda.is_available():
         device = "cpu"
-    print(
+    logger.info(
         f"🖥️  We're using {device}. Results will be faster using Cuda with GPU than just CPU. Lot's of RAM needed no matter what."
     )
     compute_type = (
@@ -99,12 +112,3 @@ def get_model(backend):
         if quantize and device != "cpu":
             model = model.half()
     return model
-
-    # if args.pop('dynamic_quantization') and device == "cpu" and not faster_whisper:
-    #     ptdq_linear(model)
-
-    # overlap, batches = args.pop("fast_decoder_overlap"), args.pop("fast_decoder_batches")
-    # if args.pop("fast_decoder") and not faster_whisper:
-    #     args["overlap"] = overlap
-    #     args["batches"] = batches
-    # modify_model(model)
