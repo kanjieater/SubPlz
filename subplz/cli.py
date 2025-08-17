@@ -5,9 +5,7 @@ import multiprocessing
 import torch
 from pathlib import Path
 from dataclasses import dataclass, fields, field
-import yaml
 
-from subplz.files import get_working_folders
 
 
 START_PUNC = """『「(（《｟[{"'“¿""" + """'“"¿([{-『「（〈《〔【｛［｟＜<‘“〝※"""
