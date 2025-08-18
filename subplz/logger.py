@@ -42,6 +42,7 @@ def configure_logging(config: dict):
         level="TQDM",
         filter=lambda record: record["level"].name == "TQDM",
     )
+    logger.level("CMD", no=22, color="<blue>")
 
     # File handler gets an updated format
     log_dir = log_config.get("dir")

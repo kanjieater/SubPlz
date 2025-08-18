@@ -94,26 +94,30 @@ scanner:
 batch_pipeline:
   # Each item in this list is a step that will be run in order
   # for every directory processed by batch.py.
-  - name: "Rename 'ja' subs to 'ab' for processing"
-    command: ['rename', '-d', '{directory}', '--lang-ext', 'ab', '--lang-ext-original', 'ja', '--unique']
+  # Subplz cli commands and arguments are supported.
+  # {directory} and {file} will be dynamically replaced by jobs from the watcher or commands from batch
+  # Ex: subplz batch -d "/mnt/g/test/h" --config "/mnt/rd/subplz/config.yml",
+  # would make the "{directory}" turn into "/mnt/g/test/h"
+  - name: "Source: Rename 'ja' subs to 'ab' for processing"
+    command: 'rename -d "{directory}" --lang-ext ab --lang-ext-original ja --unique --overwrite'
 
-  - name: "Extract & Verify Native Target Language ('ja' -> 'tl')"
-    command: ['extract', '-d', '{directory}', '--lang-ext', 'tl', '--lang-ext-original', 'ja', '--verify']
+  - name: "Embedded: Extract & Verify Native Target Language ('ja' -> 'tl')"
+    command: 'extract -d "{directory}" --file "{file}" --lang-ext tl --lang-ext-original ja --verify'
 
-  - name: "Alass Sync ('en' + 'ab' -> 'as')"
-    command: ['sync', '-d', '{directory}', '--lang-ext', 'as', '--lang-ext-original', 'en', '--lang-ext-incorrect', 'ab', '--alass']
+  - name: "Alass: ('en' + 'ab' -> 'as')"
+    command: 'sync -d "{directory}" --file "{file}" --lang-ext as --lang-ext-original en --lang-ext-incorrect ab --alass'
 
-  - name: "SubPlz Sync ('ab' -> 'ak')"
-    command: ['sync', '-d', '{directory}', '--lang-ext', 'ak', '--lang-ext-original', 'ab', '--model', 'large-v3']
+  - name: "SubPlz: ('ab' -> 'ak')"
+    command: 'sync -d "{directory}" --file "{file}" --lang-ext ak --lang-ext-original ab --model large-v3'
 
-  - name: "Generate subs ('az')"
-    command: ['gen', '-d', '{directory}', '--lang-ext', 'az', '--model', 'large-v3']
+  - name: "Stable-ts: ('az')"
+    command: 'gen -d "{directory}" --file "{file}" --lang-ext az --model large-v3'
 
-  - name: "Alass Variant AI Sync ('az' + 'ab' -> 'av')"
-    command: ['sync', '-d', '{directory}', '--lang-ext', 'av', '--lang-ext-original', 'az', '--lang-ext-incorrect', 'ab', '--alass']
+  - name: "Alass Variant: ('az' + 'ab' -> 'av')"
+    command: 'sync -d "{directory}" --file "{file}" --lang-ext av --lang-ext-original az --lang-ext-incorrect ab --alass'
 
-  - name: "Copy best subtitle to 'ja'"
-    command: ['copy', '-d', '{directory}', '--lang-ext', 'ja', '--lang-ext-priority', "tl", "as", "av", "ak", "az", "ab", '--overwrite']
+  - name: "Best: Copy best subtitle to 'ja'"
+    command: 'copy -d "{directory}" --lang-ext ja --lang-ext-priority tl as av ak az ab --overwrite'
 ```
 ## How to Use
 

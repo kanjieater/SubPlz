@@ -63,7 +63,8 @@ def process_job_file(job_file_path, full_config):
             dirs=[host_target_dir],
             file=host_episode_path,
             pipeline=pipeline,
-            config=None
+            config=None,
+            config_data=full_config
         )
 
         run_batch(batch_inputs)

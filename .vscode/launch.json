@@ -145,6 +145,19 @@
       ],
     },
     {
+      "name": "Batch",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "subplz",
+      "args": [
+        "batch",
+        "-d",
+        "/mnt/g/test/h",
+        "--config",
+        "/mnt/rd/subplz/config.yml"
+      ],
+    },
+    {
       "name": "Alass",
       "type": "debugpy",
       "request": "launch",

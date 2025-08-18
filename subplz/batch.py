@@ -1,14 +1,11 @@
-# batch.py
 from pathlib import Path
-from subplz.helpers import extract, rename, copy
-from subplz.cli import get_inputs
-from subplz.sync import run_sync
-from subplz.gen import run_gen
-import yaml
+import shlex
 from .logger import logger
+from .helpers import extract, rename, copy
+from .cli import get_inputs
+from .sync import run_sync
+from .gen import run_gen
 
-# A mapping from the command name (str) to the actual function to call.
-# This allows us to dynamically execute the correct logic based on the config.
 COMMAND_MAP = {
     "rename": rename,
     "extract": extract,
@@ -18,58 +15,20 @@ COMMAND_MAP = {
 }
 
 
-def resolve_pipeline(inputs):
-    # This logic only runs if the user did NOT provide a --pipeline on the CLI
-    if not inputs.pipeline and inputs.config:
-        logger.info(f"Loading pipeline from config file: {inputs.config}")
-        try:
-            with open(inputs.config, "r", encoding="utf-8") as f:
-                config_data = yaml.safe_load(f)
-
-            loaded_pipeline = config_data.get("batch_pipeline", [])
-            inputs.pipeline = loaded_pipeline  # Modify the object in place
-
-            if not loaded_pipeline:
-                logger.warning(
-                    f"⚠️ 'batch_pipeline' key not found or empty in {inputs.config}"
-                )
-
-        except FileNotFoundError:
-            logger.error(f"❌ Error: Config file not found at '{inputs.config}'.")
-            return None  # Return None on failure
-        except yaml.YAMLError as e:
-            logger.error(f"❌ Error parsing YAML file '{inputs.config}': {e}.")
-            return None  # Return None on failure
-
-    if not inputs.pipeline:
-        logger.error(
-            "❌ Error: No pipeline to run. Provide one via --pipeline or a valid --config file."
-        )
-        return None  # Return None if no pipeline is found
-
-    return inputs  # Return the prepared inputs object on success
-
-
 def run_batch(inputs):
     """
-    Prepares and executes a command pipeline on a list of directories.
-    This is the main entry point for the batch process.
+    Prepares and executes a command pipeline defined by strings in the config.
     """
-    # First, resolve the pipeline from the config if necessary.
-    prepared_inputs = resolve_pipeline(inputs)
+    config = inputs.config_data
+    pipeline = config.get("batch_pipeline", [])
+    directories = inputs.dirs
+    target_file = inputs.file
 
-    # If the resolution step failed, stop here.
-    if not prepared_inputs:
-        logger.error("Batch processing halted due to configuration errors.")
+    if not pipeline:
+        logger.error("No 'batch_pipeline' found in config. Nothing to do.")
         return
-
-    # Now, the rest of the logic can proceed, confident that inputs.pipeline is populated.
-    pipeline = prepared_inputs.pipeline
-    directories = prepared_inputs.dirs
-    target_file = prepared_inputs.file
-
     if not directories:
-        logger.warning("⚠️ Warning: No directories provided in 'inputs.dirs'. Nothing to do.")
+        logger.warning("No directories provided to batch command. Nothing to do.")
         return
 
     for dir_string in directories:
@@ -78,41 +37,49 @@ def run_batch(inputs):
             logger.warning(f"❗ Skipping invalid directory: {dir_path}")
             continue
 
-        logger.info(f"--- Processing directory: {dir_path} ---")
+        logger.info(f"--- Processing directory: {dir_path.name} ---")
 
         for i, step in enumerate(pipeline, 1):
             step_name = step.get("name", f"Step {i}")
-            command_template = step.get("command")
+            command_string_template = step.get("command")
 
-            if not command_template:
-                logger.warning(f"⚠️ Skipping invalid step (no 'command' found): {step_name}")
+            if not isinstance(command_string_template, str):
+                logger.warning(f"⚠️ Skipping invalid step '{step_name}': 'command' must be a string.")
                 continue
 
             logger.info(f"\n[{i}/{len(pipeline)}] Executing: {step_name}")
 
-            # Substitute the {directory} placeholder
-            args = [
-                str(arg).replace("{directory}", str(dir_path))
-                        .replace("{file}", str(target_file))
-                for arg in command_template
-            ]
+            final_command_string = command_string_template.replace(
+                "{directory}", str(dir_path)
+            ).replace(
+                "{file}", str(target_file) if target_file else ""
+            )
 
-            command_name = args[0]
+            try:
+                args_list = shlex.split(final_command_string)
+            except ValueError as e:
+                logger.error(f"❌ Error parsing command in step '{step_name}': {e}. Check for unclosed quotes.")
+                continue
+
+            final_args_list = [arg for arg in args_list if arg]
+
+            if not final_args_list:
+                logger.warning(f"Skipping step '{step_name}': Command is empty after processing.")
+                continue
+
+            command_name = final_args_list[0]
             func_to_call = COMMAND_MAP.get(command_name)
 
             if not func_to_call:
-                logger.error(
-                    f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping."
-                )
+                logger.error(f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping.")
                 continue
 
             try:
-                logger.info(f"  > subplz {' '.join(args)}")
-                # The get_inputs function prepares the arguments for the subplz library
-                parsed_args = get_inputs(args)
+                logger.log("CMD", f"  > subplz {' '.join(final_args_list)}")
+                parsed_args = get_inputs(final_args_list)
                 func_to_call(parsed_args)
             except Exception as e:
                 logger.opt(exception=True).error(f"❌ An error occurred during '{step_name}': {e}")
                 logger.info("  > Moving to the next step.")
 
-        logger.info(f"\n--- All operations completed for: {dir_path} ---")
+        logger.info(f"\n--- All operations completed for: {dir_path.name} ---")

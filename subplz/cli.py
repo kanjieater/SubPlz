@@ -19,7 +19,7 @@ ARGUMENTS = {
             "default": [],
             "required": False,
             "type": str,
-            "nargs": "+",
+            "nargs": "*",
             "help": "List of folders to pull audio from and generate subs to",
         },
     },
@@ -38,6 +38,8 @@ ARGUMENTS = {
             "type": str,
             "default": None,
             "required": False,
+            "const": "",
+            "nargs": "?",
             "help": "This is the single media file to focus on from a dir of it's matching text",
         },
     },
@@ -686,11 +688,11 @@ class BatchParams:
     subcommand: str = field(metadata={"category": "main"})
     dirs: List[str] = field(metadata={"category": "optional"})
     config: Optional[str] = field(default=None, metadata={"category": "main"})
+    config_data: Optional[dict] = field(default=None, repr=False, metadata={"category": "internal"}) # Not CLI
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
     pipeline: List[List[str]] = field(
         default_factory=list, metadata={"category": "optional"}
     )
-
 
 @dataclass
 class watchParams:
