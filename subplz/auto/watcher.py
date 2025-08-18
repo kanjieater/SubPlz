@@ -13,7 +13,9 @@ from ..batch import run_batch
 
 
 def get_host_path(config, path_from_job):
-    """Translates a container path to a host path using the path_map."""
+    """
+    Translates a container path to a host path, or confirms a host path's existence.
+    """
     path_map = config.get("watcher", {}).get("path_map", {})
     for docker_path, host_path in path_map.items():
         if path_from_job.startswith(docker_path):
@@ -21,12 +23,12 @@ def get_host_path(config, path_from_job):
             logger.debug(f"Translating container path: {path_from_job} -> {host_path}")
             return path_from_job.replace(docker_path, host_path, 1)
 
-    if os.path.isdir(path_from_job):
+    if os.path.exists(path_from_job):
         logger.debug(f"Path is already a valid host path: {path_from_job}")
         return path_from_job
 
     raise FileNotFoundError(
-        f"Could not resolve '{path_from_job}' to a valid host directory."
+        f"Could not resolve '{path_from_job}' to a valid host path."
     )
 
 
@@ -52,7 +54,7 @@ def process_job_file(job_file_path, full_config):
 
         logger.info(f"🚀 Triggering batch pipeline for dir: {host_target_dir}")
         if host_episode_path:
-            logger.info(f"   Focused on file: {Path(host_episode_path).name}")
+            logger.info(f"    Focused on file: {Path(host_episode_path).name}")
 
         pipeline = full_config.get('batch_pipeline')
         if not pipeline:
@@ -115,7 +117,6 @@ class JobEventHandler(FileSystemEventHandler):
 
 def run_watcher(args):
     """Main function to start the watcher, called by the CLI."""
-    # --- KEY CHANGE: Get the pre-loaded config object ---
     config = args.config_data
 
     try:

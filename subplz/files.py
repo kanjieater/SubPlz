@@ -575,22 +575,46 @@ def get_existing_rerun_files(dir: str, orig) -> List[str]:
     return old
 
 
+
 def get_hearing_impaired_extensions() -> set:
     return {"cc", "hi", "sdh"}
 
 
 def get_true_stem(file_path: Path) -> str:
-    stem = file_path.stem
-    stem_parts = stem.split(".")
-    known_extensions = get_hearing_impaired_extensions()
+    """
+    Extract the base filename, removing subtitle-specific extensions.
 
-    if stem_parts[-1] in known_extensions:
-        stem = ".".join(stem_parts[:-1])
-        stem_parts = stem.split(".")
+    Handles patterns like:
+    - filename.ja.cc.srt -> filename
+    - filename.ja.srt -> filename
+    - filename.en.srt -> filename
+    - filename.mkv -> filename
 
-    if len(stem_parts[-1]) > 0 and len(stem_parts[-1]) < 4:
-        stem = ".".join(stem_parts[:-1])
-    return stem
+    But preserves periods that are part of the actual title:
+    - Title [Opus 2.0].mkv -> Title [Opus 2.0]
+    """
+    original_stem = file_path.stem
+
+    # Don't modify stems that don't look like subtitle files
+    # If there are no dots, or if it's a video file, return as-is
+    if '.' not in original_stem or file_path.suffix.lower() in ['.mkv', '.mp4', '.avi', '.mov', '.m4v', '.webm', '.flv']:
+        return original_stem
+
+    # Work backwards from the end to remove subtitle extensions
+    parts = original_stem.split('.')
+
+    # Remove hearing impaired extensions (cc, hi, sdh) from the end
+    hi_extensions = get_hearing_impaired_extensions()
+    if len(parts) > 1 and parts[-1] in hi_extensions:
+        parts = parts[:-1]
+
+    # Remove language codes (1-3 character extensions) from the end
+    if len(parts) > 1 and 1 <= len(parts[-1]) <= 3:
+        # But only if it looks like a language code (letters only)
+        if parts[-1].isalpha():
+            parts = parts[:-1]
+
+    return '.'.join(parts)
 
 
 def get_rerun_file_path(output_path: Path, input) -> Path:

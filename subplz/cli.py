@@ -704,8 +704,10 @@ class watchParams:
 class ScannerParams:
     subcommand: str = field(metadata={"category": "main"})
     config: str = field(metadata={"category": "main"})
+    dirs: List[str] = field(metadata={"category": "optional"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
-
+    
 def setup_commands_cli(parser):
     sp = parser.add_subparsers(
         help="Generate a subtitle file from a file's audio source",
