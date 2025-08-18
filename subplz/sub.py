@@ -1,5 +1,6 @@
 import re
 import os
+import tempfile
 from dataclasses import dataclass
 from multiprocessing import Pool
 from functools import partial
@@ -7,6 +8,7 @@ from pathlib import Path
 import ffmpeg
 from .logger import logger
 from .utils import grab_files, get_tmp_path, get_tqdm, get_iso639_2_lang_code
+
 
 tqdm, trange = get_tqdm()
 
@@ -280,9 +282,23 @@ def sanitize_subtitle(subtitle_path: Path) -> None:
 
 def ffmpeg_extract(
     video_path: Path, output_subtitle_path: Path, stream_index: int
-) -> None:
+) -> Path:
+    """
+    Extracts a subtitle stream safely using the tempfile module and an atomic rename.
+    """
+    final_path = output_subtitle_path
+    output_dir = final_path.parent
+    fd, temp_path_str = tempfile.mkstemp(
+        suffix=final_path.suffix,
+        dir=output_dir
+    )
+
+    os.close(fd)
+    temp_path = Path(temp_path_str)
+
     try:
         stream_specifier = f"0:s:{stream_index}"
+        print(f"Extracting to temporary file: {temp_path}")
         (
             ffmpeg.input(
                 str(video_path),
@@ -294,7 +310,7 @@ def ffmpeg_extract(
                 analyzeduration="10000000",
             )
             .output(
-                str(output_subtitle_path),
+                str(temp_path),
                 map=stream_specifier,
                 c="srt",
                 loglevel="error",
@@ -302,13 +318,18 @@ def ffmpeg_extract(
             .global_args("-hide_banner", "-nostdin")
             .run(overwrite_output=True)
         )
-        return output_subtitle_path
+
+        # Atomic rename from temp to final location
+        temp_path.rename(final_path)
+        return final_path
     except ffmpeg.Error as e:
         raise RuntimeError(
             f"❗Failed to extract subtitle stream index {stream_index} from {video_path}. FFmpeg error: {e.stderr.decode()}"
             "You may need to provide an external subtitle file."
             "If the error above Stream map '0:s:0' matches no streams, then no embedded subtitles found in the file"
         )
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 def extract_subtitle(
