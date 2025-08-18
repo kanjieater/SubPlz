@@ -43,10 +43,12 @@ def is_blacklisted(filename, blacklist_terms):
 
         # Use word boundary regex for better matching
         # This will match "OP" as a whole word but not "OP" inside "Opus"
-        pattern = r'\b' + re.escape(term_lower) + r'\b'
+        pattern = r"\b" + re.escape(term_lower) + r"\b"
 
         if re.search(pattern, filename_lower):
-            logger.debug(f"File '{filename}' matched blacklist term '{term}' (word boundary match)")
+            logger.debug(
+                f"File '{filename}' matched blacklist term '{term}' (word boundary match)"
+            )
             return True
 
     return False
@@ -72,7 +74,7 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 
     # Check if target_exts is empty or None
     if not target_exts:
-        logger.warning(f"No target subtitle extensions configured! Check your config.")
+        logger.warning("No target subtitle extensions configured! Check your config.")
         return False
 
     if media_path.suffix.lower() in media_exts:
@@ -103,13 +105,19 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 
         # Summary logging
         if missing_subs:
-            logger.info(f"--> Missing subtitles: {missing_subs}. Creating job for {media_path.name}")
+            logger.info(
+                f"--> Missing subtitles: {missing_subs}. Creating job for {media_path.name}"
+            )
             return True
         else:
-            logger.info(f"--> All required subtitles found for {media_path.name}. No job needed.")
+            logger.info(
+                f"--> All required subtitles found for {media_path.name}. No job needed."
+            )
             return False
     else:
-        logger.debug(f"File '{file_name}' is not a media file (extension: {media_path.suffix})")
+        logger.debug(
+            f"File '{file_name}' is not a media file (extension: {media_path.suffix})"
+        )
         return False
 
 
@@ -124,7 +132,9 @@ def scan_library(config, override_dirs=None, target_file=None):
     logger.debug(f"Job directory: {job_dir}")
 
     if not job_dir:
-        logger.error("No 'jobs' directory found in watcher settings. Cannot create jobs.")
+        logger.error(
+            "No 'jobs' directory found in watcher settings. Cannot create jobs."
+        )
         return
 
     # Check if job directory exists and is writable
@@ -149,12 +159,16 @@ def scan_library(config, override_dirs=None, target_file=None):
 
         logger.info(f"Focusing scan on single file: {target_path.name}")
         files_scanned = 1
-        if check_file_for_missing_subs(str(target_path.parent), target_path.name, scanner_settings):
+        if check_file_for_missing_subs(
+            str(target_path.parent), target_path.name, scanner_settings
+        ):
             create_job_file(job_dir, str(target_path.parent), target_path)
             job_counter += 1
     else:
         if override_dirs:
-            logger.info(f"Scanning directories provided via command line: {override_dirs}")
+            logger.info(
+                f"Scanning directories provided via command line: {override_dirs}"
+            )
             content_dirs = override_dirs
         else:
             logger.info("Scanning directories from config file's watcher.path_map")
@@ -183,9 +197,13 @@ def scan_library(config, override_dirs=None, target_file=None):
                 dirs[:] = [d for d in dirs if d not in blacklist_dirs]
                 if len(dirs) != len(original_dirs):
                     filtered_out = set(original_dirs) - set(dirs)
-                    logger.debug(f"Filtered out blacklisted directories: {filtered_out}")
+                    logger.debug(
+                        f"Filtered out blacklisted directories: {filtered_out}"
+                    )
 
-                logger.debug(f"Scanning directory: {root} (contains {len(files)} files)")
+                logger.debug(
+                    f"Scanning directory: {root} (contains {len(files)} files)"
+                )
 
                 for file_name in files:
                     files_scanned += 1
@@ -194,7 +212,9 @@ def scan_library(config, override_dirs=None, target_file=None):
                         create_job_file(job_dir, root, episode_path)
                         job_counter += 1
 
-    logger.success(f"--- Scan Complete. Scanned {files_scanned} files, created {job_counter} new jobs. ---")
+    logger.success(
+        f"--- Scan Complete. Scanned {files_scanned} files, created {job_counter} new jobs. ---"
+    )
 
 
 def run_scanner(args):

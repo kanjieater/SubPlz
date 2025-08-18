@@ -52,8 +52,8 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 
 [project.optional-dependencies]
 dev = [
-  "black==24.4.2",
-  "ruff==0.5.3",
+  "black==25.1.0",
+  "ruff==0.12.9",
   "pytest==8.3.2"
 ]
 anki = [
@@ -127,6 +127,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "ats",
 ]
 
 # Same as Black.

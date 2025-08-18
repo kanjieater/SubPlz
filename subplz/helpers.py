@@ -4,12 +4,7 @@ from collections import defaultdict
 import shutil
 from .logger import logger
 from .sub import extract_all_subtitles
-from .files import (
-    get_true_stem,
-    get_text,
-    get_audio,
-    match_files
-)
+from .files import get_true_stem, get_text, get_audio, match_files
 from .cli import CopyParams, ExtractParams, RenameParams
 from .text import detect_language
 
@@ -49,7 +44,7 @@ def are_files_identical(file1: Path, file2: Path) -> bool:
     """
     try:
         if file1.stat().st_size != file2.stat().st_size:
-            return False # Quick check: if sizes differ, they can't be identical
+            return False  # Quick check: if sizes differ, they can't be identical
         if file1.read_text(encoding="utf-8") == file2.read_text(encoding="utf-8"):
             return True
         return False
@@ -100,18 +95,24 @@ def rename(inputs: RenameParams):
         text_path, new_name = list(rename_text.items())[0]
         old_path = Path(text_path)
         if new_name.exists() and not overwrite:
-            logger.info(f"😐 Skipping rename for '{new_name.name}': Target file already exists and overwrite is false.")
+            logger.info(
+                f"😐 Skipping rename for '{new_name.name}': Target file already exists and overwrite is false."
+            )
             continue
 
         if inputs.unique:
             dir_path = old_path.parent
             true_stem = get_true_stem(old_path)
             if overwrite and lang_ext_original:
-                original_base_file_path = dir_path / f"{true_stem}.{lang_ext_original}{old_path.suffix}"
-                if (new_name.exists() and
-                    original_base_file_path.exists() and
-                    old_path != original_base_file_path and
-                    are_files_identical(old_path, new_name)):
+                original_base_file_path = (
+                    dir_path / f"{true_stem}.{lang_ext_original}{old_path.suffix}"
+                )
+                if (
+                    new_name.exists()
+                    and original_base_file_path.exists()
+                    and old_path != original_base_file_path
+                    and are_files_identical(old_path, new_name)
+                ):
                     logger.warning(
                         f"🚮 Deleting redundant source file '{old_path.name}'. "
                         f"It is identical to the target '{new_name.name}' and '{original_base_file_path.name}' exists already."
@@ -147,6 +148,7 @@ def rename(inputs: RenameParams):
                 old_path.rename(new_name)
         except Exception as e:
             logger.error(f"❗ Failed to rename {old_path} to {new_name}: {e}")
+
 
 def copy(inputs: CopyParams):
     for directory in inputs.dirs:
@@ -213,12 +215,14 @@ def extract(inputs: ExtractParams):
         return
 
     media_files = []
-    target_file = getattr(inputs, 'file', None)
+    target_file = getattr(inputs, "file", None)
     if target_file and Path(target_file).is_file():
         logger.info(f"Targeting specific file for extraction: {Path(target_file).name}")
         media_files.append(target_file)
     else:
-        logger.info("No specific file targeted, scanning directories for all media files...")
+        logger.info(
+            "No specific file targeted, scanning directories for all media files..."
+        )
         for directory in inputs.dirs:
             dir_path = Path(directory)
             if dir_path.is_dir():

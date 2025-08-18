@@ -44,34 +44,40 @@ def run_batch(inputs):
             command_string_template = step.get("command")
 
             if not isinstance(command_string_template, str):
-                logger.warning(f"⚠️ Skipping invalid step '{step_name}': 'command' must be a string.")
+                logger.warning(
+                    f"⚠️ Skipping invalid step '{step_name}': 'command' must be a string."
+                )
                 continue
 
             logger.info(f"\n[{i}/{len(pipeline)}] Executing: {step_name}")
 
             final_command_string = command_string_template.replace(
                 "{directory}", str(dir_path)
-            ).replace(
-                "{file}", str(target_file) if target_file else ""
-            )
+            ).replace("{file}", str(target_file) if target_file else "")
 
             try:
                 args_list = shlex.split(final_command_string)
             except ValueError as e:
-                logger.error(f"❌ Error parsing command in step '{step_name}': {e}. Check for unclosed quotes.")
+                logger.error(
+                    f"❌ Error parsing command in step '{step_name}': {e}. Check for unclosed quotes."
+                )
                 continue
 
             final_args_list = [arg for arg in args_list if arg]
 
             if not final_args_list:
-                logger.warning(f"Skipping step '{step_name}': Command is empty after processing.")
+                logger.warning(
+                    f"Skipping step '{step_name}': Command is empty after processing."
+                )
                 continue
 
             command_name = final_args_list[0]
             func_to_call = COMMAND_MAP.get(command_name)
 
             if not func_to_call:
-                logger.error(f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping.")
+                logger.error(
+                    f"❌ Error: Unknown command '{command_name}' in step '{step_name}'. Skipping."
+                )
                 continue
 
             try:
@@ -79,7 +85,9 @@ def run_batch(inputs):
                 parsed_args = get_inputs(final_args_list)
                 func_to_call(parsed_args)
             except Exception as e:
-                logger.opt(exception=True).error(f"❌ An error occurred during '{step_name}': {e}")
+                logger.opt(exception=True).error(
+                    f"❌ An error occurred during '{step_name}': {e}"
+                )
                 logger.info("  > Moving to the next step.")
 
         logger.info(f"\n--- All operations completed for: {dir_path.name} ---")

@@ -36,14 +36,14 @@ def process_job_file(job_file_path, full_config):
     logger.info(f"--- Processing Job: {os.path.basename(job_file_path)} ---")
     try:
         time.sleep(1)
-        with open(job_file_path, 'r', encoding='utf-8') as f:
+        with open(job_file_path, "r", encoding="utf-8") as f:
             job_data = json.load(f)
 
-        path_from_job = job_data.get('directory')
+        path_from_job = job_data.get("directory")
         if not path_from_job:
             raise ValueError("Job file is missing the required 'directory' key.")
 
-        episode_path_from_job = job_data.get('episode_path')
+        episode_path_from_job = job_data.get("episode_path")
 
         host_target_dir = get_host_path(full_config, path_from_job)
 
@@ -56,17 +56,17 @@ def process_job_file(job_file_path, full_config):
         if host_episode_path:
             logger.info(f"    Focused on file: {Path(host_episode_path).name}")
 
-        pipeline = full_config.get('batch_pipeline')
+        pipeline = full_config.get("batch_pipeline")
         if not pipeline:
             raise ValueError("Missing 'batch_pipeline' in config file.")
 
         batch_inputs = BatchParams(
-            subcommand='batch',
+            subcommand="batch",
             dirs=[host_target_dir],
             file=host_episode_path,
             pipeline=pipeline,
             config=None,
-            config_data=full_config
+            config_data=full_config,
         )
 
         run_batch(batch_inputs)

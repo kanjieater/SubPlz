@@ -688,11 +688,14 @@ class BatchParams:
     subcommand: str = field(metadata={"category": "main"})
     dirs: List[str] = field(metadata={"category": "optional"})
     config: Optional[str] = field(default=None, metadata={"category": "main"})
-    config_data: Optional[dict] = field(default=None, repr=False, metadata={"category": "internal"}) # Not CLI
+    config_data: Optional[dict] = field(
+        default=None, repr=False, metadata={"category": "internal"}
+    )  # Not CLI
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
     pipeline: List[List[str]] = field(
         default_factory=list, metadata={"category": "optional"}
     )
+
 
 @dataclass
 class watchParams:
@@ -707,7 +710,7 @@ class ScannerParams:
     dirs: List[str] = field(metadata={"category": "optional"})
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
-    
+
 def setup_commands_cli(parser):
     sp = parser.add_subparsers(
         help="Generate a subtitle file from a file's audio source",

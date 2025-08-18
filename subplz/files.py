@@ -348,13 +348,14 @@ def filter_sources_by_target_file(all_audios, all_texts, target_file: str | None
     all_pairs = list(zip(all_audios, all_texts))
 
     if not target_file:
-        return all_pairs # Return all pairs if no specific file is targeted
+        return all_pairs  # Return all pairs if no specific file is targeted
 
     logger.debug(f"Filtering sources to focus on target file: {Path(target_file).name}")
     target_file_path = Path(target_file)
 
     filtered_pairs = [
-        (audio_list, text_list) for audio_list, text_list in all_pairs
+        (audio_list, text_list)
+        for audio_list, text_list in all_pairs
         if Path(audio_list[0]) == target_file_path
     ]
 
@@ -372,16 +373,18 @@ def get_sources_from_dirs(input, cache_inputs, nlp):
         if input.subcommand == "sync":
             if input.alass:
                 audios_to_process = audios
-                target_file = getattr(input, 'file', None)
+                target_file = getattr(input, "file", None)
                 if target_file:
                     target_path = Path(target_file)
                     audios_to_process = [a for a in audios if Path(a) == target_path]
-                extract_all_subtitles(audios_to_process, input.lang_ext, input.lang_ext_original)
+                extract_all_subtitles(
+                    audios_to_process, input.lang_ext, input.lang_ext_original
+                )
             texts = get_text(folder)
             a, t = match_files(
                 audios, texts, folder, input.rerun, input.lang_ext_original
             )
-            target_file = getattr(input, 'file', None)
+            target_file = getattr(input, "file", None)
             final_filtered_pairs = filter_sources_by_target_file(a, t, target_file)
 
             for matched_audio, matched_text in final_filtered_pairs:
@@ -409,12 +412,13 @@ def get_sources_from_dirs(input, cache_inputs, nlp):
                 )
                 sources.append(s)
         else:
-            target_file = getattr(input, 'file', None)
+            target_file = getattr(input, "file", None)
             filtered_audios = audios
             if target_file:
                 target_file_path = Path(target_file)
                 filtered_audios = [
-                    audio_path for audio_path in audios
+                    audio_path
+                    for audio_path in audios
                     if Path(audio_path) == target_file_path
                 ]
 
@@ -575,7 +579,6 @@ def get_existing_rerun_files(dir: str, orig) -> List[str]:
     return old
 
 
-
 def get_hearing_impaired_extensions() -> set:
     return {"cc", "hi", "sdh"}
 
@@ -597,11 +600,19 @@ def get_true_stem(file_path: Path) -> str:
 
     # Don't modify stems that don't look like subtitle files
     # If there are no dots, or if it's a video file, return as-is
-    if '.' not in original_stem or file_path.suffix.lower() in ['.mkv', '.mp4', '.avi', '.mov', '.m4v', '.webm', '.flv']:
+    if "." not in original_stem or file_path.suffix.lower() in [
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".m4v",
+        ".webm",
+        ".flv",
+    ]:
         return original_stem
 
     # Work backwards from the end to remove subtitle extensions
-    parts = original_stem.split('.')
+    parts = original_stem.split(".")
 
     # Remove hearing impaired extensions (cc, hi, sdh) from the end
     hi_extensions = get_hearing_impaired_extensions()
@@ -614,7 +625,7 @@ def get_true_stem(file_path: Path) -> str:
         if parts[-1].isalpha():
             parts = parts[:-1]
 
-    return '.'.join(parts)
+    return ".".join(parts)
 
 
 def get_rerun_file_path(output_path: Path, input) -> Path:

@@ -10,6 +10,7 @@ from .cli import get_inputs
 from .auto.watcher import run_watcher
 from .auto.scanner import run_scanner
 
+
 def execute_on_inputs():
     """
     Parses CLI arguments, configures logging, and dispatches to the correct handler function.

@@ -87,7 +87,9 @@ def get_subtitle_idx(
     if target_lang_code:
         standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
         if not standardized_target_lang:
-            logger.warning(f"🦈 Could not standardize input language code '{target_lang_code}'.")
+            logger.warning(
+                f"🦈 Could not standardize input language code '{target_lang_code}'."
+            )
 
     scored_streams = []
     for stream in subtitle_streams:
@@ -96,9 +98,7 @@ def get_subtitle_idx(
 
     positive_streams = [s for s in scored_streams if s["score"] > 0]
     if not positive_streams:
-        logger.warning(
-            f"🦈 No subtitle stream scored positively for {path}"
-        )
+        logger.warning(f"🦈 No subtitle stream scored positively for {path}")
         return None
     positive_streams.sort(key=lambda x: x["score"], reverse=True)
 
@@ -166,7 +166,9 @@ def cleanup_subfail(output_paths):
         }
         for successful_path in successful_paths:
             if successful_path.exists():
-                logger.info(f"🧹 Removing '{subfail_path}' as we have a successful subtitle.")
+                logger.info(
+                    f"🧹 Removing '{subfail_path}' as we have a successful subtitle."
+                )
                 os.remove(subfail_path)
 
 
@@ -232,7 +234,10 @@ def check_empty_subs(subtitle_path):
             raise ValueError("❗Subtitle file is empty or invalid.")
     except Exception as e:
         # Now, using .name is safe because path_obj is guaranteed to be a Path.
-        raise RuntimeError(f"❗Validation failed for subtitle file '{path_obj.name}': {e}") from e
+        raise RuntimeError(
+            f"❗Validation failed for subtitle file '{path_obj.name}': {e}"
+        ) from e
+
 
 def convert_between_sub_format(full_original_path, full_sub_path, format="srt"):
     original_path_str = str(full_original_path)
@@ -240,7 +245,8 @@ def convert_between_sub_format(full_original_path, full_sub_path, format="srt"):
 
     # Use the string versions in the ffmpeg calls.
     stream = ffmpeg.input(original_path_str)
-    stream = ffmpeg.output(stream, sub_path_str, format=format, loglevel="error"
+    stream = ffmpeg.output(
+        stream, sub_path_str, format=format, loglevel="error"
     ).global_args("-hide_banner")
     ffmpeg.run(stream, overwrite_output=True)
 
@@ -277,7 +283,9 @@ def sanitize_subtitle(subtitle_path: Path) -> None:
         logger.debug(f"🧼 Sanitized subtitles at {subtitle_path}")
     except Exception as e:
         # If normalization fails, it's also a critical error
-        raise RuntimeError(f"❗Failed to normalize subtitles for '{subtitle_path.name}': {e}") from e
+        raise RuntimeError(
+            f"❗Failed to normalize subtitles for '{subtitle_path.name}': {e}"
+        ) from e
 
 
 def ffmpeg_extract(
@@ -288,10 +296,7 @@ def ffmpeg_extract(
     """
     final_path = output_subtitle_path
     output_dir = final_path.parent
-    fd, temp_path_str = tempfile.mkstemp(
-        suffix=final_path.suffix,
-        dir=output_dir
-    )
+    fd, temp_path_str = tempfile.mkstemp(suffix=final_path.suffix, dir=output_dir)
 
     os.close(fd)
     temp_path = Path(temp_path_str)
@@ -347,7 +352,9 @@ def extract_subtitle(
     output_subtitle_path = get_subtitle_path(file, lang_to_check)
 
     if path_to_check.exists() and not overwrite:
-        logger.info(f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction.")
+        logger.info(
+            f"☑️ Subtitle '{path_to_check.name}' already exists, skipping extraction."
+        )
         return None
 
     try:
