@@ -1,55 +1,57 @@
-# Use the LinuxServer.io base image
-FROM ghcr.io/linuxserver/faster-whisper:gpu-2.0.0-ls19
+# --- Stage 1: The Dependency Builder ---
+FROM python:3.11-slim as builder
 
-
-
-# Set environment variables
-ENV PUID=1000 \
-    PGID=1000 \
-    TZ=Etc/UTC \
-    WHISPER_MODEL=tiny-int8 \
-    WHISPER_BEAM=1 \
-    WHISPER_LANG=ja
-
-# Install dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        git \
-        ffmpeg \
-        libportaudio2 \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml /tmp/
-RUN pip install --no-cache-dir /tmp/
-
-# https://github.com/linuxserver/docker-faster-whisper/issues/15
-# https://github.com/SYSTRAN/faster-whisper/issues/516
-ENV LD_LIBRARY_PATH="/lsiopy/lib/python3.10/site-packages/nvidia/cublas/lib:/lsiopy/lib/python3.10/site-packages/nvidia/cudnn/lib"
-
-COPY . /app
-
-# Create a non-root user and switch to that user
-RUN adduser --disabled-password --gecos "" myuser
-
-# Change ownership of the /app directory to the new user
-RUN mkdir -p /config/ && chown -R myuser:myuser /config && chown -R myuser:myuser /app
-
-# Set work directory
 WORKDIR /app
 
-RUN pip install --no-cache-dir .
-# Switch to the non-root user
-USER myuser
+# Install all dependencies based on pyproject.toml
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir .[automation]
 
-# # Expose port for Wyoming connection
-# EXPOSE 10300
+# --- Stage 2: The Final Production Image ---
+FROM lscr.io/linuxserver/faster-whisper:gpu-v2.4.0-ls72
 
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-# Ensure the path to subplz is available
-ENV PATH="/home/myuser/.local/bin:$PATH"
-# Healthcheck to ensure container is running
-HEALTHCHECK --interval=30s --timeout=10s CMD nc -z localhost 10300 || exit 1
+# Install essential system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    ffmpeg \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
 
-# Start the application
+# Create a non-root user
+RUN groupadd --gid 1000 appuser && \
+    useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+
+# Set the working directory and change ownership
+WORKDIR /app
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user for dependency installation
+USER appuser
+
+# Add user's local bin to PATH for pip-installed executables
+ENV PATH="/home/appuser/.local/bin:$PATH"
+
+# --- Fixed Dependency Installation ---
+# Copy the requirements and install directly in the PyTorch image
+# Copy the requirements and install directly in the PyTorch image
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir .[automation]
+
+# Copy your application's source code
+COPY . .
+
+# Install the subplz package itself in editable mode
+RUN pip install --no-cache-dir -e . --no-deps
+# --- End Installation ---
+
+# Set the entrypoint to your application
 ENTRYPOINT ["subplz"]
+
+# Set a default command to run
 CMD ["--help"]

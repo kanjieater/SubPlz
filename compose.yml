@@ -1,31 +1,16 @@
----
 services:
-  faster-whisper:
-    tty: true
-    image: subplease:latest
-    container_name: subplease
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
-      - WHISPER_MODEL=tiny-int8
-      - WHISPER_BEAM=1 #optional
-      - WHISPER_LANG=ja #optional
-    volumes:
-      - ./:/app
-      - /home/ke/code/subplz/SyncCache:/app/SyncCache
-      - /home/ke/code/subplz/SyncCache/config:/config
-      - /mnt/d/sync:/sync
-    ports:
-      - 10300:10300
+  subplz:
+    image: subplz
+    container_name: subplz
     restart: unless-stopped
+    volumes:
+      - "/mnt/g/test/h:/media"
+      - "/home/ke/code/subplz/SyncCache:/app/SyncCache"
+      - "/mnt/buen/subplz/:/mnt/buen/subplz/"
     deploy:
       resources:
         reservations:
           devices:
-          - driver: nvidia
-            capabilities:
-              - gpu
-              - utility # nvidia-smi
-              - compute # CUDA
-              - video   # NVDEC/NVENC/NVCUVID. For instance to use a hardware accelerated ffmpeg. Skip it if you don't need it
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

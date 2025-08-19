@@ -123,11 +123,27 @@ batch_pipeline:
 
 The system consists of two main commands that can be run in parallel.
 
+### Docker Usage
+
+If using Docker, prefix all `subplz` commands with your Docker run command:
+
+```bash
+# Using docker compose
+docker compose run --rm subplz watch --config /config/config.yml
+
+# Using docker run directly
+docker run --rm --gpus all -v "$(pwd)/config.yml:/config/config.yml:ro" subplz watch --config /config/config.yml
+```
+
 ### 1. Running the Job Watcher (The Consumer)
 
 This is the main, long-running process you will keep active in the background. It watches your job queue and processes incoming jobs.
 
-*   **To start:** Open a terminal, navigate to your project root, and run:
+*   **Docker:**
+    ```bash
+    docker compose run --rm subplz watch --config /config/config.yml
+    ```
+*   **Local:**
     ```bash
     subplz watch --config "/path/to/your/config.yml"
     ```
@@ -137,7 +153,11 @@ This is the main, long-running process you will keep active in the background. I
 
 This command is run manually or on a schedule to find media that is missing subtitles and queue it for processing.
 
-*   **To run:** Open a *new* terminal and execute:
+*   **Docker:**
+    ```bash
+    docker compose run --rm subplz scanner --config /config/config.yml
+    ```
+*   **Local:**
     ```bash
     subplz scanner --config "/path/to/your/config.yml"
     ```
@@ -172,3 +192,150 @@ To make Bazarr a producer, you need to configure its **Custom Post-Processing** 
 6.  If Bazarr is in the docker container or the host, double check that `/subplz/jobs/` exists
 
 Now, whenever Bazarr successfully downloads a new subtitle, it will create a job file in your queue, and your running `watcher` will immediately pick it up for processing.
+
+
+
+## Docker Setup (WIP)
+
+Docker with GPU support can be a real pain in the butt. Consult Gemini, Claude, and GPT if this goes wrong for you.
+
+### Prerequisites
+
+Before setting up Docker, verify your host system has the required components:
+
+#### 1. Check NVIDIA Driver and CUDA Version
+
+```bash
+# Check your NVIDIA driver version and CUDA support
+nvidia-smi
+
+# Should show something like:
+# Driver Version: 576.88    CUDA Version: 12.9
+```
+
+#### 2. Verify Docker GPU Support
+
+```bash
+# Test that Docker can access your GPU
+docker run --rm --gpus all nvidia/cuda:12.4-base-ubuntu22.04 nvidia-smi
+
+# This should display the same GPU information as the host
+```
+
+#### 3. Check cuDNN Libraries (if needed)
+
+```bash
+# Check for cuDNN libraries on your host
+ldconfig -p | grep libcudnn
+```
+
+### Docker Compose Setup
+
+Create a `docker-compose.yml` file in your project directory:
+
+```yaml
+version: '3.8'
+
+services:
+  subplz:
+    build: .  # or use: image: subplz if you built it separately
+    container_name: subplz
+    restart: unless-stopped
+    user: "1000:1000"  # Run as non-root user
+    volumes:
+      # Mount your media directories
+      - "/mnt/g/test/h:/media"
+      - "/home/ke/code/subplz/SyncCache:/app/SyncCache"
+      - "/mnt/buen/subplz/:/mnt/buen/subplz/"
+      # Mount your config file
+      - "./config.yml:/config/config.yml:ro"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+```
+
+### Building and Running
+
+1. **Build the Docker image:**
+   ```bash
+   docker build -t subplz .
+   ```
+
+2. **Start the service:**
+   ```bash
+   docker compose up -d
+   ```
+
+3. **View logs:**
+   ```bash
+   docker compose logs -f subplz
+   ```
+
+### GPU Verification Inside Container
+
+To verify GPU access is working correctly inside your container:
+
+1. **Get a shell in the running container:**
+   ```bash
+   # If container is running
+   docker exec -it subplz /bin/bash
+
+   # Or run a new container with shell access
+   docker run -it --rm --gpus all --entrypoint /bin/bash subplz
+   ```
+
+2. **Inside the container, run these tests:**
+   ```bash
+   # Test 1: Check if nvidia-smi works
+   nvidia-smi
+
+   # Test 2: Check PyTorch CUDA availability
+   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+
+   # Test 3: Check CUDA version matches
+   python -c "import torch; print(f'PyTorch CUDA version: {torch.version.cuda}')"
+
+   # Test 4: Check GPU device info
+   python -c "import torch; print(f'GPU device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"No GPU\"}')"
+
+   # Test 5: Test faster-whisper GPU access
+   python -c "
+   from faster_whisper import WhisperModel
+   try:
+       model = WhisperModel('base', device='cuda')
+       print('✅ faster-whisper GPU initialization successful')
+   except Exception as e:
+       print(f'❌ faster-whisper GPU error: {e}')
+   "
+   ```
+
+### Troubleshooting Docker GPU Issues
+
+**Problem: "CUDA initialization: Unexpected error"**
+- **Cause:** CUDA version mismatch between host driver and container runtime
+- **Solution:** Update the Dockerfile to use a PyTorch image matching your CUDA version:
+  ```dockerfile
+  # Check your host CUDA version with: nvidia-smi
+  # Then use matching PyTorch image, e.g.:
+  FROM pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime  # For CUDA 12.9
+  ```
+
+**Problem: "docker: Error response from daemon: could not select device driver"**
+- **Cause:** NVIDIA Container Toolkit not installed
+- **Solution:** Install nvidia-docker2:
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install nvidia-docker2
+  sudo systemctl restart docker
+  ```
+
+**Problem: Permission denied on mounted volumes**
+- **Cause:** User ID mismatch between container and host
+- **Solution:** Update the `user` field in docker-compose.yml:
+  ```yaml
+  user: "${UID:-1000}:${GID:-1000}"  # Uses your actual user ID
+  ```

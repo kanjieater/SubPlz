@@ -7,7 +7,7 @@ name = "subplz"
 version = "2.0.0"
 description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
 readme = "README.md"
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.10,<3.13"
 license = {file = "LICENSE"}
 
 # Optional metadata
@@ -32,12 +32,13 @@ dependencies = [
     "natsort == 8.4.0",
     "tqdm~=4.67.1",
     "pysbd~=0.3.4",
-    "stable-ts~=2.19.0",
-    "ctranslate2==4.4.0",
+    "stable-ts~=2.19.1",
+    "ctranslate2==4.5.0",
     "stanza~=1.10.1",
     "PyYAML~=6.0.1",
     "lingua-language-detector~=2.1.1",
-    "loguru~=0.7.3"
+    "loguru~=0.7.3",
+    "pycountry~=24.6.1",
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]
 
