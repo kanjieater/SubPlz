@@ -7,7 +7,7 @@ name = "subplz"
 version = "2.0.0"
 description = "Generate accurate subtitles from audio, align existing subs to videos, generate your own Kindle's Immersion Reading like audiobook subs 📖🎧"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.12"
 license = {file = "LICENSE"}
 
 # Optional metadata
@@ -18,12 +18,13 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
 ]
-
+# faster_whisper must match a working docker version.
+# Python 3.12 can be enabled when stable-ts supports it (when official whisper does)
 dependencies = [
     "beautifulsoup4~=4.13.3",
     "biopython~=1.85",
     "EbookLib~=0.18",
-    "faster_whisper~=1.1.1",
+    "faster_whisper==1.1.1",
     "ffmpeg_python~=0.2.0",
     "rapidfuzz~=3.12.1",
     "numpy~=1.26.4",
@@ -33,12 +34,13 @@ dependencies = [
     "tqdm~=4.67.1",
     "pysbd~=0.3.4",
     "stable-ts~=2.19.1",
-    "ctranslate2==4.5.0",
+    "ctranslate2==4.6.0",
     "stanza~=1.10.1",
     "PyYAML~=6.0.1",
     "lingua-language-detector~=2.1.1",
     "loguru~=0.7.3",
     "pycountry~=24.6.1",
+    "watchdog~=6.0.0",
     # "ats @ file:///home/ke/code/AudiobookTextSync",
 ]
 
@@ -60,9 +62,6 @@ dev = [
 anki = [
   "requests==2.26.0",
   "subs2cia@git+https://github.com/kanjieater/subs2cia#egg=de536d1c983641cd590180aa93c080010b1c5665"
-]
-automation = [
-  "watchdog~=6.0.0"
 ]
 
 [project.scripts]

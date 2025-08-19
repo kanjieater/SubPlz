@@ -53,7 +53,7 @@ def configure_logging(config: dict):
 
             logger.add(
                 log_file_path,
-                rotation="25 MB",
+                rotation="5 MB",
                 retention="30 days",
                 compression="zip",
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | P:{process.id} | {name}:{function}:{line} - {message}",

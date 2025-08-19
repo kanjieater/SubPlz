@@ -3,10 +3,16 @@ services:
     image: subplz
     container_name: subplz
     restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - WHISPER_MODEL=large-v3
+      - HF_HOME=/app/SyncCache/huggingface
     volumes:
       - "/mnt/g/test/h:/media"
       - "/home/ke/code/subplz/SyncCache:/app/SyncCache"
       - "/mnt/buen/subplz/:/mnt/buen/subplz/"
+
     deploy:
       resources:
         reservations:
