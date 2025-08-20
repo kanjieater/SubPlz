@@ -14,45 +14,36 @@ ENV PUID=1000 \
 # Install dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        git \
-        ffmpeg \
-        libportaudio2 \
+       git \
+       ffmpeg \
+       libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml /tmp/
-RUN pip install --no-cache-dir /tmp/
+WORKDIR /app
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir .
 
 
+COPY . .
+RUN pip install --no-cache-dir --no-deps .
 
-COPY . /app
 
-# Create a non-root user and switch to that user
 RUN adduser --disabled-password --gecos "" myuser
 
-# Change ownership of the /app directory to the new user
-RUN mkdir -p /config/ && chown -R myuser:myuser /config && chown -R myuser:myuser /app
+RUN mkdir -p /sub_config/ && chown -R myuser:myuser /sub_config && chown -R myuser:myuser /app
 
-# Set work directory
-WORKDIR /app
 
-RUN pip install --no-cache-dir .
-# Switch to the non-root user
 USER myuser
-
-# # Expose port for Wyoming connection
-# EXPOSE 10300
 
 
 # Ensure the path to subplz is available
-ENV PATH="/home/myuser/.local/bin:$PATH"
-# Healthcheck to ensure container is running
-HEALTHCHECK --interval=30s --timeout=10s CMD nc -z localhost 10300 || exit 1
+ENV PATH="/home/myuser/.local/bin:$PATH" \
+    BASE_PATH=/sub_config
 
 # https://github.com/linuxserver/docker-faster-whisper/issues/15
 # https://github.com/SYSTRAN/faster-whisper/issues/516
 # This probably gets fixed on python 3.12 and a modern faster-whisper image
 ENV LD_LIBRARY_PATH="/lsiopy/lib/python3.10/site-packages/nvidia/cublas/lib:/lsiopy/lib/python3.10/site-packages/nvidia/cudnn/lib"
 
-# Start the application
 ENTRYPOINT ["subplz"]
-CMD ["watch"]
+CMD ["watch", "--config", "sub_config/config.yml"]

@@ -8,7 +8,7 @@ from .logger import logger
 DEFAULT_CONFIG = {
     "base_dirs": {
         "logs": "logs",
-        "cache": "SyncCache",
+        "cache": "cache",
         "watcher_jobs": "jobs",
         "watcher_errors": "fails",
     },

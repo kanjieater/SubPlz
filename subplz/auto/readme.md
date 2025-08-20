@@ -245,24 +245,19 @@ Create a `docker-compose.yml` file in your project directory:
 ```yaml
 services:
   subplz:
-    image: subplz
+    image: kanjieater/subplz:latest
     container_name: subplz
     restart: unless-stopped
     environment:
       - PUID=1000
       - PGID=1000
       - WHISPER_MODEL=large-v3
-      # Uncomment these lines if you encounter symlink errors:
-      # - HF_HUB_DISABLE_SYMLINKS=1
-      # - HF_HUB_DISABLE_SYMLINKS_WARNING=1
-      - HF_HOME=/app/SyncCache/huggingface
+      - HF_HOME=/sub_config/cache/huggingface
+      - SUBPLZ_BASE_PATH=/sub_config
     volumes:
-      # Mount your media directories
-      - "/mnt/g/shows:/media"
-      - "/home/ke/code/subplz/SyncCache:/app/SyncCache"
-      - "/mnt/buen/subplz/:/mnt/buen/subplz/"
-      # Mount your config file
-      - "./config.yml:/config/config.yml"
+      - "/mnt/g/media:/mnt/g/media"
+      - "/home/ke/gpu-srv/subplz/:/sub_config"
+
     deploy:
       resources:
         reservations:
