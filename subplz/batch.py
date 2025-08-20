@@ -2,7 +2,7 @@ from pathlib import Path
 import shlex
 from .logger import logger
 from .helpers import extract, rename, copy
-from .cli import get_inputs
+from .cli import get_inputs, get_args
 from .sync import run_sync
 from .gen import run_gen
 
@@ -82,8 +82,10 @@ def run_batch(inputs):
 
             try:
                 logger.log("CMD", f"  > subplz {' '.join(final_args_list)}")
-                parsed_args = get_inputs(final_args_list)
-                func_to_call(parsed_args)
+                sub_args = get_args(final_args_list)
+                structured_inputs = get_inputs(sub_args, config)
+                func_to_call(structured_inputs)
+
             except Exception as e:
                 logger.opt(exception=True).error(
                     f"❌ An error occurred during '{step_name}': {e}"

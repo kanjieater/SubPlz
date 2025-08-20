@@ -219,7 +219,7 @@ ARGUMENTS = {
     },
     "cache_dir": {
         "flags": ["--cache-dir"],
-        "kwargs": {"default": "cache", "help": "the cache directory"},
+        "kwargs": {"default": None, "help": "the cache directory"},
     },
     "overwrite_cache": {
         "flags": ["--overwrite-cache"],
@@ -918,23 +918,27 @@ def get_source_data(args):
     return get_data(args, subcommand_to_dataclass)
 
 
-def get_inputs(arg_list=None):
-    args = get_args(arg_list)
+def get_inputs(args, config):
+    """
+    Creates the final, structured 'inputs' object by combining parsed CLI arguments
+    and the loaded configuration dictionary. CLI arguments take precedence.
+    """
     if args.subcommand in ["sync", "gen"]:
+        resolved_cache_dir = args.cache_dir if args.cache_dir is not None else config.get("base_dirs", {}).get("cache")
+
         inputs = SimpleNamespace(
             subcommand=args.subcommand,
             backend=get_backend_data(args),
             cache=SimpleNamespace(
                 overwrite=args.overwrite_cache,
                 enabled=args.use_cache,
-                cache_dir=args.cache_dir,
+                cache_dir=resolved_cache_dir,
                 model_name=args.model_name,
             ),
             sources=get_source_data(args),
         )
         if inputs.subcommand == "sync":
             validate_source_inputs(inputs.sources)
-
         return inputs
     else:
         return args

@@ -6,20 +6,23 @@ from .helpers import find, rename, copy, extract
 from .batch import run_batch
 from .sync import run_sync
 from .gen import run_gen
-from .cli import get_inputs
+# --- CHANGED: We now import get_args and create_structured_inputs separately ---
+from .cli import get_args, get_inputs
 from .auto.watcher import run_watcher
 from .auto.scanner import run_scanner
 
 
 def execute_on_inputs():
     """
-    Parses CLI arguments, configures logging, and dispatches to the correct handler function.
+    Parses CLI arguments, loads config, combines them, configures logging,
+    and dispatches to the correct handler function.
     """
-    inputs = get_inputs()
-    config_path = getattr(inputs, "config", None)
-    config = load_config(config_path)
-    configure_logging(config)
+
+    args = get_args()
+    config = load_config(args.config)
+    inputs = get_inputs(args, config)
     inputs.config_data = config
+    configure_logging(config)
 
     COMMAND_MAP = {
         "watch": run_watcher,

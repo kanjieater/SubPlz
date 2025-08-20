@@ -122,5 +122,4 @@ def load_config(config_path: str | None) -> dict:
             final_config = deepcopy(DEFAULT_CONFIG)
 
     final_config = resolve_based_paths(final_config)
-
     return final_config
