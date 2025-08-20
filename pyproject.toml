@@ -24,11 +24,11 @@ dependencies = [
     "beautifulsoup4~=4.13.3",
     "biopython~=1.85",
     "EbookLib~=0.18",
-    "faster_whisper==1.1.1",
+    "faster_whisper==1.2.0",
     "ffmpeg_python~=0.2.0",
     "rapidfuzz~=3.12.1",
     "numpy~=1.26.4",
-    "regex~=2024.11.6",
+    "regex~=2024.11.6", # Replace blackmagic regex in get_lang and remove
     "wcwidth >= 0.2.13",
     "natsort == 8.4.0",
     "tqdm~=4.67.1",

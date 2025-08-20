@@ -121,12 +121,14 @@ def run_watcher(args):
 
     try:
         logger.info(f"Starting watcher with config file: {args.config}")
+        base_dirs = config.get("base_dirs", {})
+        job_dir = base_dirs.get("watcher_jobs")
+        # We still need watcher_settings for non-path related keys like polling_interval
         watcher_settings = config.get("watcher", {})
-        job_dir = watcher_settings.get("jobs")
 
         if not job_dir or not os.path.isdir(job_dir):
             raise RuntimeError(
-                f"'watcher.jobs' directory not found in config: {job_dir}"
+                f"'base_dirs.watcher_jobs' directory not found or not configured: {job_dir}"
             )
 
         logger.info("--- Checking for pre-existing jobs... ---")

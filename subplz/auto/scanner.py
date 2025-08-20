@@ -124,12 +124,17 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 def scan_library(config, override_dirs=None, target_file=None):
     """Scans the library and creates one job per media file missing subtitles."""
     scanner_settings = config.get("scanner", {})
+
+    base_dirs = config.get("base_dirs", {})
+    job_dir = base_dirs.get("watcher_jobs")
+
+    # We still need watcher_settings for non-path related keys like path_map
     watcher_settings = config.get("watcher", {})
     job_dir = watcher_settings.get("jobs")
 
     # DEBUG: Log the configuration
     logger.debug(f"Scanner settings: {json.dumps(scanner_settings, indent=2)}")
-    logger.debug(f"Job directory: {job_dir}")
+    logger.debug(f"Jobs directory: {job_dir}")
 
     if not job_dir:
         logger.error(

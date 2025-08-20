@@ -39,19 +39,19 @@ This single file controls the behavior of all automation commands and the proces
 # ===============================================
 # Global Logging Settings
 # ===============================================
-log:
-  # [REQUIRED] The directory where rotating log files will be stored.
-  dir: "/mnt/rd/subplz/logs"
+base_dirs:
+  logs: "logs"
+  cache: "cache"
+  # [REQUIRED] The folder on the HOST machine to watch for new .json job files.
+  watcher_jobs: "jobs"
+  # [REQUIRED] A directory on the HOST to move job files to if processing fails.
+  watcher_errors: "fails"
+
 
 # ===============================================
 # Settings for the Real-time Job Watcher
 # ===============================================
 watcher:
-  # [REQUIRED] The folder on the HOST machine to watch for new .json job files.
-  jobs: "/mnt/rd/subplz/jobs"
-
-  # [OPTIONAL] A directory on the HOST to move job files to if processing fails.
-  error_directory: "/mnt/rd/subplz/fails"
 
   # [REQUIRED] The mapping of paths from inside your Docker containers to your host machine.
   # This allows the script to translate container paths from Bazarr jobs to real host paths.
@@ -117,7 +117,7 @@ batch_pipeline:
     command: 'sync -d "{directory}" --file "{file}" --lang-ext av --lang-ext-original az --lang-ext-incorrect ab --alass'
 
   - name: "Best: Copy best subtitle to 'ja'"
-    command: 'copy -d "{directory}" --lang-ext ja --lang-ext-priority tl as av ak az ab --overwrite'
+    command: 'copy -d "{directory}" --lang-ext ja --lang-ext-priority tl av as ak az ab --overwrite'
 ```
 ## How to Use
 
@@ -195,15 +195,23 @@ Now, whenever Bazarr successfully downloads a new subtitle, it will create a job
 
 
 
-## Docker Setup (WIP)
+## Docker Setup With GPU
 
-Docker with GPU support can be a real pain in the butt. Consult Gemini, Claude, and GPT if this goes wrong for you.
+Docker with GPU support can be challenging to set up correctly. This guide will help you verify your setup works before running SubPlz. The docker image _does_ work with GPU, so if you have issues GPT, Gemini, and Claude are your friends.
 
 ### Prerequisites
 
 Before setting up Docker, verify your host system has the required components:
 
-#### 1. Check NVIDIA Driver and CUDA Version
+#### 1. Update Docker Desktop (Windows WSL2 Users)
+
+**CRITICAL for Windows with WSL2:** Update Docker Desktop to version **4.44.2 or later**. Older versions have CUDA symbol resolution issues that prevent GPU access.
+
+- **Known working:** Docker Desktop 4.44.2+
+- **Known broken:** Docker Desktop 4.24.2 and earlier versions
+
+
+#### Check NVIDIA Driver and CUDA Version
 
 ```bash
 # Check your NVIDIA driver version and CUDA support
@@ -213,42 +221,48 @@ nvidia-smi
 # Driver Version: 576.88    CUDA Version: 12.9
 ```
 
-#### 2. Verify Docker GPU Support
+### Test Your SubPlz GPU Setup
+
+Before running the full application, test that your built SubPlz image can access the GPU:
 
 ```bash
-# Test that Docker can access your GPU
-docker run --rm --gpus all nvidia/cuda:12.4-base-ubuntu22.04 nvidia-smi
-
-# This should display the same GPU information as the host
+# Test GPU access with your SubPlz image
+docker run -it --rm --gpus all --entrypoint python subplz -c "import torch; print(torch.__version__); print(f'CUDA available: {torch.cuda.is_available()}');"
 ```
 
-#### 3. Check cuDNN Libraries (if needed)
-
-```bash
-# Check for cuDNN libraries on your host
-ldconfig -p | grep libcudnn
+**Expected output:**
 ```
+2.8.0+cu128
+CUDA available: True
+```
+
+If this test fails, **do not proceed** until GPU access is working.
 
 ### Docker Compose Setup
 
 Create a `docker-compose.yml` file in your project directory:
 
 ```yaml
-version: '3.8'
-
 services:
   subplz:
-    build: .  # or use: image: subplz if you built it separately
+    image: subplz
     container_name: subplz
     restart: unless-stopped
-    user: "1000:1000"  # Run as non-root user
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - WHISPER_MODEL=large-v3
+      # Uncomment these lines if you encounter symlink errors:
+      # - HF_HUB_DISABLE_SYMLINKS=1
+      # - HF_HUB_DISABLE_SYMLINKS_WARNING=1
+      - HF_HOME=/app/SyncCache/huggingface
     volumes:
       # Mount your media directories
-      - "/mnt/g/test/h:/media"
+      - "/mnt/g/shows:/media"
       - "/home/ke/code/subplz/SyncCache:/app/SyncCache"
       - "/mnt/buen/subplz/:/mnt/buen/subplz/"
       # Mount your config file
-      - "./config.yml:/config/config.yml:ro"
+      - "./config.yml:/config/config.yml"
     deploy:
       resources:
         reservations:
@@ -260,57 +274,14 @@ services:
 
 ### Building and Running
 
-1. **Build the Docker image:**
-   ```bash
-   docker build -t subplz .
-   ```
-
-2. **Start the service:**
+3. **Start the service:**
    ```bash
    docker compose up -d
    ```
 
-3. **View logs:**
+4. **View logs:**
    ```bash
    docker compose logs -f subplz
-   ```
-
-### GPU Verification Inside Container
-
-To verify GPU access is working correctly inside your container:
-
-1. **Get a shell in the running container:**
-   ```bash
-   # If container is running
-   docker exec -it subplz /bin/bash
-
-   # Or run a new container with shell access
-   docker run -it --rm --gpus all --entrypoint /bin/bash subplz
-   ```
-
-2. **Inside the container, run these tests:**
-   ```bash
-   # Test 1: Check if nvidia-smi works
-   nvidia-smi
-
-   # Test 2: Check PyTorch CUDA availability
-   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-
-   # Test 3: Check CUDA version matches
-   python -c "import torch; print(f'PyTorch CUDA version: {torch.version.cuda}')"
-
-   # Test 4: Check GPU device info
-   python -c "import torch; print(f'GPU device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"No GPU\"}')"
-
-   # Test 5: Test faster-whisper GPU access
-   python -c "
-   from faster_whisper import WhisperModel
-   try:
-       model = WhisperModel('base', device='cuda')
-       print('✅ faster-whisper GPU initialization successful')
-   except Exception as e:
-       print(f'❌ faster-whisper GPU error: {e}')
-   "
    ```
 
 ### Troubleshooting Docker GPU Issues
@@ -333,9 +304,23 @@ To verify GPU access is working correctly inside your container:
   sudo systemctl restart docker
   ```
 
+**Problem: "CUDA available: False" in test command**
+- **Windows WSL2:** Update Docker Desktop to 4.44.2 or later
+- **Linux:** Ensure nvidia-container-toolkit is installed and Docker daemon restarted
+- **All platforms:** Verify `nvidia-smi` works on the host first
+
 **Problem: Permission denied on mounted volumes**
 - **Cause:** User ID mismatch between container and host
 - **Solution:** Update the `user` field in docker-compose.yml:
   ```yaml
   user: "${UID:-1000}:${GID:-1000}"  # Uses your actual user ID
+  ```
+
+**Problem: Symlink errors during model download**
+- **Cause:** Filesystem doesn't support symlinks (common with network mounts)
+- **Solution:** Uncomment the symlink environment variables in docker-compose.yml:
+  ```yaml
+  environment:
+    - HF_HUB_DISABLE_SYMLINKS=1
+    - HF_HUB_DISABLE_SYMLINKS_WARNING=1
   ```

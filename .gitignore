@@ -3,6 +3,9 @@ __pycache__/
 .ruff_cache/
 .vscode/
 build/
+sub_config/
+.pytest_cache/
+.docker/
 *.egg-info
 
 SyncCache/
