@@ -40,13 +40,13 @@ def deep_merge(source, destination):
 def resolve_based_paths(config: dict) -> dict:
     """
     Looks for a BASE_PATH env var, prepends it to all paths in the 'base_dirs' section,
-    and ensures the directories exist. Defaults to a 'subplz' subdirectory in the current
+    and ensures the directories exist. Defaults to a 'config' subdirectory in the current
     working directory if BASE_PATH is not set.
     """
     base_path = os.environ.get('BASE_PATH')
     if not base_path:
-        base_path = os.path.join(os.getcwd(), "sub_config")
-        logger.warning(f"BASE_PATH environment variable not set. Defaulting to a 'sub_config' subdirectory in the current working directory: '{base_path}'")
+        base_path = os.path.join(os.getcwd(), "config")
+        logger.warning(f"BASE_PATH environment variable not set. Defaulting to a 'config' subdirectory in the current working directory: '{base_path}'")
     else:
         logger.info(f"Resolving paths in 'base_dirs' relative to BASE_PATH: '{base_path}'")
 
@@ -72,12 +72,14 @@ def resolve_based_paths(config: dict) -> dict:
 
     return config
 
+
 def load_config(config_path: str | None) -> dict:
     """
     Loads and validates the configuration.
 
     - Starts with a deep copy of the default settings.
     - If a config_path is provided, it loads the YAML file.
+    - If no config_path is provided, it checks for a 'config.yml' in the BASE_PATH.
     - It deeply merges the user's config on top of the defaults.
     - It resolves paths in 'base_dirs' using the BASE_PATH environment variable.
     - Returns the final, complete configuration dictionary.
@@ -86,31 +88,39 @@ def load_config(config_path: str | None) -> dict:
     final_config = deepcopy(DEFAULT_CONFIG)
 
     if not config_path:
-        logger.warning("No config file path provided. Using default settings.")
-        # Even with no config, we might need to create default directories
-        return resolve_based_paths(final_config)
+        logger.debug("No config path provided. Checking for a default 'config.yml' in BASE_PATH.")
+        base_path = os.environ.get('BASE_PATH')
+        if not base_path:
+            # --- CHANGED HERE ---
+            base_path = os.path.join(os.getcwd(), "config")
 
-    try:
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Config file not found at '{config_path}'")
+        potential_path = os.path.join(base_path, "config.yml")
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            user_config = yaml.safe_load(f)
-            if not user_config:
-                # If the file is empty, we still proceed with defaults, don't raise an error
-                logger.warning(f"Config file '{config_path}' is empty. Using default settings.")
-            else:
-                 # Deep merge the user's config over the defaults
-                final_config = deep_merge(user_config, final_config)
-                logger.info(f"Successfully loaded and merged configuration from {config_path}")
+        if os.path.exists(potential_path):
+            logger.info(f"Found default config file at '{potential_path}'. Loading it.")
+            config_path = potential_path
+        else:
+            logger.warning("No config file provided and no default found. Using default settings.")
 
-    except Exception as e:
-        logger.critical(f"Failed to load configuration: {e}")
-        logger.error("Proceeding with default configuration due to loading error.")
-        # We will still try to resolve paths even if loading failed,
-        # as defaults might contain relative paths.
+    # (The rest of the function is unchanged)
+    if config_path:
+        try:
+            if not os.path.exists(config_path):
+                raise FileNotFoundError(f"Config file not found at '{config_path}'")
 
-    # After loading, resolve the paths based on the environment variable
+            with open(config_path, "r", encoding="utf-8") as f:
+                user_config = yaml.safe_load(f)
+                if not user_config:
+                    logger.warning(f"Config file '{config_path}' is empty. Merging nothing.")
+                else:
+                    final_config = deep_merge(user_config, final_config)
+                    logger.info(f"Successfully loaded and merged configuration from {config_path}")
+
+        except Exception as e:
+            logger.critical(f"Failed to load configuration: {e}")
+            logger.error("Proceeding with default configuration due to loading error.")
+            final_config = deepcopy(DEFAULT_CONFIG)
+
     final_config = resolve_based_paths(final_config)
 
     return final_config

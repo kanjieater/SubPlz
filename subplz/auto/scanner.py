@@ -127,12 +127,7 @@ def scan_library(config, override_dirs=None, target_file=None):
 
     base_dirs = config.get("base_dirs", {})
     job_dir = base_dirs.get("watcher_jobs")
-
-    # We still need watcher_settings for non-path related keys like path_map
     watcher_settings = config.get("watcher", {})
-    job_dir = watcher_settings.get("jobs")
-
-    # DEBUG: Log the configuration
     logger.debug(f"Scanner settings: {json.dumps(scanner_settings, indent=2)}")
     logger.debug(f"Jobs directory: {job_dir}")
 

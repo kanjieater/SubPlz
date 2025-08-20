@@ -171,7 +171,6 @@ ARGUMENTS = {
     "config": {
         "flags": ["-c", "--config"],
         "kwargs": {
-            "required": True,
             "type": str,
             "default": None,
             "metavar": "PATH",
@@ -220,7 +219,7 @@ ARGUMENTS = {
     },
     "cache_dir": {
         "flags": ["--cache-dir"],
-        "kwargs": {"default": "SyncCache", "help": "the cache directory"},
+        "kwargs": {"default": "cache", "help": "the cache directory"},
     },
     "overwrite_cache": {
         "flags": ["--overwrite-cache"],
@@ -706,7 +705,7 @@ class watchParams:
 @dataclass
 class ScannerParams:
     subcommand: str = field(metadata={"category": "main"})
-    config: str = field(metadata={"category": "main"})
+    config: str = field(metadata={"category": "optional"})
     dirs: List[str] = field(metadata={"category": "optional"})
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
 

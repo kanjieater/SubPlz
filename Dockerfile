@@ -1,8 +1,6 @@
 # Use the LinuxServer.io base image
 FROM ghcr.io/linuxserver/faster-whisper:gpu-2.0.0-ls23
 
-
-
 # Set environment variables
 ENV PUID=1000 \
     PGID=1000 \
@@ -20,25 +18,26 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
-
 
 COPY . .
 RUN pip install --no-cache-dir --no-deps .
 
-
-RUN adduser --disabled-password --gecos "" myuser
-
-RUN mkdir -p /sub_config/ && chown -R myuser:myuser /sub_config && chown -R myuser:myuser /app
-
-
-USER myuser
-
+# Create dedicated user (uid 1000), fix ownership
+# RUN useradd -m -u 1000 -s /bin/bash subplz \
+#     && mkdir -p /config /home/subplz/.cache \
+#     && chown -R subplz:subplz /config /app /home/subplz/.cache
+RUN useradd -m -u 1000 -s /bin/bash sp
+# Switch to non-root user
+USER sp
 
 # Ensure the path to subplz is available
-ENV PATH="/home/myuser/.local/bin:$PATH" \
-    BASE_PATH=/sub_config
+ENV PATH="/home/sp/.local/bin:$PATH" \
+    BASE_PATH=/config \
+    TORCH_HOME=/config/cache/torch \
+    XDG_CACHE_HOME=/config/cache/xdg/.cache
 
 # https://github.com/linuxserver/docker-faster-whisper/issues/15
 # https://github.com/SYSTRAN/faster-whisper/issues/516
@@ -46,4 +45,4 @@ ENV PATH="/home/myuser/.local/bin:$PATH" \
 ENV LD_LIBRARY_PATH="/lsiopy/lib/python3.10/site-packages/nvidia/cublas/lib:/lsiopy/lib/python3.10/site-packages/nvidia/cudnn/lib"
 
 ENTRYPOINT ["subplz"]
-CMD ["watch", "--config", "sub_config/config.yml"]
+CMD ["watch", "--config", "/config/config.yml"]

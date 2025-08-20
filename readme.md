@@ -255,7 +255,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
 2. ```bash
    docker run -it --rm --name subplz \
    -v <full path to up to content folder>:/sync \
-   -v <your folder path>:/SyncCache \
+   -v <your folder path>:/cache \
    -v <your model cache path>:/config/.cache \
    kanjieater/subplz:latest \
    sync -d "/sync/<content folder>/"
@@ -273,7 +273,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    docker run -it --rm --name subplz \
    --gpus all \
    -v /mnt/d/sync/変な家/:/sync \
-   -v /mnt/d/SyncCache:/app/SyncCache \
+   -v /mnt/d/cache:/app/cache \
    -v /mnt/d/ModelCache:/config/.cache \
    kanjieater/subplz:latest \
    sync -d "/sync/"
@@ -282,13 +282,13 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    **Parameters explained:**
    - **Optional**: `--gpus all` will allow you to run with GPU. If this doesn't work make sure you've enabled your GPU in docker (outside the scope of this project)
    - `-v <your folder path>:/sync` ex: `-v /mnt/d/sync:/sync` This is where your files that you want to sync are at. The part to the left of the `:` if your machine, the part to the right is what the app will see as the folder name.
-   - The SyncCache part is the same thing as the folder syncing. This is just mapping where things are locally to your machine. As long as the app can find the SyncCache folder, it will be able to resync things much faster.
+   - The cache part is the same thing as the folder syncing. This is just mapping where things are locally to your machine. As long as the app can find the cache folder, it will be able to resync things much faster.
    - **Optional**: `-v <your config cache path>:/config/.cache` ex: `-v /mnt/d/ModelCache:/config/.cache` This maps a local directory to store additionally downloaded models, like large-v3. This helps in avoiding re-downloading the models every time you run the container.
    - `<command> <params>` ex: `sync -d /sync/`, this runs a `subplz <command> <params>` as you would outside of docker
 
 ### Running from Docker: Batch
 ```bash
-docker run --entrypoint ./helpers/subplz.sh -it --rm --name subplz --gpus all -v "/mnt/v/Videos/J-Anime Shows/Under Ninja/Season 01":/sync -v /home/ke/code/subplz/SyncCache:/app/SyncCache kanjieater/subplz:latest /sync/
+docker run --entrypoint ./helpers/subplz.sh -it --rm --name subplz --gpus all -v "/mnt/v/Videos/J-Anime Shows/Under Ninja/Season 01":/sync -v /home/ke/code/subplz/cache:/app/cache kanjieater/subplz:latest /sync/
 ```
 
 ## Setup from source

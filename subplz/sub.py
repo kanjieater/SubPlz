@@ -295,11 +295,8 @@ def ffmpeg_extract(
     Extracts a subtitle stream safely using the tempfile module and an atomic rename.
     """
     final_path = output_subtitle_path
-    output_dir = final_path.parent
-    fd, temp_path_str = tempfile.mkstemp(suffix=final_path.suffix, dir=output_dir)
 
-    os.close(fd)
-    temp_path = Path(temp_path_str)
+    temp_path = get_tmp_path(final_path)
 
     try:
         stream_specifier = f"0:s:{stream_index}"
