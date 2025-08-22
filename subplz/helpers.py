@@ -94,16 +94,21 @@ def rename(inputs: RenameParams):
 
     if target_file and Path(target_file).is_file():
         target_stem = get_true_stem(Path(target_file))
-        logger.debug(f"Filtering operations to only process files matching stem: '{target_stem}'")
+        logger.debug(
+            f"Filtering operations to only process files matching stem: '{target_stem}'"
+        )
 
         # Filter the list to only include operations where the source file's stem matches the target's stem
         target_texts = [
-            t for t in rename_texts
+            t
+            for t in rename_texts
             if get_true_stem(Path(list(t.keys())[0])) == target_stem
         ]
 
         if not target_texts:
-            logger.warning(f"🤷 No subtitle files with the stem '{target_stem}' were found to rename.")
+            logger.warning(
+                f"🤷 No subtitle files with the stem '{target_stem}' were found to rename."
+            )
             return
     else:
         target_texts = rename_texts
@@ -186,15 +191,20 @@ def copy(inputs: CopyParams):
         target_file = getattr(inputs, "file", None)
         if target_file and Path(target_file).is_file():
             target_stem = get_true_stem(Path(target_file))
-            logger.debug(f"Filtering copy operations to only process files matching stem: '{target_stem}'")
+            logger.debug(
+                f"Filtering copy operations to only process files matching stem: '{target_stem}'"
+            )
             groups_to_process = {
-                audio: subs for audio, subs in grouped_files.items()
+                audio: subs
+                for audio, subs in grouped_files.items()
                 if get_true_stem(Path(audio)) == target_stem
             }
 
             if not groups_to_process:
-                logger.warning(f"🤷 No media files with the stem '{target_stem}' were found in '{directory}' to process for copying.")
-                continue # Move to the next directory
+                logger.warning(
+                    f"🤷 No media files with the stem '{target_stem}' were found in '{directory}' to process for copying."
+                )
+                continue  # Move to the next directory
 
         for audio, subs in groups_to_process.items():
             copied = False
@@ -223,9 +233,12 @@ def copy(inputs: CopyParams):
                             copied = True
                             break
                         except Exception as e:
-                            logger.error(f"❗ Failed to copy {old_path} to {new_file}: {e}")
+                            logger.error(
+                                f"❗ Failed to copy {old_path} to {new_file}: {e}"
+                            )
                             copied = True
                             break
+
 
 def extract(inputs: ExtractParams):
     """

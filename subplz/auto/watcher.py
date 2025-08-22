@@ -38,9 +38,7 @@ def get_next_job(job_dir):
     try:
         # Create a list of full paths to the json files
         job_paths = [
-            os.path.join(job_dir, f)
-            for f in os.listdir(job_dir)
-            if f.endswith(".json")
+            os.path.join(job_dir, f) for f in os.listdir(job_dir) if f.endswith(".json")
         ]
 
         if not job_paths:
@@ -169,7 +167,9 @@ class JobEventHandler(FileSystemEventHandler):
                 self.processing_lock.release()
         else:
             # If the lock is already held, another event has already triggered the queue processing.
-            logger.info("Job queue is already being processed. Ignoring redundant event.")
+            logger.info(
+                "Job queue is already being processed. Ignoring redundant event."
+            )
 
 
 def run_watcher(args):

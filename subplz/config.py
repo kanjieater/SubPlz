@@ -43,23 +43,27 @@ def resolve_based_paths(config: dict) -> dict:
     and ensures the directories exist. Defaults to a 'config' subdirectory in the current
     working directory if BASE_PATH is not set.
     """
-    base_path = os.environ.get('BASE_PATH')
+    base_path = os.environ.get("BASE_PATH")
     if not base_path:
         base_path = os.path.join(os.getcwd(), "config")
-        logger.warning(f"BASE_PATH environment variable not set. Defaulting to a 'config' subdirectory in the current working directory: '{base_path}'")
+        logger.warning(
+            f"BASE_PATH environment variable not set. Defaulting to a 'config' subdirectory in the current working directory: '{base_path}'"
+        )
     else:
-        logger.info(f"Resolving paths in 'base_dirs' relative to BASE_PATH: '{base_path}'")
+        logger.info(
+            f"Resolving paths in 'base_dirs' relative to BASE_PATH: '{base_path}'"
+        )
 
     # Only proceed if the base_dirs key exists and is a dictionary
-    if 'base_dirs' in config and isinstance(config['base_dirs'], dict):
-        for key, relative_path in config['base_dirs'].items():
+    if "base_dirs" in config and isinstance(config["base_dirs"], dict):
+        for key, relative_path in config["base_dirs"].items():
             # Check if the path from the config is not empty and is a string
             if relative_path and isinstance(relative_path, str):
                 # Construct the absolute path by joining the base and relative paths
                 absolute_path = os.path.join(base_path, relative_path)
 
                 # Update the value in the config dictionary with the new absolute path
-                config['base_dirs'][key] = absolute_path
+                config["base_dirs"][key] = absolute_path
                 # logger.debug(f"  Resolved path for '{key}': '{absolute_path}'")
 
                 try:
@@ -88,8 +92,10 @@ def load_config(config_path: str | None) -> dict:
     final_config = deepcopy(DEFAULT_CONFIG)
 
     if not config_path:
-        logger.debug("No config path provided. Checking for a default 'config.yml' in BASE_PATH.")
-        base_path = os.environ.get('BASE_PATH')
+        logger.debug(
+            "No config path provided. Checking for a default 'config.yml' in BASE_PATH."
+        )
+        base_path = os.environ.get("BASE_PATH")
         if not base_path:
             # --- CHANGED HERE ---
             base_path = os.path.join(os.getcwd(), "config")
@@ -100,7 +106,9 @@ def load_config(config_path: str | None) -> dict:
             logger.info(f"Found default config file at '{potential_path}'. Loading it.")
             config_path = potential_path
         else:
-            logger.warning("No config file provided and no default found. Using default settings.")
+            logger.warning(
+                "No config file provided and no default found. Using default settings."
+            )
 
     # (The rest of the function is unchanged)
     if config_path:
@@ -111,10 +119,14 @@ def load_config(config_path: str | None) -> dict:
             with open(config_path, "r", encoding="utf-8") as f:
                 user_config = yaml.safe_load(f)
                 if not user_config:
-                    logger.warning(f"Config file '{config_path}' is empty. Merging nothing.")
+                    logger.warning(
+                        f"Config file '{config_path}' is empty. Merging nothing."
+                    )
                 else:
                     final_config = deep_merge(user_config, final_config)
-                    logger.info(f"Successfully loaded and merged configuration from {config_path}")
+                    logger.info(
+                        f"Successfully loaded and merged configuration from {config_path}"
+                    )
 
         except Exception as e:
             logger.critical(f"Failed to load configuration: {e}")

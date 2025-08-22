@@ -932,7 +932,11 @@ def get_inputs(args, config):
     and the loaded configuration dictionary. CLI arguments take precedence.
     """
     if args.subcommand in ["sync", "gen"]:
-        resolved_cache_dir = args.cache_dir if args.cache_dir is not None else config.get("base_dirs", {}).get("cache")
+        resolved_cache_dir = (
+            args.cache_dir
+            if args.cache_dir is not None
+            else config.get("base_dirs", {}).get("cache")
+        )
 
         inputs = SimpleNamespace(
             subcommand=args.subcommand,

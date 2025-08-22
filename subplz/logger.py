@@ -2,11 +2,13 @@ import sys
 import os
 from loguru import logger
 
+
 class TqdmToLogger:
     """
     A custom stream for tqdm to write its progress bars to the logger
     without interfering with other console output.
     """
+
     def write(self, buffer):
         message = buffer.strip()
         if message:
@@ -61,6 +63,4 @@ def configure_logging(config: dict):
         diagnose=True,
     )
 
-    logger.info(
-        "Logging configured."
-    )
+    logger.info("Logging configured.")

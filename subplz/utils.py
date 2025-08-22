@@ -2,7 +2,7 @@ from glob import glob, escape
 from pathlib import Path
 from functools import partialmethod
 import torch
-from .logger import logger, TqdmToLogger
+from .logger import TqdmToLogger
 from natsort import os_sorted
 import pycountry
 
@@ -58,7 +58,9 @@ def get_tqdm(progress=True):
     # Define a log-friendly bar format
     # This format prints a new line for each update, which is ideal for log files.
     # It removes the dynamic bar drawing characters.
-    log_friendly_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+    log_friendly_format = (
+        "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+    )
 
     # --- KEY CHANGE: Force tqdm to behave correctly in non-TTY environments ---
     t.__init__ = partialmethod(

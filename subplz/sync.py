@@ -6,7 +6,6 @@ import warnings
 from ats import align
 from ats.lang import get_lang
 from rapidfuzz import fuzz
-from .logger import logger
 from subplz.transcribe import transcribe
 from subplz.alass import sync_alass
 from subplz.files import get_sources, post_process
