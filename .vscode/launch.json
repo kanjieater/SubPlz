@@ -165,8 +165,11 @@
       "args": [
         "sync",
         "-d",
-        // "/mnt/v/Videos/J-Anime Shows/hells paradise",
-        "/mnt/g/test/h",
+        "/mnt/an/ja-anime/media/The Apothecary Diaries/Season 02/",
+        "--file",
+        "/mnt/an/ja-anime/media/The Apothecary Diaries/Season 02/The Apothecary Diaries (2023) - S02E11 - 035 - The Hunt [HDTV-1080p][8bit][x264][AAC 2.0][JA].mkv",
+
+        // "/mnt/g/test/h",
         "--alass",
         // "--overwrite",
         // "--lang-ext-priority",

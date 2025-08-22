@@ -41,9 +41,10 @@ def execute_on_inputs():
     if handler_function:
         try:
             handler_function(inputs)
-        except Exception:
+        except Exception as e:
+            # This correctly logs the error with the full traceback
             logger.opt(exception=True).critical(
-                f"A fatal error occurred during the '{inputs.subcommand}' command."
+                f"A fatal error occurred during the '{inputs.subcommand}' command. {e}"
             )
             sys.exit(1)
     else:

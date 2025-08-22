@@ -2,6 +2,7 @@ import time
 import sys
 import os
 import json
+import threading
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -32,6 +33,44 @@ def get_host_path(config, path_from_job):
     )
 
 
+def get_next_job(job_dir):
+    """Get the oldest job file from the directory, or None if no jobs exist."""
+    try:
+        # Create a list of full paths to the json files
+        job_paths = [
+            os.path.join(job_dir, f)
+            for f in os.listdir(job_dir)
+            if f.endswith(".json")
+        ]
+
+        if not job_paths:
+            return None
+
+        logger.info(f"📊 Found {len(job_paths)} job(s) in the queue.")
+
+        # Find the oldest job by creation time using min()
+        oldest_job = min(job_paths, key=os.path.getctime)
+        return oldest_job
+    except Exception as e:
+        logger.error(f"Error scanning for next job: {e}")
+        return None
+
+
+def process_job_queue(job_dir, full_config):
+    """Process all jobs in the directory, one at a time, in creation order."""
+    while True:
+        next_job = get_next_job(job_dir)
+        if next_job is None:
+            logger.info("No more jobs to process in the current queue.")
+            break
+
+        # Process the job
+        process_job_file(next_job, full_config)
+
+        # Brief pause to allow any pending filesystem events
+        time.sleep(0.5)
+
+
 def process_job_file(job_file_path, full_config):
     logger.info(f"--- Processing Job: {os.path.basename(job_file_path)} ---")
     try:
@@ -54,7 +93,7 @@ def process_job_file(job_file_path, full_config):
 
         logger.info(f"🚀 Triggering batch pipeline for dir: {host_target_dir}")
         if host_episode_path:
-            logger.info(f"    Focused on file: {Path(host_episode_path).name}")
+            logger.info(f"      Focused on file: {Path(host_episode_path).name}")
 
         pipeline = full_config.get("batch_pipeline")
         if not pipeline:
@@ -105,25 +144,43 @@ def process_job_file(job_file_path, full_config):
 
 
 class JobEventHandler(FileSystemEventHandler):
-    def __init__(self, full_config):
+    def __init__(self, full_config, job_dir):
         self.full_config = full_config
+        self.job_dir = job_dir
+        # CORRECTED: Added a lock to prevent race conditions from multiple events.
+        self.processing_lock = threading.Lock()
         logger.success("Watcher event handler initialized.")
 
     def on_created(self, event):
         if event.is_directory or not event.src_path.endswith(".json"):
             return
-        process_job_file(event.src_path, self.full_config)
+
+        logger.info(f"New job detected: {os.path.basename(event.src_path)}")
+
+        # CORRECTED: Use a non-blocking lock to ensure only one thread processes the queue.
+        if self.processing_lock.acquire(blocking=False):
+            logger.info("Acquired lock. Starting job queue processing...")
+            try:
+                # Process the entire job queue (including the new job)
+                process_job_queue(self.job_dir, self.full_config)
+            finally:
+                # Always release the lock when done.
+                logger.info("...job queue processing finished. Releasing lock.")
+                self.processing_lock.release()
+        else:
+            # If the lock is already held, another event has already triggered the queue processing.
+            logger.info("Job queue is already being processed. Ignoring redundant event.")
 
 
 def run_watcher(args):
     """Main function to start the watcher, called by the CLI."""
     config = args.config_data
+    observer = None  # Initialize observer to None for robust error handling
 
     try:
         logger.info(f"Starting watcher with config file: {args.config}")
         base_dirs = config.get("base_dirs", {})
         job_dir = base_dirs.get("watcher_jobs")
-        # We still need watcher_settings for non-path related keys like polling_interval
         watcher_settings = config.get("watcher", {})
 
         if not job_dir or not os.path.isdir(job_dir):
@@ -131,21 +188,12 @@ def run_watcher(args):
                 f"'base_dirs.watcher_jobs' directory not found or not configured: {job_dir}"
             )
 
-        logger.info("--- Checking for pre-existing jobs... ---")
-        existing_jobs = [f for f in os.listdir(job_dir) if f.endswith(".json")]
-        if not existing_jobs:
-            logger.info("No pre-existing jobs found.")
-        else:
-            logger.info(
-                f"Found {len(existing_jobs)} pre-existing job(s). Processing now..."
-            )
-            for job_filename in sorted(existing_jobs):
-                job_filepath = os.path.join(job_dir, job_filename)
-                process_job_file(job_filepath, config)
-        logger.info("--- Initial scan complete. ---")
+        # Process any jobs that already exist on startup.
+        logger.info("Scanning for existing jobs on startup...")
+        process_job_queue(job_dir, config)
 
         logger.info(f"👀 Watching for .json files in: {job_dir}")
-        event_handler = JobEventHandler(full_config=config)
+        event_handler = JobEventHandler(full_config=config, job_dir=job_dir)
         poll_interval = watcher_settings.get("polling_interval_seconds")
 
         if poll_interval is not None:
@@ -165,19 +213,17 @@ def run_watcher(args):
         observer.start()
         logger.success("Watcher is running. Press Ctrl+C to stop.")
 
-        while True:
-            time.sleep(1)
+        while observer.is_alive():
+            observer.join(1)
 
     except KeyboardInterrupt:
         logger.info("\nWatcher stopped by user (Ctrl+C).")
-        if "observer" in locals() and observer.is_alive():
-            observer.stop()
-            observer.join()
     except Exception:
         logger.opt(exception=True).critical(
             "A fatal error occurred in the watcher's main loop."
         )
-        if "observer" in locals() and observer.is_alive():
+        sys.exit(1)
+    finally:
+        if observer and observer.is_alive():
             observer.stop()
             observer.join()
-        sys.exit(1)

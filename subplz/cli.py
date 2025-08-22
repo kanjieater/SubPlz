@@ -577,6 +577,7 @@ class SyncData:
     alass: bool = field(default=False, metadata={"category": "optional"})
     nlp: bool = field(default=False, metadata={"category": "optional"})
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
+    config: str = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -595,6 +596,7 @@ class GenData:
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     alass: bool = field(default=False, metadata={"category": "optional"})
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
+    config: str = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -649,6 +651,7 @@ class GenParams:
 class FindParams:
     subcommand: str = field(metadata={"category": "main"})
     dirs: List[str] = field(metadata={"category": "main"})
+    config: str = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -660,6 +663,7 @@ class RenameParams:
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     dry_run: bool = field(default=False, metadata={"category": "optional"})
     unique: bool = field(default=False, metadata={"category": "optional"})
+    config: str = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -669,6 +673,7 @@ class CopyParams:
     lang_ext: str = field(metadata={"category": "main"})
     lang_ext_priority: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=True, metadata={"category": "optional"})
+    config: str = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -680,6 +685,7 @@ class ExtractParams:
     overwrite: bool = field(default=False, metadata={"category": "optional"})
     verify: bool = field(default=False, metadata={"category": "optional"})
     file: Optional[str] = field(default=None, metadata={"category": "optional"})
+    config: str = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass

@@ -6,7 +6,7 @@ import warnings
 from ats import align
 from ats.lang import get_lang
 from rapidfuzz import fuzz
-
+from .logger import logger
 from subplz.transcribe import transcribe
 from subplz.alass import sync_alass
 from subplz.files import get_sources, post_process
@@ -188,7 +188,6 @@ def run_sync(inputs):
     try:
         if not alass_exists:
             model = get_model(be)
-
         for source in tqdm(sources):
             print(f"🐼 Starting '{source.audio}'...")
             if source.alass:

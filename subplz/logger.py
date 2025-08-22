@@ -2,20 +2,11 @@ import sys
 import os
 from loguru import logger
 
-
-class StreamToLogger:
-    def __init__(self, level="INFO"):
-        self._level = level
-
-    def write(self, buffer):
-        for line in buffer.rstrip().splitlines():
-            logger.log(self._level, line.rstrip())
-
-    def flush(self):
-        pass
-
-
 class TqdmToLogger:
+    """
+    A custom stream for tqdm to write its progress bars to the logger
+    without interfering with other console output.
+    """
     def write(self, buffer):
         message = buffer.strip()
         if message:
@@ -25,27 +16,33 @@ class TqdmToLogger:
         pass
 
 
+def format_record(record):
+    """
+    Custom formatter that handles TQDM messages differently from regular log messages.
+    """
+    if record["level"].name == "TQDM":
+        return "{message}\n"
+    else:
+        return "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | {level: <8} | P:{process.id} | <level>{message}</level>\n"
+
+
 def configure_logging(config: dict):
-    log_config = config.get("log", {})
     logger.remove()
     logger.level("TQDM", no=15, color="<yellow>")
-
-    logger.add(
-        sys.stderr,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-        level="INFO",
-        filter=lambda record: record["level"].name != "TQDM",
-    )
-    logger.add(
-        sys.stderr,
-        format="{message}",
-        level="TQDM",
-        filter=lambda record: record["level"].name == "TQDM",
-    )
     logger.level("CMD", no=22, color="<blue>")
 
-    # File handler gets an updated format
-    log_dir = log_config.get("dir")
+    logger.add(
+        sys.stderr,
+        format=format_record,
+        level="INFO",
+        colorize=True,
+        backtrace=True,
+        diagnose=True,
+    )
+
+    # Configure file logging, which remains unchanged.
+    log_dir = config.get("base_dirs", {}).get("logs")
+
     if log_dir:
         try:
             os.makedirs(log_dir, exist_ok=True)
@@ -67,8 +64,6 @@ def configure_logging(config: dict):
         except Exception as e:
             logger.error(f"Failed to configure file logging at '{log_dir}': {e}")
 
-    sys.stdout = StreamToLogger(level="INFO")
-    sys.stderr = StreamToLogger(level="ERROR")
     logger.info(
-        "Logging configured. Standard output and errors are now being captured."
+        "Logging configured."
     )

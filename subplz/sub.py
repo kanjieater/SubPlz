@@ -1,14 +1,12 @@
 import re
 import os
-import tempfile
 from dataclasses import dataclass
-from multiprocessing import Pool
 from functools import partial
 from pathlib import Path
 import ffmpeg
 from .logger import logger
 from .utils import grab_files, get_tmp_path, get_tqdm, get_iso639_2_lang_code
-
+import concurrent.futures
 
 tqdm, trange = get_tqdm()
 
@@ -320,7 +318,7 @@ def ffmpeg_extract(
             .global_args("-hide_banner", "-nostdin")
             .run(overwrite_output=True)
         )
-
+        # check_empty_subs(temp_path)
         # Atomic rename from temp to final location
         temp_path.rename(final_path)
         return final_path
@@ -402,9 +400,10 @@ def extract_all_subtitles(
     existence_check_lang=None,
     strict=False,
 ):
-    # Using a process count of 1 is safer for network drives
-    count = 1
-    with Pool(processes=count) as pool:
+    # Using a process count of 1 is safer for network drives with processes
+    # Using a thread pool is safer than a process pool when the parent process has an active CUDA context.
+    # Setting max_workers=1 makes it run serially, avoiding parallelism for now.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         func = partial(
             extract_subtitle,
             lang_ext=lang_ext,
@@ -415,7 +414,7 @@ def extract_all_subtitles(
         )
         results = list(
             tqdm(
-                pool.imap(func, files),
+                executor.map(func, files),
                 total=len(files),
                 desc=f"Checking if '{lang_ext_original}' exists or if we should extract to make '{lang_ext}'",
             )
