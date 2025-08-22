@@ -2,9 +2,9 @@ from glob import glob, escape
 from pathlib import Path
 from functools import partialmethod
 import torch
+from .logger import logger, TqdmToLogger
 from natsort import os_sorted
 import pycountry
-from subplz.logger import TqdmToLogger
 
 
 def get_iso639_2_lang_code(lang_code_input: str) -> str | None:
@@ -55,15 +55,29 @@ def get_tqdm(progress=True):
     # --- KEY CHANGE #2: Create an instance of our TQDM stream ---
     tqdm_stream = TqdmToLogger()
 
-    # --- KEY CHANGE #3: Force all tqdm instances to use our custom stream ---
-    # This automatically directs tqdm's output to our "TQDM" log level.
-    # `file=tqdm_stream` replaces the default `file=sys.stderr`.
-    # `dynamic_ncols=True` ensures the bar resizes with the terminal window.
+    # Define a log-friendly bar format
+    # This format prints a new line for each update, which is ideal for log files.
+    # It removes the dynamic bar drawing characters.
+    log_friendly_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+
+    # --- KEY CHANGE: Force tqdm to behave correctly in non-TTY environments ---
     t.__init__ = partialmethod(
-        tqdm.__init__, disable=not progress, file=tqdm_stream, dynamic_ncols=True
+        tqdm.__init__,
+        disable=not progress,
+        file=tqdm_stream,
+        dynamic_ncols=True,
+        # Force ASCII characters, which is safer for logs
+        ascii=True,
+        # Use a format that doesn't rely on carriage returns
+        bar_format=log_friendly_format,
     )
     trange.__init__ = partialmethod(
-        trange.__init__, disable=not progress, file=tqdm_stream, dynamic_ncols=True
+        trange.__init__,
+        disable=not progress,
+        file=tqdm_stream,
+        dynamic_ncols=True,
+        ascii=True,
+        bar_format=log_friendly_format,
     )
 
     return t, trange

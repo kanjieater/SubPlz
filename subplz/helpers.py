@@ -63,7 +63,6 @@ def rename(inputs: RenameParams):
             "❗ Failed to rename. You must include a language extension --lang-ext to add to the output file name."
         )
         return
-
     rename_texts = []
     if lang_ext_original is None:
         for directory in directories:
@@ -90,8 +89,25 @@ def rename(inputs: RenameParams):
                         text_path.parent / f"{true_stem}.{lang_ext}{text_path.suffix}"
                     )
                     rename_texts.append({str(text_path): new_name})
+    target_texts = []
+    target_file = getattr(inputs, "file", None)
 
-    for rename_text in rename_texts:
+    if target_file and Path(target_file).is_file():
+        target_stem = get_true_stem(Path(target_file))
+        logger.debug(f"Filtering operations to only process files matching stem: '{target_stem}'")
+
+        # Filter the list to only include operations where the source file's stem matches the target's stem
+        target_texts = [
+            t for t in rename_texts
+            if get_true_stem(Path(list(t.keys())[0])) == target_stem
+        ]
+
+        if not target_texts:
+            logger.warning(f"🤷 No subtitle files with the stem '{target_stem}' were found to rename.")
+            return
+    else:
+        target_texts = rename_texts
+    for rename_text in target_texts:
         text_path, new_name = list(rename_text.items())[0]
         old_path = Path(text_path)
         if new_name.exists() and not overwrite:
@@ -153,8 +169,8 @@ def rename(inputs: RenameParams):
 def copy(inputs: CopyParams):
     for directory in inputs.dirs:
         dir_path = Path(directory)
-        if not dir_path.exists() or not dir_path.is_dir():
-            print(f"❗Skipping invalid directory: {directory}")
+        if not dir_path.is_dir():
+            logger.warning(f"❗ Skipping invalid directory: {directory}")
             continue
         audio_files = get_audio(dir_path)
         subtitle_files = get_text(dir_path)
@@ -166,7 +182,21 @@ def copy(inputs: CopyParams):
             if true_stem in audio_dict:
                 grouped_files[audio_dict[true_stem]].append(subtitle)
 
-        for audio, subs in grouped_files.items():
+        groups_to_process = grouped_files
+        target_file = getattr(inputs, "file", None)
+        if target_file and Path(target_file).is_file():
+            target_stem = get_true_stem(Path(target_file))
+            logger.debug(f"Filtering copy operations to only process files matching stem: '{target_stem}'")
+            groups_to_process = {
+                audio: subs for audio, subs in grouped_files.items()
+                if get_true_stem(Path(audio)) == target_stem
+            }
+
+            if not groups_to_process:
+                logger.warning(f"🤷 No media files with the stem '{target_stem}' were found in '{directory}' to process for copying.")
+                continue # Move to the next directory
+
+        for audio, subs in groups_to_process.items():
             copied = False
             for ext in inputs.lang_ext_priority:
                 if copied:
@@ -181,22 +211,21 @@ def copy(inputs: CopyParams):
                         )
 
                         if new_file.exists() and not inputs.overwrite:
-                            print(
-                                f"Skipping copying {new_file} since it already exists"
+                            logger.info(
+                                f"😐 Skipping copy for '{new_file}' since it already exists."
                             )
                             copied = True
                             break
 
                         try:
                             shutil.copy(old_path, new_file)
-                            print(f"Copied {old_path} to {new_file}")
+                            logger.success(f"✅ Copied {old_path} to {new_file}")
                             copied = True
                             break
                         except Exception as e:
-                            print(f"Failed to copy {old_path} to {new_file}: {e}")
+                            logger.error(f"❗ Failed to copy {old_path} to {new_file}: {e}")
                             copied = True
                             break
-
 
 def extract(inputs: ExtractParams):
     """

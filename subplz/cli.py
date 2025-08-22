@@ -664,6 +664,7 @@ class RenameParams:
     dry_run: bool = field(default=False, metadata={"category": "optional"})
     unique: bool = field(default=False, metadata={"category": "optional"})
     config: str = field(default=None, metadata={"category": "optional"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass
@@ -674,6 +675,7 @@ class CopyParams:
     lang_ext_priority: Optional[str] = field(metadata={"category": "main"})
     overwrite: bool = field(default=True, metadata={"category": "optional"})
     config: str = field(default=None, metadata={"category": "optional"})
+    file: Optional[str] = field(default=None, metadata={"category": "optional"})
 
 
 @dataclass

@@ -60,7 +60,7 @@ def resolve_based_paths(config: dict) -> dict:
 
                 # Update the value in the config dictionary with the new absolute path
                 config['base_dirs'][key] = absolute_path
-                logger.debug(f"  Resolved path for '{key}': '{absolute_path}'")
+                # logger.debug(f"  Resolved path for '{key}': '{absolute_path}'")
 
                 try:
                     if not os.path.exists(absolute_path):
