@@ -30,12 +30,12 @@ def format_record(record):
 
 def configure_logging(config: dict):
     logger.remove()
-    logger.level("TQDM", no=15, color="<yellow>")
+    logger.level("TQDM", no=15, color="<white>")
     logger.level("CMD", no=22, color="<blue>")
     logger.add(
         sys.stderr,
         format=format_record,
-        level="INFO",
+        level="DEBUG",
         colorize=True,
         backtrace=True,
         diagnose=True,
@@ -61,6 +61,8 @@ def configure_logging(config: dict):
         colorize=True,
         backtrace=True,
         diagnose=True,
+        filter=lambda record: record["level"].name != "TQDM"
+
     )
 
     logger.info("Logging configured.")

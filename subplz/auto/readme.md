@@ -36,9 +36,7 @@ This system is built on a **Producer/Consumer** model, a powerful and resilient 
 This single file controls the behavior of all automation commands and the processing pipeline.
 
 ```yaml
-# ===============================================
-# Global Logging Settings
-# ===============================================
+# Rooted from env var BASE_PATH
 base_dirs:
   logs: "logs"
   cache: "cache"
@@ -47,21 +45,20 @@ base_dirs:
   # [REQUIRED] A directory on the HOST to move job files to if processing fails.
   watcher_errors: "fails"
 
-
 # ===============================================
-# Settings for the Real-time Job Watcher
+# Settings for the Real-time Job Consumer/Watcher
 # ===============================================
 watcher:
-
   # [REQUIRED] The mapping of paths from inside your Docker containers to your host machine.
   # This allows the script to translate container paths from Bazarr jobs to real host paths.
   path_map:
     # Key: Path inside the container (must end with a slash)
     # Value: Corresponding path on the host machine
     "/data/ja-anime/": "/mnt/an/ja-anime/"
-    "/data/test/": "/mnt/g/test/"
+    # "/scan_only/unmapped_media/": "/home/ke/unmapped_media/"
 
-  # [OPTIONAL] If this key is present, the watcher uses a polling-based
+
+  # [OPTIONAL] If this key is present, the watcher will use a polling-based
   # mechanism instead of native OS events. This is less efficient but is
   # REQUIRED if you are running this script inside WSL and watching a
   # directory on the Windows file system (e.g., /mnt/c/).
@@ -83,23 +80,17 @@ scanner:
     - ".ab.srt"  # Bazarr (base/original downloaded sub)
 
   # [OPTIONAL] A list of filename parts to ignore during the scan.
-  blacklist_filenames: ["OP", "ED", "NCOP"]
+  blacklist_filenames: ["OP", "ED", "NCOP", "NCED"]
 
   # [OPTIONAL] A list of directory names to completely ignore during the scan.
-  blacklist_dirs: ["新しいフォルダー", "New folder", "Specials"]
+  blacklist_dirs: ["新しいフォルダー", "New folder"]
 
 # ==========================================================
 # Settings for the Batch Processor
 # ==========================================================
 batch_pipeline:
-  # Each item in this list is a step that will be run in order
-  # for every directory processed by batch.py.
-  # Subplz cli commands and arguments are supported.
-  # {directory} and {file} will be dynamically replaced by jobs from the watcher or commands from batch
-  # Ex: subplz batch -d "/mnt/g/test/h" --config "/mnt/rd/subplz/config.yml",
-  # would make the "{directory}" turn into "/mnt/g/test/h"
   - name: "Source: Rename 'ja' subs to 'ab' for processing"
-    command: 'rename -d "{directory}" --lang-ext ab --lang-ext-original ja --unique --overwrite'
+    command: 'rename -d "{directory}" --file "{file}" --lang-ext ab --lang-ext-original ja --unique --overwrite'
 
   - name: "Embedded: Extract & Verify Native Target Language ('ja' -> 'tl')"
     command: 'extract -d "{directory}" --file "{file}" --lang-ext tl --lang-ext-original ja --verify'
@@ -117,7 +108,7 @@ batch_pipeline:
     command: 'sync -d "{directory}" --file "{file}" --lang-ext av --lang-ext-original az --lang-ext-incorrect ab --alass'
 
   - name: "Best: Copy best subtitle to 'ja'"
-    command: 'copy -d "{directory}" --lang-ext ja --lang-ext-priority tl av as ak az ab --overwrite'
+    command: 'copy -d "{directory}" --file "{file}" --lang-ext ja --lang-ext-priority tl av as ak az ab --overwrite'
 ```
 ## How to Use
 
