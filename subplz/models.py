@@ -81,7 +81,7 @@ def get_model(backend):
     if device == "cuda" and not torch.cuda.is_available():
         device = "cpu"
     logger.info(
-        f"🖥️  We're using {device}. Results will be faster using Cuda with GPU than just CPU. Lot's of RAM needed no matter what."
+        f"🖥️  We're using {device}. Results will be faster using Cuda with GPU than just CPU. Lots of RAM needed no matter what."
     )
     compute_type = (
         "float32" if not quantize else ("int8" if device == "cpu" else "float16")
