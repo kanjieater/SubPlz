@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 import ffmpeg
 from .logger import logger
-from .utils import grab_files, get_tmp_path, get_tqdm, get_iso639_2_lang_code
+from .utils import grab_files, get_tmp_path, get_tqdm, get_lang_code
 import concurrent.futures
 
 tqdm, trange = get_tqdm()
@@ -83,7 +83,7 @@ def get_subtitle_idx(
 
     standardized_target_lang = None
     if target_lang_code:
-        standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
+        standardized_target_lang = get_lang_code(target_lang_code)
         if not standardized_target_lang:
             logger.warning(
                 f"🦈 Could not standardize input language code '{target_lang_code}'."

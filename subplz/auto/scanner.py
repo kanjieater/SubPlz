@@ -3,35 +3,54 @@ import sys
 import json
 import time
 import re
+import hashlib
 from pathlib import Path
 from ..logger import logger
 from ..files import VIDEO_FORMATS, AUDIO_FORMATS, get_true_stem
+from ..utils import get_host_path, get_docker_path
 
 
-def create_job_file(job_dir, media_dir_path, episode_path):
-    """Creates a JSON job file for the watcher to process."""
-    safe_basename = Path(episode_path).stem.replace(" ", "_")
-    timestamp = int(time.time() * 1000)
-    job_filename = f"scanner_{safe_basename}_{timestamp}.json"
+def create_job_file(job_dir, media_dir_path, episode_path, full_config):
+    """
+    Creates a deterministic, human-readable, and length-safe JSON job file.
+    """
+    base_name = Path(episode_path).stem
+    # Replace characters that are invalid in filenames on most operating systems.
+    sanitized_base_name = re.sub(r'[<>:"/\\|?*]', "_", base_name)
+    # 2. Create a short, unique hash from the FULL path to prevent collisions
+    #    between identically named files in different folders.
+    media_path_str = str(episode_path)
+    full_hash = hashlib.md5(media_path_str.encode("utf-8")).hexdigest()
+    short_hash = full_hash[
+        :8
+    ]  # Take the first 8 characters for a short but effective ID.
+    # 3. Combine the parts and enforce a reasonable max filename length (e.g., 240 chars).
+    prefix = "scanner_"
+    suffix = f"_{short_hash}.json"
+    # Calculate the max length allowed for the human-readable part.
+    # 255 is a common limit, we'll use 240 to be safe.
+    max_base_name_len = 240 - len(prefix) - len(suffix)
+    truncated_base_name = sanitized_base_name[:max_base_name_len]
+    job_filename = f"{prefix}{truncated_base_name}{suffix}"
     job_filepath = os.path.join(job_dir, job_filename)
+    docker_media_dir = get_docker_path(full_config, media_dir_path)
+    docker_episode_path = get_docker_path(full_config, episode_path)
 
     job_data = {
-        "directory": str(media_dir_path),
-        "episode_path": str(episode_path),
+        "directory": docker_media_dir,
+        "episode_path": docker_episode_path,
         "source": "library_scanner",
     }
 
     with open(job_filepath, "w", encoding="utf-8") as f:
         json.dump(job_data, f, indent=2)
 
-    logger.success(f"Created job for file: {Path(episode_path).name}")
+    logger.success(f"Created/Updated job for file: {Path(episode_path).name}")
 
 
 def is_blacklisted(filename, blacklist_terms):
     """
-    FIXED: Check if filename should be blacklisted using smarter word boundary matching.
-
-    This prevents false positives like "OP" in "[Opus 2.0]"
+    Check if filename should be blacklisted using smarter word boundary matching.
     """
     if not blacklist_terms:
         return False
@@ -128,6 +147,7 @@ def scan_library(config, override_dirs=None, target_file=None):
     base_dirs = config.get("base_dirs", {})
     job_dir = base_dirs.get("watcher_jobs")
     watcher_settings = config.get("watcher", {})
+
     logger.debug(f"Scanner settings: {json.dumps(scanner_settings, indent=2)}")
     logger.debug(f"Jobs directory: {job_dir}")
 
@@ -147,14 +167,15 @@ def scan_library(config, override_dirs=None, target_file=None):
         return
 
     logger.info("--- Starting Library Scan ---")
-
-    job_counter = 0
     files_scanned = 0
 
     if target_file:
-        target_path = Path(target_file)
+        host_target_file = get_host_path(config, target_file)
+        target_path = Path(host_target_file)
         if not target_path.is_file():
-            logger.error(f"Target file '{target_file}' does not exist. Aborting scan.")
+            logger.error(
+                f"Target file '{host_target_file}' does not exist. Aborting scan."
+            )
             return
 
         logger.info(f"Focusing scan on single file: {target_path.name}")
@@ -162,55 +183,64 @@ def scan_library(config, override_dirs=None, target_file=None):
         if check_file_for_missing_subs(
             str(target_path.parent), target_path.name, scanner_settings
         ):
-            create_job_file(job_dir, str(target_path.parent), target_path)
-            job_counter += 1
-    else:
-        if override_dirs:
-            logger.info(
-                f"Scanning directories provided via command line: {override_dirs}"
-            )
-            content_dirs = override_dirs
+            create_job_file(job_dir, str(target_path.parent), target_path, config)
+            logger.success("--- Scan Complete. Scanned 1 file, created 1 new job. ---")
         else:
-            logger.info("Scanning directories from config file's watcher.path_map")
-            path_map = watcher_settings.get("path_map", {})
-            logger.debug(f"Path map from config: {path_map}")
-            content_dirs = [v for k, v in path_map.items()]
+            logger.success("--- Scan Complete. Scanned 1 file, no job needed. ---")
+        return
 
-        logger.info(f"Content directories to scan: {content_dirs}")
+    jobs_to_create = []
 
-        if not content_dirs:
-            logger.error("No content directories to scan.")
-            return
+    if override_dirs:
+        logger.info(f"Scanning directories provided via command line: {override_dirs}")
+        content_dirs = [get_host_path(config, d) for d in override_dirs]
+    else:
+        logger.info("Scanning directories from config file's watcher.path_map")
+        path_map = watcher_settings.get("path_map", {})
+        logger.debug(f"Path map from config: {path_map}")
+        content_dirs = list(path_map.values())
 
-        blacklist_dirs = scanner_settings.get("blacklist_dirs", [])
-        logger.debug(f"Blacklisted directories: {blacklist_dirs}")
+    logger.info(f"Content directories to scan: {content_dirs}")
 
-        for content_dir in content_dirs:
-            logger.info(f"Scanning directory: {content_dir}...")
-            if not os.path.isdir(content_dir):
-                logger.warning(f"Directory not found, skipping: {content_dir}")
-                continue
+    if not content_dirs:
+        logger.error("No content directories to scan.")
+        return
 
-            for root, dirs, files in os.walk(content_dir):
-                # Filter out blacklisted directories
-                original_dirs = dirs[:]
-                dirs[:] = [d for d in dirs if d not in blacklist_dirs]
-                if len(dirs) != len(original_dirs):
-                    filtered_out = set(original_dirs) - set(dirs)
-                    logger.debug(
-                        f"Filtered out blacklisted directories: {filtered_out}"
-                    )
+    blacklist_dirs = scanner_settings.get("blacklist_dirs", [])
+    logger.debug(f"Blacklisted directories: {blacklist_dirs}")
 
-                logger.debug(
-                    f"Scanning directory: {root} (contains {len(files)} files)"
-                )
+    for content_dir in content_dirs:
+        logger.info(f"Finding files in: {content_dir}...")
+        if not os.path.isdir(content_dir):
+            logger.warning(f"Directory not found, skipping: {content_dir}")
+            continue
 
-                for file_name in files:
-                    files_scanned += 1
-                    if check_file_for_missing_subs(root, file_name, scanner_settings):
-                        episode_path = Path(root) / file_name
-                        create_job_file(job_dir, root, episode_path)
-                        job_counter += 1
+        for root, dirs, files in os.walk(content_dir):
+            dirs[:] = [d for d in dirs if d not in blacklist_dirs]
+
+            for file_name in files:
+                files_scanned += 1
+                if check_file_for_missing_subs(root, file_name, scanner_settings):
+                    episode_path = Path(root) / file_name
+                    jobs_to_create.append(episode_path)
+
+    if not jobs_to_create:
+        logger.success(
+            f"--- Scan Complete. Scanned {files_scanned} files, no new jobs needed. ---"
+        )
+        return
+
+    logger.info(
+        f"Found {len(jobs_to_create)} files needing jobs. Sorting and creating job files..."
+    )
+
+    sorted_paths = sorted(jobs_to_create)
+
+    job_counter = 0
+    for episode_path in sorted_paths:
+        create_job_file(job_dir, episode_path.parent, episode_path, config)
+        job_counter += 1
+        time.sleep(0.1)  # Guarantees sequential creation timestamps
 
     logger.success(
         f"--- Scan Complete. Scanned {files_scanned} files, created {job_counter} new jobs. ---"
@@ -222,8 +252,6 @@ def run_scanner(args):
     config = args.config_data
     override_dirs = args.dirs
     target_file = args.file
-
-    # DEBUG: Log what we received
     logger.debug(f"Scanner args - dirs: {override_dirs}, file: {target_file}")
 
     logger.info("Scanner command initiated.")

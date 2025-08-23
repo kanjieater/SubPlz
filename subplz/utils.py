@@ -1,3 +1,4 @@
+import os
 from glob import glob, escape
 from pathlib import Path
 from functools import partialmethod
@@ -7,14 +8,21 @@ from natsort import os_sorted
 import pycountry
 
 
-def get_iso639_2_lang_code(lang_code_input: str) -> str | None:
-    # ... (as defined before) ...
+def get_lang_code(lang_code_input: str) -> str | None:
     if not lang_code_input:
         return None
     lang_code_input = lang_code_input.lower()
+    MANUAL_LANG_FIXES = {
+        "jap": "ja",
+        "ger": "de",
+        "fre": "fr",
+    }
+    if lang_code_input in MANUAL_LANG_FIXES:
+        lang_code_input = MANUAL_LANG_FIXES[lang_code_input]
     try:
         lang = pycountry.languages.get(alpha_2=lang_code_input)
         if lang:
+            # Prefer the bibliographic (T) code like 'jpn' over the terminology (B) code
             return getattr(lang, "bibliographic", getattr(lang, "alpha_3", None))
     except KeyError:
         pass
@@ -106,6 +114,42 @@ def get_tmp_path(file_path):
     file_path = Path(file_path)
     filename = file_path.stem
     return file_path.parent / f"{filename}.tmp{file_path.suffix}"
+
+
+def get_host_path(config, path_from_job):
+    """
+    Translates a container path to a host path, or confirms a host path's existence.
+    """
+    path_map = config.get("watcher", {}).get("path_map", {})
+    str_path_from_job = str(path_from_job)
+
+    if str_path_from_job in path_map:
+        return path_map[str_path_from_job]
+
+    for docker_path, host_path in path_map.items():
+        if str_path_from_job.startswith(docker_path):
+            return str_path_from_job.replace(docker_path, host_path, 1)
+
+    if os.path.exists(str_path_from_job):
+        return str_path_from_job
+
+    return str_path_from_job
+
+
+def get_docker_path(config, path_from_host):
+    """
+    Translates a host path back to a container path.
+    """
+    path_map = config.get("watcher", {}).get("path_map", {})
+    sorted_host_paths = sorted(path_map.values(), key=len, reverse=True)
+
+    str_path_from_host = str(path_from_host)
+    for host_path in sorted_host_paths:
+        if str_path_from_host.startswith(host_path):
+            for docker_path, mapped_host_path in path_map.items():
+                if mapped_host_path == host_path:
+                    return str_path_from_host.replace(host_path, docker_path, 1)
+    return str_path_from_host
 
 
 def find_and_show_lingering_tensors():

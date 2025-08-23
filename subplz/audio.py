@@ -1,18 +1,26 @@
-from subplz.utils import get_iso639_2_lang_code
+from subplz.utils import get_lang_code
 
 
 def score_audio_stream(stream_info: dict, target_iso_lang: str | None) -> int:
     """Assigns a preference score to an audio stream."""
     score = 0
     tags = stream_info.get("tags", {})
-    title = tags.get("title", "").lower()
-    stream_lang = stream_info.get("tags", {}).get("language", "").lower()
+
+    # --- NEW: More robust language detection ---
+    # Prioritize the 'language' tag, but fall back to the 'title' tag.
+    lang_code_from_stream = tags.get("language", tags.get("title", "")).lower()
+    standardized_stream_lang = None
+    if lang_code_from_stream:
+        # Standardize whatever we find (e.g., 'jap' -> 'jpn')
+        standardized_stream_lang = get_lang_code(lang_code_from_stream)
 
     # 1. Language Match (highest importance)
-    if target_iso_lang and stream_lang == target_iso_lang:
+    if target_iso_lang and standardized_stream_lang == target_iso_lang:
         score += 100
-    elif target_iso_lang and target_iso_lang in title:  # Less reliable but a fallback
-        score += 20
+    # --- End of new logic ---
+
+    # The rest of the scoring logic remains the same.
+    title = tags.get("title", "").lower()
 
     # 2. Avoid undesirable tracks (negative scores)
     commentary_keywords = ["commentary", "comment", "comms", "director"]
@@ -70,7 +78,7 @@ def get_audio_idx(all_streams: list, target_lang_code: str, path: str) -> dict |
         print("❗No audio streams found in the media.")
         return None
 
-    standardized_target_lang = get_iso639_2_lang_code(target_lang_code)
+    standardized_target_lang = get_lang_code(target_lang_code)
     if not standardized_target_lang:
         print(
             f"🦈Could not standardize input language code for the audio stream '{target_lang_code}'. Will select based on other heuristics or first available."

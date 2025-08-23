@@ -12,6 +12,7 @@ from watchdog.observers.polling import PollingObserver
 from ..logger import logger, configure_logging
 from ..cli import BatchParams
 from ..batch import run_batch
+from ..utils import get_host_path
 
 
 def process_job_file(job_file_path, full_config):
@@ -65,6 +66,10 @@ def process_job_file(job_file_path, full_config):
             logger.info(
                 f"🗑️ Deleted successful job file: {os.path.basename(job_file_path)}"
             )
+        except FileNotFoundError:
+            logger.debug(
+                f"Job file {os.path.basename(job_file_path)} was already deleted."
+            )
         except OSError as e:
             logger.error(f"Failed to delete successful job file {job_file_path}: {e}")
     else:
@@ -93,25 +98,6 @@ def process_job_file(job_file_path, full_config):
             logger.opt(exception=True).critical(
                 "Additionally failed to move the job file to the error directory!"
             )
-
-
-def get_host_path(config, path_from_job):
-    """
-    Translates a container path to a host path, or confirms a host path's existence.
-    """
-    path_map = config.get("watcher", {}).get("path_map", {})
-    for docker_path, host_path in path_map.items():
-        if path_from_job.startswith(docker_path):
-            logger.debug(f"Translating container path: {path_from_job} -> {host_path}")
-            return path_from_job.replace(docker_path, host_path, 1)
-
-    if os.path.exists(path_from_job):
-        logger.debug(f"Path is already a valid host path: {path_from_job}")
-        return path_from_job
-
-    raise FileNotFoundError(
-        f"Could not resolve '{path_from_job}' to a valid host path."
-    )
 
 
 def get_next_job(job_dir):
