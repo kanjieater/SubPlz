@@ -109,9 +109,10 @@ services:
       - HF_HOME=/sub_config/cache/huggingface
       - SUBPLZ_BASE_PATH=/sub_config
     volumes:
-      - "/mnt/g/media:/mnt/g/media"
-      - "/home/ke/gpu-srv/subplz/:/sub_config"
-
+      # Map your media library. Left side is your Host path, right is the Container path.
+      - "/path/on/your/host/media:/media"
+      # Map a local config directory to the container.
+      - "./config:/sub_config"
     deploy:
       resources:
         reservations:
@@ -338,7 +339,7 @@ This gives you multiple subtitle options to choose from, allowing you to quickly
 ```
 
 1. Run `subplz rename -d "/mnt/v/Videos/J-Anime Shows/NeoOtaku Uprising The Anime/" --lang-ext "ab" --dry-run` to see what the rename would be
-2. If the renames look right, run it again without the `--dry-run` flag: `subplz rename -d "/mnt/v/Videos/J-Anime Shows/NeoOtaku Uprising The Anime/" --lang-ext ab --dry-run`
+2. If the renames look right, run it again without the `--dry-run` flag: `subplz rename -d "/mnt/v/Videos/J-Anime Shows/NeoOtaku Uprising The Anime/" --lang-ext ab`
 
 ```bash
 /sync/
@@ -378,7 +379,7 @@ This gives you multiple subtitle options to choose from, allowing you to quickly
 ## Usage Notes
 
 - This can be GPU intense, RAM intense, and CPU intense script part. `subplz sync -d "<full folder path>"` eg `subplz sync -d "/mnt/d/Editing/Audiobooks/かがみの孤城/"`. This runs each file to get a character level transcript. It then creates a sub format that can be matched to the `script.txt`. Each character level subtitle is merged into a phrase level, and your result should be a `<name>.srt` file. The video or audio file then can be watched with `MPV`, playing audio in time with the subtitle.
-- Users with a modern CPU with lots of threads won't notice much of a difference between using CUDA/GPU & CPU
+- CUDA-enabled GPU is highly recommended for the best performance, especially with larger and more accurate models.
 
 ## Sort Order
 
@@ -611,7 +612,7 @@ Now, whenever Bazarr successfully downloads a new subtitle, it will create a job
 
 Let's say you want to automate getting the best subs for every piece of media in your library. SubPlz takes advantage of how well video players integrate with language codes by overriding them to map them to algorithms, instead of different languages. This makes it so you can quickly switch between a sub on the fly while watching content, and easily update your preferred option for a series later on if your default doesn't work.
 
-Just run `./helpers/subplz.sh` with a sub like `sub1.ja.srt` and `video1.mkv` and it will genearate the following:
+Just run `subplz batch --config /path/to/config.yml`, as it's documented in the readme, with a sub like `sub1.ja.srt` and `video1.mkv` and it will genearate the following:
 
 | Algorithm | Default Language Code | Mnemonic | Description |
 | -------- | ------- | -------- | ------- |
