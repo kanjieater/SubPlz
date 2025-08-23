@@ -6,6 +6,7 @@ import warnings
 from ats import align
 from ats.lang import get_lang
 from rapidfuzz import fuzz
+from .logger import logger
 from subplz.transcribe import transcribe
 from subplz.alass import sync_alass
 from subplz.files import get_sources, post_process
@@ -24,7 +25,7 @@ warnings.filterwarnings(
 )
 
 
-def match_start(audio, text, model):
+def match_start(audio, text):
     ats, sta = {}, {}
     textcache = {}
     for ai in trange(len(audio)):
@@ -75,9 +76,9 @@ def match_start(audio, text, model):
     return ats, sta
 
 
-def fuzzy_match_chapters(streams, chapters, model):
+def fuzzy_match_chapters(streams, chapters):
     print("🔍 Fuzzy matching chapters...")
-    ats, sta = match_start(streams, chapters, model)
+    ats, sta = match_start(streams, chapters)
     audio_batches = expand_matches(streams, chapters, ats, sta)
     # print_batches(audio_batches)
     return audio_batches
@@ -128,7 +129,7 @@ def sync(source: sourceData, model, streams, be):
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
     }
-    audio_batches = fuzzy_match_chapters(streams, chapters, model)
+    audio_batches = fuzzy_match_chapters(streams, chapters)
     print("🔄 Syncing...")
     with tqdm(audio_batches) as bar:
         for ai, batches in enumerate(bar):
@@ -179,21 +180,22 @@ def run_sync(inputs):
     be.temperature = get_temperature(be)
     be.threads = get_threads(be)
     sources = get_sources(inputs.sources, inputs.cache)
-    alass_exists = (
-        getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
-    )
-
-    model = None
-    try:
-        if not alass_exists:
-            model = get_model(be)
-        for source in tqdm(sources):
-            print(f"🐼 Starting '{source.audio}'...")
+    for source in tqdm(sources):
+        print(f"🐼 Starting '{source.audio}'...")
+        result = None
+        try:
             if source.alass:
                 sync_alass(source, inputs.sources, be)
             else:
-                transcribed_streams = transcribe(source.streams, model, be)
-                sync(source, model, transcribed_streams, be)
-        post_process(sources, "sync")
-    finally:
-        unload_model(model)
+                result = transcribe(source, be)
+                if result.success:
+                    sync(source, result.model, result.streams, be)
+                else:
+                    logger.error(f"Skipping sync for '{source.audio[0]}' due to transcription failure.")
+        finally:
+            if result and result.model:
+                unload_model(result.model)
+    post_process(sources, "sync")
+
+
+

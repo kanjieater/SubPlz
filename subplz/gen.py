@@ -1,4 +1,5 @@
 from ats.main import Segment
+from .logger import logger
 from subplz.utils import get_tqdm, get_threads
 from subplz.align import shift_align
 from subplz.transcribe import transcribe
@@ -52,14 +53,16 @@ def run_gen(inputs):
     be.temperature = get_temperature(be)
     be.threads = get_threads(be)
     sources = get_sources(inputs.sources, inputs.cache)
-    model = None
-    try:
-        model = get_model(be)
-
-        for source in tqdm(sources):
-            print(f"🐼 Starting '{source.audio}'...")
-            transcribed_streams = transcribe(source.streams, model, be)
-            gen(source, model, transcribed_streams, be)
-        post_process(sources, "gen")
-    finally:
-        unload_model(model)
+    for source in tqdm(sources):
+        print(f"🐼 Starting '{source.audio}'...")
+        result = None
+        try:
+            result = transcribe(source, be)
+            if result.success:
+                gen(source, result.model, result.streams, be)
+            else:
+                logger.error(f"Skipping generation for '{source.audio[0]}' due to transcription failure.")
+        finally:
+            if result and result.model:
+                unload_model(result.model)
+    post_process(sources, "gen")
