@@ -21,7 +21,8 @@ def transcribe(streams, model, be):
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
         "denoiser": be.denoiser,
-        "vad": be.vad,  # TODO: check that onnx is still working here after dep update
+        "batch_size": be.batch_size,
+        "vad": dict(onnx=be.vad),
     }
     # TODO: not faster-whisper
     # logprob_threshold
