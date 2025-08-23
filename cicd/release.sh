@@ -56,6 +56,7 @@ echo "Pushing git tag to remote..."
 git push origin "$VERSION_TAG"
 
 echo "Creating GitHub release..."
-gh release create "$VERSION_TAG" --title "$VERSION_TAG" --notes "$LATEST_MESSAGE"
+
+gh release create "$VERSION_TAG" --title "$VERSION_TAG" --generate-notes
 
 echo "🎉 Release $VERSION_TAG created successfully!"
