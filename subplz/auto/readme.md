@@ -99,10 +99,10 @@ batch_pipeline:
     command: 'sync -d "{directory}" --file "{file}" --lang-ext as --lang-ext-original en --lang-ext-incorrect ab --alass'
 
   - name: "SubPlz: ('ab' -> 'ak')"
-    command: 'sync -d "{directory}" --file "{file}" --lang-ext ak --lang-ext-original ab --model large-v3'
+    command: 'sync -d "{directory}" --file "{file}" --lang-ext ak --lang-ext-original ab --model turbo'
 
   - name: "Stable-ts: ('az')"
-    command: 'gen -d "{directory}" --file "{file}" --lang-ext az --model large-v3'
+    command: 'gen -d "{directory}" --file "{file}" --lang-ext az --model turbo'
 
   - name: "Alass Variant: ('az' + 'ab' -> 'av')"
     command: 'sync -d "{directory}" --file "{file}" --lang-ext av --lang-ext-original az --lang-ext-incorrect ab --alass'
@@ -242,7 +242,7 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - WHISPER_MODEL=large-v3
+      - WHISPER_MODEL=turbo
       - HF_HOME=/sub_config/cache/huggingface
       - SUBPLZ_BASE_PATH=/sub_config
     volumes:

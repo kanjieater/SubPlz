@@ -131,8 +131,8 @@ If you can't contribute monetarily please consider following on a social platfor
    ├── NeoOtaku Uprising EP00.mkv
    └── NeoOtaku Uprising EP01.avi
 ```
-1. List the directories you want to run this on. The `-d` parameter can multiple files to process like: `subplz gen -d "/mnt/d/NeoOtaku Uprising The Anime" --model large-v3`
-2. Run `subplz gen -d "<full folder path>" --model large-v3` using something like `/mnt/d/sync/NeoOtaku Uprising The Anime`. Large models are highly recommended for `gen` (unlike `sync`)
+1. List the directories you want to run this on. The `-d` parameter can multiple files to process like: `subplz gen -d "/mnt/d/NeoOtaku Uprising The Anime" --model turbo`
+2. Run `subplz gen -d "<full folder path>" --model turbo` using something like `/mnt/d/sync/NeoOtaku Uprising The Anime`. Large models are highly recommended for `gen` (unlike `sync`)
 3. From there, use a video player like MPV or Plex. You can also use `--lang-ext az` to set a language you wouldn't otherwise need as a designated "AI subtitle", and use it as a fallback when sync doesn't work or you don't have existing subtitles already
 
 ### Batch
@@ -283,7 +283,7 @@ Currently supports Docker (preferred), Windows, and unix based OS's like Ubuntu 
    - **Optional**: `--gpus all` will allow you to run with GPU. If this doesn't work make sure you've enabled your GPU in docker (outside the scope of this project)
    - `-v <your folder path>:/sync` ex: `-v /mnt/d/sync:/sync` This is where your files that you want to sync are at. The part to the left of the `:` if your machine, the part to the right is what the app will see as the folder name.
    - The cache part is the same thing as the folder syncing. This is just mapping where things are locally to your machine. As long as the app can find the cache folder, it will be able to resync things much faster.
-   - **Optional**: `-v <your config cache path>:/config/.cache` ex: `-v /mnt/d/ModelCache:/config/.cache` This maps a local directory to store additionally downloaded models, like large-v3. This helps in avoiding re-downloading the models every time you run the container.
+   - **Optional**: `-v <your config cache path>:/config/.cache` ex: `-v /mnt/d/ModelCache:/config/.cache` This maps a local directory to store additionally downloaded models, like turbo. This helps in avoiding re-downloading the models every time you run the container.
    - `<command> <params>` ex: `sync -d /sync/`, this runs a `subplz <command> <params>` as you would outside of docker
 
 ### Running from Docker: Batch
@@ -331,8 +331,8 @@ For different use cases, different parameters may be optimal.
 - The default `--model "tiny"` seems to work well, and is much faster than other models. If your transcript is inaccurate, consider using a larger model to compensate
 
 ### For Realigning Subtitles
-- **Recommended**: `subplz sync --model large-v3 -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
-- Highly recommend running with something like `--model "large-v3"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
+- **Recommended**: `subplz sync --model turbo -d "/mnt/v/Videos/J-Anime Shows/Sousou no Frieren"`
+- Highly recommend running with something like `--model "turbo"` as subtitles often have sound effects or other things that won't be picked up by transcription models. By using a large model, it will take much longer (a 24 min episode can go from 30 seconds to 4 mins for me), but it will be much more accurate.
 - Subs can be cut off in strange ways if you have an unreliable transcript, so you may want to use `--respect-grouping`. If you find your subs frequently have very long subtitle lines, consider using `--no-respect-grouping`
 
 

@@ -51,10 +51,10 @@ echo "Alass Syncing in : $directory_to_process"
 subplz sync -d "$directory_to_process" --lang-ext "as" --lang-ext-original "en" --lang-ext-incorrect "ab" --alass
 
 echo "SubPlz Syncing in : $directory_to_process"
-subplz sync -d "$directory_to_process" --lang-ext "ak" --lang-ext-original "ab" --model large-v3
+subplz sync -d "$directory_to_process" --lang-ext "ak" --lang-ext-original "ab" --model turbo
 
 echo "Generating in : $directory_to_process"
-subplz gen -d "$directory_to_process" --lang-ext "az" --model large-v3
+subplz gen -d "$directory_to_process" --lang-ext "az" --model turbo
 
 echo "Alass AI Syncing in : $directory_to_process"
 subplz sync -d "$directory_to_process" --lang-ext "aa" --lang-ext-original "az" --lang-ext-incorrect "ab" --alass

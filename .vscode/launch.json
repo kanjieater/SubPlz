@@ -8,19 +8,15 @@
       "module": "pytest",
       "noDebug": true, // <-- this will use the debug session but run the test without debugger injected into the process
       "args": []
-  },
-  {
+    },
+    {
       "name": "Debug Pytest",
       "type": "python",
       "request": "launch",
       "module": "pytest",
-      "args": [
-        "-s",
-        "-k",
-        "test_shift_align_no_change"
-      ]
-  },
-  {
+      "args": ["-s", "-k", "test_shift_align_no_change"]
+    },
+    {
       "name": "Gen",
       "type": "debugpy",
       "request": "launch",
@@ -30,11 +26,11 @@
         "-d",
         "/mnt/v/Videos/deleteme",
         "--model",
-        "large-v3",
+        "turbo",
         "--lang-ext",
         "ja"
       ]
-  },
+    },
     {
       "name": "Rename",
       "type": "debugpy",
@@ -51,8 +47,8 @@
         "--lang-ext-original",
         "ja",
         "--unique",
-        "--overwrite",
-      ],
+        "--overwrite"
+      ]
     },
     {
       "name": "Copy",
@@ -74,8 +70,8 @@
         "ak",
         "az",
         "ab",
-        "--overwrite",
-      ],
+        "--overwrite"
+      ]
     },
     {
       "name": "Sync Single Test",
@@ -89,8 +85,8 @@
         "--text",
         "/mnt/d/sync/test/test.srt",
         "--lang-ext",
-        "ja",
-      ],
+        "ja"
+      ]
     },
     {
       "name": "Sync Single Test Dual Audio",
@@ -102,8 +98,8 @@
         "-d",
         "/mnt/v/ja-anime/media/Gankutsuou - The Count of Monte Cristo/Season 01",
         "--model",
-        "large-v3",
-      ],
+        "turbo"
+      ]
     },
     {
       "name": "Sync Single",
@@ -123,9 +119,9 @@
         "--lang-ext-incorrect",
         "ab",
         "--model",
-        "large-v3",
+        "turbo",
         "--alass"
-      ],
+      ]
     },
     {
       "name": "sync",
@@ -150,7 +146,7 @@
         // "--lang-ext-original",
         // "ab",
         "--model",
-        "large-v3",
+        "turbo"
         // "--rerun",
         // "--lang-ext-incorrect",
         // "ja",
@@ -160,18 +156,14 @@
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",
         // "/mnt/d/sync/変な家/変な家.epub",
-      ],
+      ]
     },
     {
       "name": "Watch",
       "type": "debugpy",
       "request": "launch",
       "module": "subplz",
-      "args": [
-        "watch",
-        "--config",
-        "/mnt/rd/subplz/config.yml"
-      ],
+      "args": ["watch", "--config", "/mnt/rd/subplz/config.yml"]
     },
     {
       "name": "Batch",
@@ -184,7 +176,7 @@
         "/mnt/g/test/h",
         "--config",
         "/mnt/rd/subplz/config.yml"
-      ],
+      ]
     },
     {
       "name": "Alass",
@@ -212,7 +204,7 @@
         "--lang-ext-original",
         "en",
         "--lang-ext-incorrect",
-        "ab",
+        "ab"
         // "--rerun",
         // "--lang-ext-incorrect",
         // "ja",
@@ -222,7 +214,7 @@
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",
         // "/mnt/d/sync/変な家/変な家.epub",
-      ],
+      ]
     },
     {
       "name": "Alass Single",
@@ -237,13 +229,12 @@
         "/mnt/v/Videos/J-Anime Shows/Mashle Magic and Muscles/Season 01/Mashle - Magic and Muscles.S01E01.WEBRip.Netflix.ja[cc].srt",
         "--alass",
         "--lang-ext",
-        "ja",
+        "ja"
         // "--lang-ext-incorrect",
         // "ja",
         // "--lang-ext-original",
         // "en",
-
-      ],
+      ]
     },
     {
       "name": "Convert format",
@@ -259,7 +250,7 @@
         "--lang-ext-original",
         "ab",
         "--model",
-        "large-v3"
+        "turbo"
       ]
     },
     {
@@ -267,11 +258,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "subplz",
-      "args": [
-        "sync",
-        "-d",
-        "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/test"
-      ],
+      "args": ["sync", "-d", "/mnt/d/sync/ｍｅｄｉｕｍ霊媒探偵城塚翡翠/test"]
     },
     {
       "name": "Video file",
@@ -281,7 +268,7 @@
       "args": [
         "sync",
         "-d",
-        "/mnt/v/test/2",
+        "/mnt/v/test/2"
         // "--rerun",
 
         // "--overwrite-cache",
@@ -289,7 +276,7 @@
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",
         // "/mnt/d/sync/変な家/変な家.epub",
-      ],
+      ]
     },
     {
       "name": "Skipping in between",
@@ -300,12 +287,12 @@
         "sync",
         "-d",
         "/mnt/v/Videos/J-Anime Shows/Solo Leveling",
-        "--overwrite-cache",
+        "--overwrite-cache"
         // "--audio",
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",
         // "/mnt/d/sync/変な家/変な家.epub",
-      ],
+      ]
     },
     {
       "name": "Explicit files",
@@ -324,7 +311,7 @@
         // "/mnt/d/sync/変な家/変な家.m4b",
         // "--text",
         // "/mnt/d/sync/変な家/変な家.epub",
-      ],
+      ]
     },
 
     {
