@@ -665,35 +665,40 @@ def rename_old_subs(source: sourceData, orig):
 def post_process(sources: List[sourceData], subcommand):
     if subcommand == "sync":
         cleanup(sources)
+
     complete_success = True
-    sorted_sources = sorted(
-        sources, key=lambda source: source.writer.written, reverse=True
-    )
-    for source in sorted_sources:
+    all_output_paths = []
+
+    for source in sources:
+        all_output_paths.extend(source.output_full_paths)
+
         if source.writer.written:
-            output_paths = [str(o) for o in source.output_full_paths]
-            logger.success(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
-        elif source.alass and not source.writer.written:
-            # An ALASS job did not produce a file. We must check if it was a hard or soft failure.
-            # We assume a 1-to-1 mapping for the source audio to output path here.
+            output_names = [p.name for p in source.output_full_paths]
+            logger.success(f"🙌 Successfully wrote '{', '.join(output_names)}'")
+            continue
+
+        if source.output_full_paths:
             target_path = source.output_full_paths[0]
             subfail_path = target_path.with_suffix(".subfail")
 
             if subfail_path.exists():
                 complete_success = False
                 logger.error(
-                    f"❗ Alass failed for '{source.audio[0]}' (see .subfail file for details)."
+                    f"❗ Processing failed for '{source.audio[0]}'. See '{subfail_path.name}' for details."
                 )
             else:
                 logger.info(
-                    f"ℹ️ Alass was skipped for '{source.audio[0]}' as its input subtitles were not found."
+                    f"ℹ️ Processing was skipped for '{source.audio[0]}' (e.g., file already existed or inputs were missing)."
                 )
-
         else:
             complete_success = False
-            logger.error(f"❗ Failed to sync '{source.text}'")
+            logger.error(
+                f"❗ Failed to process '{source.audio[0]}' and no output paths were defined."
+            )
 
-        cleanup_subfail(source.output_full_paths)
+    if all_output_paths:
+        cleanup_subfail(all_output_paths)
+
     alass_exists = (
         getattr(sources[0], "alass", None) if sources and len(sources) > 0 else None
     )

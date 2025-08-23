@@ -180,10 +180,10 @@ def write_subfail(source, target_path, error_message):
     :param error_message: The error message to log in the `.subfail` file.
     """
     # Define the path for the failure file
-    failed_path = target_path.with_suffix(".subfail")
+    failed_path = Path(target_path).with_suffix(".subfail")
     try:
-        # Write the error message to the .subfail file
-        with failed_path.open("w") as fail_file:
+        # Use UTF-8 encoding for safety
+        with failed_path.open("w", encoding="utf-8") as fail_file:
             fail_file.write(
                 f"Error processing subtitle for {source}:\n{error_message}\n"
             )

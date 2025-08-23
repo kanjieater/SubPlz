@@ -1,3 +1,4 @@
+from pathlib import Path
 from ats.main import Segment
 from .logger import logger
 from subplz.utils import get_tqdm, get_threads
@@ -5,6 +6,8 @@ from subplz.align import shift_align
 from subplz.transcribe import transcribe
 from subplz.files import get_sources, post_process
 from subplz.models import get_model, get_temperature, unload_model
+from .sub import write_subfail
+
 
 tqdm, trange = get_tqdm()
 
@@ -53,6 +56,7 @@ def run_gen(inputs):
     be.temperature = get_temperature(be)
     be.threads = get_threads(be)
     sources = get_sources(inputs.sources, inputs.cache)
+
     for source in tqdm(sources):
         print(f"🐼 Starting '{source.audio}'...")
         result = None
@@ -61,9 +65,25 @@ def run_gen(inputs):
             if result.success:
                 gen(source, result.model, result.streams, be)
             else:
-                logger.error(
-                    f"Skipping generation for '{source.audio[0]}' due to transcription failure."
+                raise RuntimeError(f"Transcription failed for '{source.audio[0]}'.")
+
+        except Exception as e:
+            logger.opt(exception=True).error(
+                f"A critical error occurred during generation for '{source.audio[0]}': {e}"
+            )
+            if source.output_full_paths:
+                try:
+                    output_path = Path(source.output_full_paths[0])
+                    write_subfail(source.audio[0], output_path, str(e))
+                except Exception as write_e:
+                    logger.error(
+                        f"Additionally, failed to write subfail file: {write_e}"
+                    )
+            else:
+                logger.warning(
+                    "Cannot write subfail file because source.output_full_paths is empty."
                 )
+
         finally:
             if result and result.model:
                 unload_model(result.model)

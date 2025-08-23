@@ -14,6 +14,9 @@ from subplz.models import get_model, get_temperature, unload_model
 from subplz.align import nc_align, shift_align
 from subplz.files import sourceData
 from subplz.utils import get_tqdm, get_threads
+from .sub import write_subfail
+from pathlib import Path
+
 
 tqdm, trange = get_tqdm()
 
@@ -180,6 +183,7 @@ def run_sync(inputs):
     be.temperature = get_temperature(be)
     be.threads = get_threads(be)
     sources = get_sources(inputs.sources, inputs.cache)
+
     for source in tqdm(sources):
         print(f"🐼 Starting '{source.audio}'...")
         result = None
@@ -191,9 +195,21 @@ def run_sync(inputs):
                 if result.success:
                     sync(source, result.model, result.streams, be)
                 else:
-                    logger.error(
-                        f"Skipping sync for '{source.audio[0]}' due to transcription failure."
-                    )
+                    raise RuntimeError(f"Transcription failed for '{source.audio[0]}'.")
+
+        except Exception as e:
+            logger.opt(exception=True).error(
+                f"A critical error occurred during sync for '{source.audio[0]}': {e}"
+            )
+            # Use the single, shared helper function to write the failure log
+            if source.output_full_paths:
+                output_path = Path(source.output_full_paths[0])
+                write_subfail(source.audio[0], output_path, str(e))
+            else:
+                logger.warning(
+                    "Cannot write subfail file because source.output_full_paths is empty."
+                )
+
         finally:
             if result and result.model:
                 unload_model(result.model)
