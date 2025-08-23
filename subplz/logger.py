@@ -25,7 +25,7 @@ def format_record(record):
     # if record["level"].name == "TQDM":
     #     return "{message}\n"
     # else:
-    return "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | {level: <8} | P:{process.id} | <level>{message}</level>\n"
+    return "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | {level: <8} | P:{process.id} | <level>{message}</level>\n{exception}"
 
 
 def configure_logging(config: dict):
@@ -58,7 +58,6 @@ def configure_logging(config: dict):
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | P:{process.id} | {name}:{function}:{line} - {message}",
         level="DEBUG",
         encoding="utf-8",
-        colorize=True,
         backtrace=True,
         diagnose=True,
         filter=lambda record: record["level"].name != "TQDM"

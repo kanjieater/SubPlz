@@ -674,8 +674,17 @@ def post_process(sources: List[sourceData], subcommand):
             output_paths = [str(o) for o in source.output_full_paths]
             logger.success(f"🙌 Successfully wrote '{', '.join(output_paths)}'")
         elif source.alass and not source.writer.written:
-            complete_success = False
-            logger.error(f"❗ Alass failed for '{source.audio[0]}'")
+            # An ALASS job did not produce a file. We must check if it was a hard or soft failure.
+            # We assume a 1-to-1 mapping for the source audio to output path here.
+            target_path = source.output_full_paths[0]
+            subfail_path = target_path.with_suffix(".subfail")
+
+            if subfail_path.exists():
+                complete_success = False
+                logger.error(f"❗ Alass failed for '{source.audio[0]}' (see .subfail file for details).")
+            else:
+                logger.info(f"ℹ️ Alass was skipped for '{source.audio[0]}' as its input subtitles were not found.")
+
         else:
             complete_success = False
             logger.error(f"❗ Failed to sync '{source.text}'")
@@ -720,3 +729,4 @@ def post_process(sources: List[sourceData], subcommand):
                 3. It could be cached - You could try running with `--overwrite-cache` if you've renamed another file to the exact same file path that you've run with the tool before.
                 """
             )
+    return complete_success

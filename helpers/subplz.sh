@@ -45,7 +45,7 @@ echo "Renaming files in : $directory_to_process"
 subplz rename -d "$directory_to_process" --lang-ext "ab" --lang-ext-original "ja" --unique
 
 echo "Extracting & Verifying Native Target Language subs if they exist"
-subplz extract -d "$directory_to_process" --lang-ext "tl" --lang-ext-original "ja" --verify
+subplz extract -d "$directory_to_process" --lang-ext "ae" --lang-ext-original "ja" --verify
 
 echo "Alass Syncing in : $directory_to_process"
 subplz sync -d "$directory_to_process" --lang-ext "as" --lang-ext-original "en" --lang-ext-incorrect "ab" --alass
@@ -60,6 +60,6 @@ echo "Alass AI Syncing in : $directory_to_process"
 subplz sync -d "$directory_to_process" --lang-ext "aa" --lang-ext-original "az" --lang-ext-incorrect "ab" --alass
 
 echo "Copying prioritized in : $directory_to_process"
-subplz copy -d "$directory_to_process" --lang-ext "ja" --lang-ext-priority "tl" "as" "aa" "ak" "az" "ab" --overwrite
+subplz copy -d "$directory_to_process" --lang-ext "ja" --lang-ext-priority "ae" "as" "aa" "ak" "az" "ab" --overwrite
 
 echo "All operations completed for: $directory_to_process"

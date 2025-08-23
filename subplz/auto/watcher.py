@@ -118,17 +118,12 @@ def process_job_file(job_file_path, full_config):
         logger.opt(exception=True).error(
             f"Error processing job {os.path.basename(job_file_path)}: {e}"
         )
-        watcher_settings = full_config.get("watcher", {})
-        error_dir_path = watcher_settings.get("error_directory")
+        base_dirs = full_config.get("base_dirs", {})
+        error_dir_path = base_dirs.get("watcher_errors")
 
         if not error_dir_path:
             logger.warning(
-                "'error_directory' key not found in config. Failed job file was not moved."
-            )
-            return
-        if not os.path.isdir(error_dir_path):
-            logger.warning(
-                f"The specified error_directory '{error_dir_path}' does not exist. Failed job file was not moved."
+                "'base_dirs.watcher_errors' key not found in config. Failed job file was not moved."
             )
             return
         try:
@@ -152,7 +147,9 @@ class JobEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory or not event.src_path.endswith(".json"):
             return
-
+        if not os.path.exists(event.src_path):
+            logger.debug(f"Already Processed: {os.path.basename(event.src_path)}")
+            return
         logger.info(f"New job detected: {os.path.basename(event.src_path)}")
 
         # CORRECTED: Use a non-blocking lock to ensure only one thread processes the queue.

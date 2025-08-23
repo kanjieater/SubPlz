@@ -65,4 +65,4 @@ def run_gen(inputs):
         finally:
             if result and result.model:
                 unload_model(result.model)
-    post_process(sources, "gen")
+    return post_process(sources, "gen")

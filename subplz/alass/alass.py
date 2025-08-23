@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 from subplz.utils import get_tqdm
+from subplz.logger import logger
 from subplz.sub import (
     get_subtitle_path,
     write_subfail,
@@ -110,8 +111,8 @@ def sync_alass(source, input_sources, be):
                     og_subtitle_path, incorrect_subtitle_path
                 )
                 if validation_error:
-                    print(validation_error)
-                    write_subfail(source, target_subtitle_path, validation_error)
+
+                    logger.warning(f"{validation_error}: Skipping Alass")
                     continue
 
                 # --- Step 2a: Sanitization ---
@@ -120,7 +121,7 @@ def sync_alass(source, input_sources, be):
                     sanitize_subtitle(incorrect_subtitle_path)
                 except Exception as err:
                     error_message = f"❗ Subtitle sanitization failed: {err}"
-                    print(error_message)
+                    logger.error(error_message)
                     write_subfail(source, target_subtitle_path, error_message)
                     continue
 
@@ -140,8 +141,8 @@ def sync_alass(source, input_sources, be):
                         incorrect_sub = temp_incorrect_path
                         temp_files_to_clean.append(temp_incorrect_path)
                 except Exception as err:
-                    error_message = f"❗ Subtitle sanitization failed: {err}"
-                    print(error_message)
+                    error_message = f"❗ Subtitle conversion failed: {err}"
+                    logger.error(error_message)
                     write_subfail(source, target_subtitle_path, error_message)
                     continue
                 # --- Step 3: Alignment ---
@@ -152,7 +153,7 @@ def sync_alass(source, input_sources, be):
                 if success:
                     source.writer.written = True
                 else:
-                    print(message)
+                    logger.error(message)
                     write_subfail(source, target_subtitle_path, message)
 
             finally:

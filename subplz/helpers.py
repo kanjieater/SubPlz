@@ -53,7 +53,8 @@ def are_files_identical(file1: Path, file2: Path) -> bool:
         return False
 
 
-def rename(inputs: RenameParams):
+def rename(inputs: RenameParams) -> bool:
+    any_rename_failed = False
     directories = inputs.dirs
     lang_ext = inputs.lang_ext
     lang_ext_original = inputs.lang_ext_original
@@ -62,7 +63,7 @@ def rename(inputs: RenameParams):
         logger.error(
             "❗ Failed to rename. You must include a language extension --lang-ext to add to the output file name."
         )
-        return
+        return False
     rename_texts = []
     if lang_ext_original is None:
         for directory in directories:
@@ -98,7 +99,7 @@ def rename(inputs: RenameParams):
             f"Filtering operations to only process files matching stem: '{target_stem}'"
         )
 
-        # Filter the list to only include operations where the source file's stem matches the target's stem
+
         target_texts = [
             t
             for t in rename_texts
@@ -109,7 +110,7 @@ def rename(inputs: RenameParams):
             logger.warning(
                 f"🤷 No subtitle files with the stem '{target_stem}' were found to rename."
             )
-            return
+            return True
     else:
         target_texts = rename_texts
     for rename_text in target_texts:
@@ -169,9 +170,13 @@ def rename(inputs: RenameParams):
                 old_path.rename(new_name)
         except Exception as e:
             logger.error(f"❗ Failed to rename {old_path} to {new_name}: {e}")
+            any_rename_failed = True
+
+    return not any_rename_failed
 
 
-def copy(inputs: CopyParams):
+def copy(inputs: CopyParams) -> bool:
+    any_copy_failed = False
     for directory in inputs.dirs:
         dir_path = Path(directory)
         if not dir_path.is_dir():
@@ -236,8 +241,10 @@ def copy(inputs: CopyParams):
                             logger.error(
                                 f"❗ Failed to copy {old_path} to {new_file}: {e}"
                             )
+                            any_copy_failed = True # Track failure
                             copied = True
                             break
+    return not any_copy_failed
 
 
 def extract(inputs: ExtractParams):
@@ -245,16 +252,17 @@ def extract(inputs: ExtractParams):
     Extracts embedded subtitles from media files by wrapping the core extract function.
     Respects the --file argument for targeted extraction.
     """
+    overall_success = True
     if not inputs.lang_ext:
         logger.error(
             "❗ --lang-ext is required to specify the output subtitle language extension."
         )
-        return
+        return False
     if not inputs.lang_ext_original:
         logger.error(
             "❗ --lang-ext-original is required to specify the language to search for and extract."
         )
-        return
+        return False
 
     media_files = []
     target_file = getattr(inputs, "file", None)
@@ -274,7 +282,7 @@ def extract(inputs: ExtractParams):
 
     if not media_files:
         logger.warning("🤷 No media files found to process.")
-        return
+        return True
 
     extracted_subs = extract_all_subtitles(
         files=media_files,
@@ -286,10 +294,10 @@ def extract(inputs: ExtractParams):
     )
     if not extracted_subs:
         logger.info("🤔 No new subtitles were extracted.")
-        return
+        return True
 
     if not inputs.verify:
-        return
+        return True
 
     logger.info("🕵️ Verifying language of newly extracted files...")
     for sub_path in extracted_subs:
@@ -299,5 +307,8 @@ def extract(inputs: ExtractParams):
                 f"❌ Language mismatch for '{sub_path.name}'! Expected '{inputs.lang_ext_original}', detected '{detected_lang}'. Deleting file."
             )
             sub_path.unlink()
+            overall_success = False
         else:
             logger.success(f"✅ Language verified for '{sub_path.name}'.")
+
+    return overall_success

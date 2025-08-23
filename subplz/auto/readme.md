@@ -72,7 +72,7 @@ scanner:
   # [REQUIRED] The subtitle extension to check for. If a video is missing a
   # sub with this extension, a job will be created.
   target_sub_extensions:
-    - ".tl.srt"  # Native Target Language (from extraction)
+    - ".ae.srt"  # Native Target Language (from extraction)
     - ".as.srt"  # Alass Synced
     - ".av.srt"  # Alass Variant AI Synced
     - ".ak.srt"  # KanjiEater/SubPlz Synced
@@ -92,8 +92,8 @@ batch_pipeline:
   - name: "Source: Rename 'ja' subs to 'ab' for processing"
     command: 'rename -d "{directory}" --file "{file}" --lang-ext ab --lang-ext-original ja --unique --overwrite'
 
-  - name: "Embedded: Extract & Verify Native Target Language ('ja' -> 'tl')"
-    command: 'extract -d "{directory}" --file "{file}" --lang-ext tl --lang-ext-original ja --verify'
+  - name: "Embedded: Extract & Verify Native Target Language ('ja' -> 'ae')"
+    command: 'extract -d "{directory}" --file "{file}" --lang-ext ae --lang-ext-original ja --verify'
 
   - name: "Alass: ('en' + 'ab' -> 'as')"
     command: 'sync -d "{directory}" --file "{file}" --lang-ext as --lang-ext-original en --lang-ext-incorrect ab --alass'
@@ -108,7 +108,7 @@ batch_pipeline:
     command: 'sync -d "{directory}" --file "{file}" --lang-ext av --lang-ext-original az --lang-ext-incorrect ab --alass'
 
   - name: "Best: Copy best subtitle to 'ja'"
-    command: 'copy -d "{directory}" --file "{file}" --lang-ext ja --lang-ext-priority tl av as ak az ab --overwrite'
+    command: 'copy -d "{directory}" --file "{file}" --lang-ext ja --lang-ext-priority ae av as ak az ab --overwrite'
 ```
 ## How to Use
 

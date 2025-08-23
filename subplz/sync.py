@@ -195,7 +195,7 @@ def run_sync(inputs):
         finally:
             if result and result.model:
                 unload_model(result.model)
-    post_process(sources, "sync")
+    return post_process(sources, "sync")
 
 
 

@@ -17,7 +17,8 @@ COMMAND_MAP = {
 
 def run_batch(inputs):
     """
-    Prepares and executes a command pipeline defined by strings in the config.
+    Prepares and executes a command pipeline. It will attempt all steps
+    and report a final failure if any single step failed.
     """
     config = inputs.config_data
     pipeline = config.get("batch_pipeline", [])
@@ -38,6 +39,8 @@ def run_batch(inputs):
             continue
 
         logger.info(f"--- Processing directory: {dir_path.name} ---")
+
+        pipeline_overall_success = True
 
         for i, step in enumerate(pipeline, 1):
             step_name = step.get("name", f"Step {i}")
@@ -84,12 +87,20 @@ def run_batch(inputs):
                 logger.log("CMD", f"  > subplz {' '.join(final_args_list)}")
                 sub_args = get_args(final_args_list)
                 structured_inputs = get_inputs(sub_args, config)
-                func_to_call(structured_inputs)
+                step_was_successful = func_to_call(structured_inputs)
+
+                if not step_was_successful:
+                    logger.error(f"❌ Step '{step_name}' reported a failure. Continuing to next step.")
+                    pipeline_overall_success = False # Mark the whole job as failed
 
             except Exception as e:
                 logger.opt(exception=True).error(
-                    f"❌ An error occurred during '{step_name}': {e}"
+                    f"❌ A critical error occurred during '{step_name}': {e}"
                 )
-                logger.info("  > Moving to the next step.")
+                pipeline_overall_success = False # Mark the whole job as failed
+                logger.info("  > Continuing to the next step.")
 
-        logger.info(f"\n--- All operations completed for: {dir_path.name} ---")
+        if not pipeline_overall_success:
+            raise Exception(f"One or more steps in the batch pipeline failed for '{dir_path.name}'.")
+
+        logger.info(f"\n--- All operations completed successfully for: {dir_path.name} ---")

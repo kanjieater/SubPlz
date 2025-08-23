@@ -349,7 +349,7 @@ Just run `./helpers/subplz.sh` with a sub like `sub1.ja.srt` and `video1.mkv` an
 | FasterWhisper    | az    | Z for the last option | Generated purely based on audio. Surprisingly accurate but not perfect. |
 | Original    | en    | Animes subs tend to be in EN | This would be the original timings used for Alass, and what would be extracted from you videos automatically|
 | Preferred    | ja    | Your target language | This is a copy of one of the other options, named with your target language so it plays this by default |
-| Embedded    | tl    | Target Language (that was embdedded) | Explitly extract the target language sub from your media if it existed so you can use it as the Preferred sub in a media player like Plex by default |
+| Embedded    | ae    | Target Language (that was embedded) | Explicitly extract the target language sub from your media if it existed so you can use it as the Preferred sub in a media player like Plex by default |
 
 # Anki Support
 

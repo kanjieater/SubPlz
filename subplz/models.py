@@ -7,7 +7,7 @@ from copy import copy
 import numpy as np
 
 from .logger import logger
-from .utils import get_tqdm
+from .utils import get_tqdm, find_and_show_lingering_tensors
 
 tqdm = get_tqdm()[0]
 
@@ -26,7 +26,23 @@ def unload_model(model):
         logger.debug("Model successfully unloaded from memory.")
     except Exception as e:
         logger.warning(f"An error occurred while unloading the model: {e}")
+    # if torch.cuda.is_available():
+    #     logger.debug("--- VRAM DIAGNOSTICS (Post-Job) ---")
+    #     allocated_gb = torch.cuda.memory_allocated() / 1e9
+    #     reserved_gb = torch.cuda.memory_reserved() / 1e9
+    #     logger.debug(f"torch.cuda.memory_allocated(): {allocated_gb:.2f} GB")
+    #     logger.debug(f"torch.cuda.memory_reserved(): {reserved_gb:.2f} GB")
 
+    #     if allocated_gb > 0.1: # If more than 100MB is still actively allocated
+    #             logger.warning("High VRAM allocation detected after cleanup. A tensor reference is likely lingering.")
+    #     else:
+    #             logger.debug("VRAM allocation is low, as expected.")
+
+    #     if reserved_gb > 3.0: # If more than 3GB is still reserved (adjust based on your baseline)
+    #         logger.warning(f"High VRAM reservation ({reserved_gb:.2f} GB) persists. This confirms a lingering reference or context issue.")
+
+    #     logger.debug("------------------------------------")
+    #     find_and_show_lingering_tensors()
 
 def faster_transcribe(self, audio, name, **args):
     args["log_prob_threshold"] = args.pop("logprob_threshold")
