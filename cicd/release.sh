@@ -1,37 +1,61 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+# --- 1. VALIDATE INPUT ---
+# Check if a version tag was provided as an argument.
+if [[ -z "$1" ]]; then
+    echo "❌ ERROR: No version tag provided."
+    echo "Usage: ./cicd/create-release.sh <version_tag>"
+    echo "Example: ./cicd/create-release.sh v4.0.0"
+    exit 1
+fi
+
+# --- 2. DEFINE VARIABLES ---
+VERSION_TAG="$1"
+LOCAL_IMAGE_NAME="subplz"
+REMOTE_REPO="kanjieater/subplz"
+DOCKERFILE_PATH="."
+
+echo "🚀 Starting release process for version: $VERSION_TAG"
+
+# --- 3. DOCKER BUILD & TAG ---
+echo "📦 Building the Docker image..."
+docker build -t "$LOCAL_IMAGE_NAME:latest" "$DOCKERFILE_PATH"
+
+echo "🏷️ Tagging Docker image with '$REMOTE_REPO:latest' and '$REMOTE_REPO:$VERSION_TAG'..."
+docker tag "$LOCAL_IMAGE_NAME:latest" "$REMOTE_REPO:latest"
+docker tag "$LOCAL_IMAGE_NAME:latest" "$REMOTE_REPO:$VERSION_TAG"
+
+# --- 4. DOCKER PUSH ---
+echo "Logging in to Docker Hub..."
+docker login
+
+echo "🚢 Pushing both 'latest' and '$VERSION_TAG' tags to Docker Hub..."
+docker push "$REMOTE_REPO:latest"
+docker push "$REMOTE_REPO:$VERSION_TAG"
+echo "✅ Docker push complete."
+
+# --- 5. GIT & GITHUB RELEASE ---
+echo "🔖 Creating Git tag and GitHub release..."
+
 # Check if GitHub CLI is installed
 if ! command -v gh &> /dev/null; then
-    echo "❗ GitHub CLI (gh) is not installed. Please install it from https://cli.github.com/manual/installation"
+    echo "❗ GitHub CLI (gh) is not installed. Please install it to create a release."
     exit 1
 fi
 
-# Ask for the tag name
-read -p "Enter the tag name for the release: " TAG_NAME
-
-# Check if a tag name was provided
-if [[ -z "$TAG_NAME" ]]; then
-    echo "❗ Tag name cannot be empty. Please provide a valid tag name."
-    exit 1
-fi
-
-# Get the latest commit hash and message
-LATEST_COMMIT=$(git rev-parse HEAD)
+# Get the latest commit message for the release notes
 LATEST_MESSAGE=$(git log -1 --pretty=%B)
 
-# Create a tag in the local repository
-git tag -a "$TAG_NAME" -m "$LATEST_MESSAGE"
+echo "Creating git tag '$VERSION_TAG'..."
+git tag -a "$VERSION_TAG" -m "$LATEST_MESSAGE"
 
-# Push the tag to the remote repository
-git push origin "$TAG_NAME"
+echo "Pushing git tag to remote..."
+git push origin "$VERSION_TAG"
 
-# Create a GitHub release with the tag
-gh release create "$TAG_NAME" --title "$TAG_NAME" --notes "$LATEST_MESSAGE"
+echo "Creating GitHub release..."
+gh release create "$VERSION_TAG" --title "$VERSION_TAG" --notes "$LATEST_MESSAGE"
 
-# Check if the release was successful
-if [ $? -eq 0 ]; then
-    echo "✅ Release $TAG_NAME created successfully!"
-else
-    echo "❗ Failed to create the release. Please check your GitHub CLI setup."
-    exit 1
-fi
+echo "🎉 Release $VERSION_TAG created successfully!"

@@ -94,7 +94,7 @@ nvidia-smi
 
 ### Docker Compose Setup
 
-Create a `docker-compose.yml` file in your project directory:
+1. Create a `compose.yml` file in your project directory:
 
 ```yaml
 services:
@@ -105,14 +105,14 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
+      - TZ=America/Chicago
       - WHISPER_MODEL=turbo
-      - HF_HOME=/sub_config/cache/huggingface
-      - SUBPLZ_BASE_PATH=/sub_config
+      - HF_HOME=/config/cache/huggingface
     volumes:
       # Map your media library. Left side is your Host path, right is the Container path.
       - "/path/on/your/host/media:/media"
       # Map a local config directory to the container.
-      - "./config:/sub_config"
+      - "./config:/config"
     deploy:
       resources:
         reservations:
@@ -121,6 +121,9 @@ services:
               count: all
               capabilities: [gpu]
 ```
+
+2. It is also recommended to immediately put this in your `./config/` folder: [Configuration (`config.yml`)](#configuration-configyml)
+
 
 ### Building and Running
 
