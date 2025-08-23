@@ -61,7 +61,9 @@ def run_gen(inputs):
             if result.success:
                 gen(source, result.model, result.streams, be)
             else:
-                logger.error(f"Skipping generation for '{source.audio[0]}' due to transcription failure.")
+                logger.error(
+                    f"Skipping generation for '{source.audio[0]}' due to transcription failure."
+                )
         finally:
             if result and result.model:
                 unload_model(result.model)

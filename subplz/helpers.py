@@ -99,7 +99,6 @@ def rename(inputs: RenameParams) -> bool:
             f"Filtering operations to only process files matching stem: '{target_stem}'"
         )
 
-
         target_texts = [
             t
             for t in rename_texts
@@ -241,7 +240,7 @@ def copy(inputs: CopyParams) -> bool:
                             logger.error(
                                 f"❗ Failed to copy {old_path} to {new_file}: {e}"
                             )
-                            any_copy_failed = True # Track failure
+                            any_copy_failed = True  # Track failure
                             copied = True
                             break
     return not any_copy_failed

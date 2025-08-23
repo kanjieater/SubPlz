@@ -681,9 +681,13 @@ def post_process(sources: List[sourceData], subcommand):
 
             if subfail_path.exists():
                 complete_success = False
-                logger.error(f"❗ Alass failed for '{source.audio[0]}' (see .subfail file for details).")
+                logger.error(
+                    f"❗ Alass failed for '{source.audio[0]}' (see .subfail file for details)."
+                )
             else:
-                logger.info(f"ℹ️ Alass was skipped for '{source.audio[0]}' as its input subtitles were not found.")
+                logger.info(
+                    f"ℹ️ Alass was skipped for '{source.audio[0]}' as its input subtitles were not found."
+                )
 
         else:
             complete_success = False

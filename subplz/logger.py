@@ -60,8 +60,7 @@ def configure_logging(config: dict):
         encoding="utf-8",
         backtrace=True,
         diagnose=True,
-        filter=lambda record: record["level"].name != "TQDM"
-
+        filter=lambda record: record["level"].name != "TQDM",
     )
 
-    logger.info("Logging configured.")
+    logger.debug("Logging configured.")

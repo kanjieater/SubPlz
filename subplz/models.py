@@ -44,6 +44,7 @@ def unload_model(model):
     #     logger.debug("------------------------------------")
     #     find_and_show_lingering_tensors()
 
+
 def faster_transcribe(self, audio, name, **args):
     args["log_prob_threshold"] = args.pop("logprob_threshold")
     args["beam_size"] = args["beam_size"] if args["beam_size"] else 1

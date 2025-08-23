@@ -3,7 +3,7 @@ import sys
 import os
 import json
 import threading
-import multiprocessing
+import shutil
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -14,96 +14,85 @@ from ..cli import BatchParams
 from ..batch import run_batch
 
 
-def _run_job_worker(job_file_path, full_config):
+def process_job_file(job_file_path, full_config):
     """
-    The job logic that runs in a separate process. Exits with 0 on success, 1 on failure.
+    Directly calls the batch processing function and handles the outcome.
     """
+    logger.info(f"--- Starting Job: {os.path.basename(job_file_path)} ---")
+    job_succeeded = False
     try:
-        configure_logging(full_config)
-
-        logger.info(f"--- [PID:{os.getpid()}] Processing Job: {os.path.basename(job_file_path)} ---")
-        time.sleep(1)
+        # Create the inputs for run_batch from the job file
         with open(job_file_path, "r", encoding="utf-8") as f:
             job_data = json.load(f)
 
-        path_from_job = job_data.get("directory")
-        if not path_from_job:
-            raise ValueError("Job file is missing the required 'directory' key.")
+        host_target_dir = get_host_path(full_config, job_data["directory"])
+        host_episode_path = (
+            get_host_path(full_config, job_data["episode_path"])
+            if job_data.get("episode_path")
+            else None
+        )
 
-        episode_path_from_job = job_data.get("episode_path")
-        host_target_dir = get_host_path(full_config, path_from_job)
-        host_episode_path = None
-        if episode_path_from_job:
-            host_episode_path = get_host_path(full_config, episode_path_from_job)
-
-        logger.info(f"🚀 Triggering batch pipeline for dir: {host_target_dir}")
-        if host_episode_path:
-            logger.info(f"      Focused on file: {Path(host_episode_path).name}")
-
-        pipeline = full_config.get("batch_pipeline")
-        if not pipeline:
-            raise ValueError("Missing 'batch_pipeline' in config file.")
-
+        # Construct the BatchParams object that run_batch expects
         batch_inputs = BatchParams(
             subcommand="batch",
             dirs=[host_target_dir],
             file=host_episode_path,
-            pipeline=pipeline,
+            pipeline=full_config.get("batch_pipeline"),
             config=None,
             config_data=full_config,
         )
 
         run_batch(batch_inputs)
-        sys.exit(0)  # Signal success
-    except Exception as e:
-        logger.opt(exception=True).error(
-            f"A fatal error occurred in the job sub-process for {os.path.basename(job_file_path)}: {e}"
+
+        # If run_batch completes without raising an exception, it succeeded
+        job_succeeded = True
+
+    except Exception:
+        # run_batch raises a generic exception on failure.
+        # The detailed error is already logged inside batch.py
+        logger.error(
+            f"Job '{os.path.basename(job_file_path)}' failed because one or more pipeline steps failed."
         )
-        sys.exit(1)  # Signal failure
+        job_succeeded = False
 
-def _spawn_and_wait_for_job(job_file_path, full_config):
-    """
-    Creates, starts, and waits for the job worker process to complete.
-    Returns the process exit code.
-    """
-    logger.info(f"--- Spawning new process for Job: {os.path.basename(job_file_path)} ---")
-    ctx = multiprocessing.get_context('spawn')
-    process = ctx.Process(target=_run_job_worker, args=(job_file_path, full_config))
-    process.start()
-    process.join()
-    return process.exitcode
-
-def _handle_job_completion(exitcode, job_file_path, full_config):
-    """
-    Deletes or moves the job file based on the worker process's exit code.
-    """
-    if exitcode == 0:
-        logger.success(f"Batch pipeline processing complete for job '{os.path.basename(job_file_path)}'.")
+    # --- File Cleanup ---
+    if job_succeeded:
+        logger.success(
+            f"Successfully completed job '{os.path.basename(job_file_path)}'."
+        )
         try:
             os.remove(job_file_path)
-            logger.info(f"🗑️ Deleted successful job file: {os.path.basename(job_file_path)}")
+            logger.info(
+                f"🗑️ Deleted successful job file: {os.path.basename(job_file_path)}"
+            )
         except OSError as e:
             logger.error(f"Failed to delete successful job file {job_file_path}: {e}")
     else:
-        logger.error(f"Job process for '{os.path.basename(job_file_path)}' failed with exit code {exitcode}.")
+        logger.info(
+            f"Moving failed job '{os.path.basename(job_file_path)}' to error directory."
+        )
         base_dirs = full_config.get("base_dirs", {})
         error_dir_path = base_dirs.get("watcher_errors")
         if not error_dir_path:
-            logger.warning("'base_dirs.watcher_errors' key not found in config. Failed job file was not moved.")
+            logger.warning(
+                "'base_dirs.watcher_errors' key not found in config. Failed job file was not moved."
+            )
             return
         try:
-            error_path = os.path.join(error_dir_path, os.path.basename(job_file_path))
-            os.rename(job_file_path, error_path)
-            logger.info(f"🗄️ Moved failed job to: {error_path}")
+            if os.path.exists(job_file_path):
+                error_path = os.path.join(
+                    error_dir_path, os.path.basename(job_file_path)
+                )
+                shutil.move(job_file_path, error_path)
+                logger.info(f"🗄️ Moved failed job to: {error_path}")
+            else:
+                logger.warning(
+                    f"Failed job file {os.path.basename(job_file_path)} was already gone. Skipping move."
+                )
         except Exception:
-            logger.opt(exception=True).critical("Additionally failed to move the job file to the error directory!")
-
-def process_job_file(job_file_path, full_config):
-    """
-    Orchestrates running a job in a separate process and handling the result.
-    """
-    exitcode = _spawn_and_wait_for_job(job_file_path, full_config)
-    _handle_job_completion(exitcode, job_file_path, full_config)
+            logger.opt(exception=True).critical(
+                "Additionally failed to move the job file to the error directory!"
+            )
 
 
 def get_host_path(config, path_from_job):
@@ -183,6 +172,7 @@ class JobEventHandler(FileSystemEventHandler):
 
 def run_watcher(args):
     """Main function to start the watcher, called by the CLI."""
+    # The main watcher process configures its own logger
     config = args.config_data
     observer = None
 

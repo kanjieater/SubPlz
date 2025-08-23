@@ -7,9 +7,11 @@ from dataclasses import dataclass, field
 from .logger import logger
 from .models import get_model, unload_model
 
+
 @dataclass
 class TranscriptionResult:
     """A structured return type for the transcribe function."""
+
     success: bool = False
     streams: list = field(default_factory=list)
     model: object = None
@@ -46,23 +48,29 @@ def transcribe(source, be) -> TranscriptionResult:
     logger.info("📝 Starting transcription process...")
 
     gpu_retries = 2
-    devices_to_try = ['cuda', 'cpu'] if be.device == 'cuda' else ['cpu']
+    devices_to_try = ["cuda", "cpu"] if be.device == "cuda" else ["cpu"]
 
     for device in devices_to_try:
         temp_be = deepcopy(be)
         temp_be.device = device
 
-        attempts = gpu_retries + 1 if device == 'cuda' else 1
+        attempts = gpu_retries + 1 if device == "cuda" else 1
 
         for attempt in range(attempts):
             current_model = None
             try:
                 if attempt > 0:
-                    logger.info(f"Retrying transcription on GPU (Attempt {attempt + 1}/{attempts})...")
-                elif device == 'cpu':
-                    logger.warning("🚨 GPU attempts failed. Falling back to CPU with the same model. This will be much slower.")
+                    logger.info(
+                        f"Retrying transcription on GPU (Attempt {attempt + 1}/{attempts})..."
+                    )
+                elif device == "cpu":
+                    logger.warning(
+                        "🚨 GPU attempts failed. Falling back to CPU with the same model. This will be much slower."
+                    )
 
-                logger.info(f"Attempting transcription with model '{temp_be.model_name}' on device '{temp_be.device}'...")
+                logger.info(
+                    f"Attempting transcription with model '{temp_be.model_name}' on device '{temp_be.device}'..."
+                )
                 current_model = get_model(temp_be)
                 transcribe_args = _get_transcribe_args(temp_be)
 
@@ -71,32 +79,46 @@ def transcribe(source, be) -> TranscriptionResult:
                     for audio in stream[2]:
                         audio.transcribe(current_model, **transcribe_args)
 
-                logger.success(f"✅ Transcription successful with model '{temp_be.model_name}' on '{device}'.")
-                logger.info(f"⏱️  Transcribing took: {time.monotonic() - start_time:.2f}s")
+                logger.success(
+                    f"✅ Transcription successful with model '{temp_be.model_name}' on '{device}'."
+                )
+                logger.info(
+                    f"⏱️  Transcribing took: {time.monotonic() - start_time:.2f}s"
+                )
 
                 # On success, return the structured result object
-                return TranscriptionResult(success=True, streams=source.streams, model=current_model)
+                return TranscriptionResult(
+                    success=True, streams=source.streams, model=current_model
+                )
 
             except RuntimeError as e:
                 if "CUDA failed with error out of memory" in str(e):
-                    logger.warning(f"🔥 CUDA OOM Error on attempt {attempt + 1}. Freeing memory before next attempt.")
+                    logger.warning(
+                        f"🔥 CUDA OOM Error on attempt {attempt + 1}. Freeing memory before next attempt."
+                    )
                     unload_model(current_model)
                     if torch.cuda.is_available():
                         vram_allocated = torch.cuda.memory_allocated() / 1e9
                         vram_reserved = torch.cuda.memory_reserved() / 1e9
-                        logger.debug(f"VRAM after cleanup: {vram_allocated:.2f} GB allocated, {vram_reserved:.2f} GB reserved.")
+                        logger.debug(
+                            f"VRAM after cleanup: {vram_allocated:.2f} GB allocated, {vram_reserved:.2f} GB reserved."
+                        )
                     if attempt + 1 >= attempts:
                         break
                     else:
                         time.sleep(2)
                         continue
                 else:
-                    logger.opt(exception=True).error("A non-OOM runtime error occurred.")
+                    logger.opt(exception=True).error(
+                        "A non-OOM runtime error occurred."
+                    )
                     unload_model(current_model)
                     return TranscriptionResult(success=False)
 
             except Exception as e:
-                logger.opt(exception=True).error("An unexpected error occurred during transcription.")
+                logger.opt(exception=True).error(
+                    "An unexpected error occurred during transcription."
+                )
                 unload_model(current_model)
                 return TranscriptionResult(success=False)
 
