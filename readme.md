@@ -464,21 +464,16 @@ This single file controls the behavior of all automation commands and the proces
 
 ```yaml
 # Rooted from env var BASE_PATH
+# [REQUIRED] These folder must be on the host machine at $BASE_PATH/logs, $BASE_PATH/cache. Created by default for you, but set your env var.
 base_dirs:
   logs: "logs"
   cache: "cache"
-  # [REQUIRED] The folder on the HOST machine to watch for new .json job files.
   watcher_jobs: "jobs"
-  # [REQUIRED] A directory on the HOST to move job files to if processing fails.
   watcher_errors: "fails"
 
 # ===============================================
 # Settings for the Real-time Job Consumer/Watcher
 # ===============================================
-watcher:
-  # [REQUIRED] The mapping of paths from inside your Docker containers to your host machine.
-  # This allows the script to translate container paths from Bazarr jobs to real host paths.
-  path_map:
 watcher:
   # [REQUIRED] The mapping of paths from inside your Docker containers to your host machine.
   # This allows the script to translate container paths from Bazarr jobs to real host paths.
