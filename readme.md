@@ -145,7 +145,7 @@ Before running the full application, test that your built SubPlz image can acces
 
 ```bash
 # Test GPU access with your SubPlz image
-docker run -it --rm --gpus all --entrypoint python subplz -c "import torch; print(torch.__version__); print(f'CUDA available: {torch.cuda.is_available()}');"
+docker run -it --rm --gpus all --entrypoint python kanjieater/subplz:latest -c "import torch; print(torch.__version__); print(f'CUDA available: {torch.cuda.is_available()}');"
 ```
 
 **Expected output:**
@@ -765,3 +765,4 @@ A cool tool to turn these audiobook subs into Visual Novels
 
 
 - https://github.com/asayake-b5/audiobooksync2renpy
+
