@@ -454,6 +454,7 @@ watcher:
   # This allows the script to translate container paths from Bazarr jobs to real host paths.
   # Key (left): Path on the host machine
   # Value (right): Corresponding path inside the container
+  path_map:
     "/mnt/an/ja-anime/": "/data/ja-anime/"
     "/some/unmapped_media/": "/some/unmapped_media/"
 
@@ -765,4 +766,5 @@ A cool tool to turn these audiobook subs into Visual Novels
 
 
 - https://github.com/asayake-b5/audiobooksync2renpy
+
 
