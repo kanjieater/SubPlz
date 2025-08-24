@@ -70,8 +70,7 @@ def run_batch(inputs):
     for dir_string in directories:
         dir_path = Path(dir_string)
         if not dir_path.is_dir():
-            logger.warning(f"❗ Skipping invalid directory: {dir_path}")
-            continue
+            raise FileNotFoundError(f"The directory specified in the job does not exist or is not a directory: {dir_path}")
 
         logger.info(f"--- Processing directory: {dir_path.name} ---")
 

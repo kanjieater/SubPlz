@@ -479,10 +479,13 @@ watcher:
   # [REQUIRED] The mapping of paths from inside your Docker containers to your host machine.
   # This allows the script to translate container paths from Bazarr jobs to real host paths.
   path_map:
-    # Key: Path inside the container (must end with a slash)
-    # Value: Corresponding path on the host machine
-    "/data/ja-anime/": "/mnt/an/ja-anime/"
-    # "/scan_only/unmapped_media/": "/home/ke/unmapped_media/"
+watcher:
+  # [REQUIRED] The mapping of paths from inside your Docker containers to your host machine.
+  # This allows the script to translate container paths from Bazarr jobs to real host paths.
+  # Key (left): Path on the host machine
+  # Value (right): Corresponding path inside the container
+    "/mnt/an/ja-anime/": "/data/ja-anime/"
+    "/some/unmapped_media/": "/some/unmapped_media/"
 
 
   # [OPTIONAL] If this key is present, the watcher will use a polling-based

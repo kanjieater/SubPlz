@@ -7,7 +7,8 @@ import hashlib
 from pathlib import Path
 from ..logger import logger
 from ..files import VIDEO_FORMATS, AUDIO_FORMATS, get_true_stem
-from ..utils import get_host_path, get_docker_path
+# Import all necessary path functions from the central utility
+from ..utils import resolve_local_path, get_docker_path
 
 
 def create_job_file(job_dir, media_dir_path, episode_path, full_config):
@@ -106,7 +107,6 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 
         # Track what we're looking for vs what we found
         missing_subs = []
-        found_subs = []
 
         for expected_ext in target_exts:
             # Construct the full path for the expected subtitle file
@@ -120,7 +120,6 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
                 missing_subs.append(expected_ext)
             else:
                 logger.info(f"----> FOUND: {expected_sub_path.name}")
-                found_subs.append(expected_ext)
 
         # Summary logging
         if missing_subs:
@@ -141,15 +140,13 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 
 
 def scan_library(config, override_dirs=None, target_file=None):
-    """Scans the library and creates one job per media file missing subtitles."""
+    """
+    Scans the library using locally-resolved paths and creates jobs with canonical Docker paths.
+    """
     scanner_settings = config.get("scanner", {})
 
     base_dirs = config.get("base_dirs", {})
     job_dir = base_dirs.get("watcher_jobs")
-    watcher_settings = config.get("watcher", {})
-
-    logger.debug(f"Scanner settings: {json.dumps(scanner_settings, indent=2)}")
-    logger.debug(f"Jobs directory: {job_dir}")
 
     if not job_dir:
         logger.error(
@@ -170,11 +167,14 @@ def scan_library(config, override_dirs=None, target_file=None):
     files_scanned = 0
 
     if target_file:
-        host_target_file = get_host_path(config, target_file)
-        target_path = Path(host_target_file)
+        # --- KEY CHANGE ---
+        # Use the smart resolver to get a usable local path, regardless of environment
+        local_target_file = resolve_local_path(config, target_file)
+        target_path = Path(local_target_file)
+
         if not target_path.is_file():
             logger.error(
-                f"Target file '{host_target_file}' does not exist. Aborting scan."
+                f"Target file '{local_target_file}' does not exist. Aborting scan."
             )
             return
 
@@ -193,12 +193,13 @@ def scan_library(config, override_dirs=None, target_file=None):
 
     if override_dirs:
         logger.info(f"Scanning directories provided via command line: {override_dirs}")
-        content_dirs = [get_host_path(config, d) for d in override_dirs]
+        content_dirs = [resolve_local_path(config, d) for d in override_dirs]
     else:
-        logger.info("Scanning directories from config file's watcher.path_map")
-        path_map = watcher_settings.get("path_map", {})
-        logger.debug(f"Path map from config: {path_map}")
-        content_dirs = list(path_map.values())
+        logger.info("Scanning directories from config file's path_map")
+        path_map = config.get("watcher", {}).get("path_map", {})
+        # The keys of the path_map are the host paths, which we resolve to be safe.
+        host_paths = list(path_map.keys())
+        content_dirs = [resolve_local_path(config, d) for d in host_paths]
 
     logger.info(f"Content directories to scan: {content_dirs}")
 

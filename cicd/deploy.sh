@@ -2,7 +2,6 @@
 
 # Variables
 REMOTE_IMAGE="kanjieater/subplz:latest"
-COMPOSE_FILE="./compose.yml"
 
 # Log in to Docker Hub
 echo "Logging in to Docker Hub..."

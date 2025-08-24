@@ -1,7 +1,9 @@
 import yaml
 import os
+import sys
 from copy import deepcopy
 from .logger import logger
+from yaml.error import YAMLError
 
 # --- 1. Define the default configuration structure ---
 # This serves as the base, ensuring no part of the app crashes if a key is missing.
@@ -82,9 +84,10 @@ def load_config(config_path: str | None) -> dict:
     Loads and validates the configuration.
 
     - Starts with a deep copy of the default settings.
-    - If a config_path is provided, it loads the YAML file.
+    - If a config_path is provided, it must exist and be valid.
     - If no config_path is provided, it checks for a 'config.yml' in the BASE_PATH.
-    - It deeply merges the user's config on top of the defaults.
+    - If a user config is found, it's deeply merged on top of the defaults.
+    - If a user config is found but is malformed, the application will exit.
     - It resolves paths in 'base_dirs' using the BASE_PATH environment variable.
     - Returns the final, complete configuration dictionary.
     """
@@ -128,10 +131,14 @@ def load_config(config_path: str | None) -> dict:
                         f"Successfully loaded and merged configuration from {config_path}"
                     )
 
+        except (YAMLError, FileNotFoundError) as e:
+            logger.critical(f"Failed to load configuration from '{config_path}': {e}")
+            logger.critical("Please check your config.yml for formatting errors (especially indentation) or ensure the file exists.")
+            logger.critical("The application cannot continue with an invalid configuration. Exiting.")
+            sys.exit(1)
         except Exception as e:
-            logger.critical(f"Failed to load configuration: {e}")
-            logger.error("Proceeding with default configuration due to loading error.")
-            final_config = deepcopy(DEFAULT_CONFIG)
+            logger.opt(exception=True).critical(f"An unexpected error occurred while loading config file '{config_path}': {e}")
+            sys.exit(1)
 
     final_config = resolve_based_paths(final_config)
     return final_config

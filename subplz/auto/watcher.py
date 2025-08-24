@@ -4,15 +4,14 @@ import os
 import json
 import threading
 import shutil
-from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
-from ..logger import logger, configure_logging
+from ..logger import logger
 from ..cli import BatchParams
 from ..batch import run_batch
-from ..utils import get_host_path
+from ..utils import resolve_local_path
 
 
 def process_job_file(job_file_path, full_config):
@@ -22,30 +21,23 @@ def process_job_file(job_file_path, full_config):
     logger.info(f"--- Starting Job: {os.path.basename(job_file_path)} ---")
     job_succeeded = False
     try:
-        # Create the inputs for run_batch from the job file
         with open(job_file_path, "r", encoding="utf-8") as f:
             job_data = json.load(f)
 
-        host_target_dir = get_host_path(full_config, job_data["directory"])
-        host_episode_path = (
-            get_host_path(full_config, job_data["episode_path"])
-            if job_data.get("episode_path")
-            else None
-        )
+        # Use our new smart function to get the correct path for the current environment
+        local_target_dir = resolve_local_path(full_config, job_data["directory"])
+        local_episode_path = resolve_local_path(full_config, job_data.get("episode_path"))
 
-        # Construct the BatchParams object that run_batch expects
         batch_inputs = BatchParams(
             subcommand="batch",
-            dirs=[host_target_dir],
-            file=host_episode_path,
+            dirs=[local_target_dir],
+            file=local_episode_path,
             pipeline=full_config.get("batch_pipeline"),
             config=None,
             config_data=full_config,
         )
 
         run_batch(batch_inputs)
-
-        # If run_batch completes without raising an exception, it succeeded
         job_succeeded = True
 
     except Exception:

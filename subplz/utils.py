@@ -13,9 +13,40 @@ def get_lang_code(lang_code_input: str) -> str | None:
         return None
     lang_code_input = lang_code_input.lower()
     MANUAL_LANG_FIXES = {
+        # Common Abbreviations
         "jap": "ja",
+        "jp": "ja",
+
+        # Old ISO 639-2/B (Bibliographic) codes to new ISO 639-1 (2-letter) codes
+        "chi": "zh",
         "ger": "de",
         "fre": "fr",
+        "dut": "nl",
+        "gre": "el",
+        "ice": "is",
+        "mac": "mk",
+        "mao": "mi",
+        "may": "ms",
+        "per": "fa",
+        "tib": "bo",
+        "wel": "cy",
+        "alb": "sq",
+        "arm": "hy",
+        "baq": "eu",
+        "bur": "my",
+        "cze": "cs",
+        "geo": "ka",
+        "slo": "sk",
+
+        # Common full language names
+        "english": "en",
+        "japanese": "ja",
+        "chinese": "zh",
+        "german": "de",
+        "french": "fr",
+        "spanish": "es",
+        "korean": "ko",
+        "portuguese": "pt",
     }
     if lang_code_input in MANUAL_LANG_FIXES:
         lang_code_input = MANUAL_LANG_FIXES[lang_code_input]
@@ -32,7 +63,7 @@ def get_lang_code(lang_code_input: str) -> str | None:
             return getattr(lang, "bibliographic", getattr(lang, "alpha_3", None))
     except KeyError:
         pass
-    print(f"❗Language code '{lang_code_input}' not recognized by pycountry.")
+    logger.warning(f"❗Language code '{lang_code_input}' not recognized")
     return None
 
 
@@ -115,42 +146,93 @@ def get_tmp_path(file_path):
     filename = file_path.stem
     return file_path.parent / f"{filename}.tmp{file_path.suffix}"
 
-
-def get_host_path(config, path_from_job):
+def get_host_path(config, docker_path):
     """
-    Translates a container path to a host path, or confirms a host path's existence.
-    """
-    path_map = config.get("watcher", {}).get("path_map", {})
-    str_path_from_job = str(path_from_job)
-
-    if str_path_from_job in path_map:
-        return path_map[str_path_from_job]
-
-    for docker_path, host_path in path_map.items():
-        if str_path_from_job.startswith(docker_path):
-            return str_path_from_job.replace(docker_path, host_path, 1)
-
-    if os.path.exists(str_path_from_job):
-        return str_path_from_job
-
-    return str_path_from_job
-
-
-def get_docker_path(config, path_from_host):
-    """
-    Translates a host path back to a container path.
+    Translates a canonical Docker path to its corresponding host path using the path_map.
+    (Handles the new 'host: container' config format).
     """
     path_map = config.get("watcher", {}).get("path_map", {})
-    sorted_host_paths = sorted(path_map.values(), key=len, reverse=True)
+    str_docker_path = str(docker_path)
 
-    str_path_from_host = str(path_from_host)
-    for host_path in sorted_host_paths:
-        if str_path_from_host.startswith(host_path):
-            for docker_path, mapped_host_path in path_map.items():
-                if mapped_host_path == host_path:
-                    return str_path_from_host.replace(host_path, docker_path, 1)
-    return str_path_from_host
+    # Sort items by the length of the container path (value) to handle nested paths
+    sorted_map_items = sorted(path_map.items(), key=lambda item: len(item[1]), reverse=True)
 
+    for host_path, container_path in sorted_map_items:
+        if str_docker_path.startswith(container_path):
+            return str_docker_path.replace(container_path, host_path, 1)
+
+    if os.path.exists(str_docker_path):
+        return str_docker_path
+
+    return str_docker_path
+
+def get_docker_path(config, host_path):
+    """
+    Translates a host path back to its canonical Docker path for writing into job files.
+    (Handles the new 'host: container' config format).
+    """
+    path_map = config.get("watcher", {}).get("path_map", {})
+    str_host_path = str(host_path)
+
+    # Sort items by the length of the host path (key) to handle nested paths
+    sorted_map_items = sorted(path_map.items(), key=lambda item: len(item[0]), reverse=True)
+
+    for h_path, container_path in sorted_map_items:
+        if str_host_path.startswith(h_path):
+            return str_host_path.replace(h_path, container_path, 1)
+
+    return str_host_path
+
+
+def resolve_local_path(config, any_path):
+    """
+    Resolves any given path (host or container) to a locally accessible path,
+    regardless of the execution environment. This is the key to full environment independence.
+
+    Args:
+        config (dict): The full application configuration.
+        any_path (str or Path): A path that could be in either host or container format.
+
+    Returns:
+        str: A string representing the path that is physically accessible from the
+             current environment.
+    """
+    if not any_path:
+        return None
+
+    path_str = str(any_path)
+
+    # Candidate 1: Assume `any_path` is a container path and find its host equivalent.
+    potential_host_path = get_host_path(config, path_str)
+
+    # Candidate 2: Assume `any_path` is a host path and find its container equivalent.
+    potential_docker_path = get_docker_path(config, path_str)
+
+    # --- The Core Logic ---
+    # Now, check which of our calculated paths actually exists in the current environment.
+    # This order of checks is robust for all scenarios.
+
+    # If running on the HOST, this will almost always be the correct one.
+    if os.path.exists(potential_host_path):
+        return potential_host_path
+
+    # If running in the CONTAINER, this will be the correct one.
+    # This also handles the user's specific `docker exec` case.
+    elif os.path.exists(potential_docker_path):
+        return potential_docker_path
+
+    # Fallback for unmapped paths. If neither translation exists,
+    # maybe the original path was correct all along (e.g. "/tmp/").
+    elif os.path.exists(path_str):
+        return path_str
+
+    # If nothing is found, we must return one for error reporting.
+    # We'll prefer the path that a translation actually occurred on.
+    # If the user provided a host path, the docker path is the likely target inside a container.
+    if path_str != potential_docker_path:
+        return potential_docker_path
+    # Otherwise, default to the host path.
+    return potential_host_path
 
 def find_and_show_lingering_tensors():
     """
