@@ -155,43 +155,18 @@ docker run -it --rm --gpus all --entrypoint python subplz -c "import torch; prin
 CUDA available: True
 ```
 
-If this test fails, **do not proceed** until GPU access is working.
+If this test fails, you can proceed with CPU but, it may be as much as 10x slower. So my recommendation is **do not proceed** until GPU access is working. 
 
 ### Troubleshooting Docker GPU Issues
 
 **Problem: "CUDA initialization: Unexpected error"**
 
-- **Cause:** CUDA version mismatch between host driver and container runtime
-- **Solution:** Update the Dockerfile to use a PyTorch image matching your CUDA version:
-  ```dockerfile
-  # Check your host CUDA version with: nvidia-smi
-  # Then use matching PyTorch image, e.g.:
-  FROM pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime  # For CUDA 12.9
-  ```
-
-**Problem: "docker: Error response from daemon: could not select device driver"**
-
-- **Cause:** NVIDIA Container Toolkit not installed
-- **Solution:** Install nvidia-docker2:
-  ```bash
-  # Ubuntu/Debian
-  sudo apt-get install nvidia-docker2
-  sudo systemctl restart docker
-  ```
 
 **Problem: "CUDA available: False" in test command**
 
 - **Windows WSL2:** Update Docker Desktop to 4.44.2 or later
 - **Linux:** Ensure nvidia-container-toolkit is installed and Docker daemon restarted
 - **All platforms:** Verify `nvidia-smi` works on the host first
-
-**Problem: Permission denied on mounted volumes**
-
-- **Cause:** User ID mismatch between container and host
-- **Solution:** Update the `user` field in docker-compose.yml:
-  ```yaml
-  user: "${UID:-1000}:${GID:-1000}"  # Uses your actual user ID
-  ```
 
 **Problem: Symlink errors during model download**
 
@@ -788,5 +763,6 @@ The GOAT delivers again; The best Japanese reading experience ttu-reader paired 
 - Demo: https://x.com/kanjieater/status/1834309526129930433
 
 A cool tool to turn these audiobook subs into Visual Novels
+
 
 - https://github.com/asayake-b5/audiobooksync2renpy
