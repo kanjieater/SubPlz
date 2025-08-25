@@ -302,11 +302,10 @@ def extract(inputs: ExtractParams):
     for sub_path in extracted_subs:
         detected_lang = detect_language(sub_path)
         if detected_lang != inputs.lang_ext_original:
-            logger.error(
+            logger.warning(
                 f"❌ Language mismatch for '{sub_path.name}'! Expected '{inputs.lang_ext_original}', detected '{detected_lang}'. Deleting file."
             )
             sub_path.unlink()
-            overall_success = False
         else:
             logger.success(f"✅ Language verified for '{sub_path.name}'.")
 

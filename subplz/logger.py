@@ -39,6 +39,7 @@ def configure_logging(config: dict):
         colorize=True,
         backtrace=True,
         diagnose=True,
+        enqueue=True,
     )
 
     # Configure file logging, which remains unchanged.
@@ -61,6 +62,7 @@ def configure_logging(config: dict):
         backtrace=True,
         diagnose=True,
         filter=lambda record: record["level"].name != "TQDM",
+        enqueue=True,
     )
 
     logger.debug("Logging configured.")

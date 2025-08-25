@@ -24,14 +24,32 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
     full_hash = hashlib.md5(media_path_str.encode("utf-8")).hexdigest()
     short_hash = full_hash[
         :8
-    ]  # Take the first 8 characters for a short but effective ID.
-    # 3. Combine the parts and enforce a reasonable max filename length (e.g., 240 chars).
+    ]
     prefix = "scanner_"
     suffix = f"_{short_hash}.json"
-    # Calculate the max length allowed for the human-readable part.
+
+    # --- NEW: Byte-Aware Truncation Logic ---
+
+    # Encode all components to bytes to accurately measure their length
+    prefix_bytes = prefix.encode('utf-8')
+    suffix_bytes = suffix.encode('utf-8')
+    base_name_bytes = sanitized_base_name.encode('utf-8')
+
+    # Calculate the max length for the base name in BYTES
     # 255 is a common limit, we'll use 240 to be safe.
-    max_base_name_len = 240 - len(prefix) - len(suffix)
-    truncated_base_name = sanitized_base_name[:max_base_name_len]
+    max_base_name_bytes = 240 - len(prefix_bytes) - len(suffix_bytes)
+
+    # Truncate the byte array if it's too long
+    if len(base_name_bytes) > max_base_name_bytes:
+        truncated_base_bytes = base_name_bytes[:max_base_name_bytes]
+
+        # IMPORTANT: The truncation might have cut a multi-byte character in half.
+        # We decode it back to a string, safely ignoring any partial characters at the end.
+        truncated_base_name = truncated_base_bytes.decode('utf-8', errors='ignore')
+    else:
+        # If it's already short enough, no need to truncate.
+        truncated_base_name = sanitized_base_name
+
     job_filename = f"{prefix}{truncated_base_name}{suffix}"
     job_filepath = os.path.join(job_dir, job_filename)
     docker_media_dir = get_docker_path(full_config, media_dir_path)
