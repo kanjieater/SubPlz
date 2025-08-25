@@ -145,7 +145,7 @@ Before running the full application, test that your built SubPlz image can acces
 
 ```bash
 # Test GPU access with your SubPlz image
-docker run -it --rm --gpus all --entrypoint python subplz -c "import torch; print(torch.__version__); print(f'CUDA available: {torch.cuda.is_available()}');"
+docker run -it --rm --gpus all --entrypoint python kanjieater/subplz:latest -c "import torch; print(torch.__version__); print(f'CUDA available: {torch.cuda.is_available()}');"
 ```
 
 **Expected output:**
@@ -155,43 +155,18 @@ docker run -it --rm --gpus all --entrypoint python subplz -c "import torch; prin
 CUDA available: True
 ```
 
-If this test fails, **do not proceed** until GPU access is working.
+If this test fails, you can proceed with CPU but, it may be as much as 10x slower. So my recommendation is **do not proceed** until GPU access is working. 
 
 ### Troubleshooting Docker GPU Issues
 
 **Problem: "CUDA initialization: Unexpected error"**
 
-- **Cause:** CUDA version mismatch between host driver and container runtime
-- **Solution:** Update the Dockerfile to use a PyTorch image matching your CUDA version:
-  ```dockerfile
-  # Check your host CUDA version with: nvidia-smi
-  # Then use matching PyTorch image, e.g.:
-  FROM pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime  # For CUDA 12.9
-  ```
-
-**Problem: "docker: Error response from daemon: could not select device driver"**
-
-- **Cause:** NVIDIA Container Toolkit not installed
-- **Solution:** Install nvidia-docker2:
-  ```bash
-  # Ubuntu/Debian
-  sudo apt-get install nvidia-docker2
-  sudo systemctl restart docker
-  ```
 
 **Problem: "CUDA available: False" in test command**
 
 - **Windows WSL2:** Update Docker Desktop to 4.44.2 or later
 - **Linux:** Ensure nvidia-container-toolkit is installed and Docker daemon restarted
 - **All platforms:** Verify `nvidia-smi` works on the host first
-
-**Problem: Permission denied on mounted volumes**
-
-- **Cause:** User ID mismatch between container and host
-- **Solution:** Update the `user` field in docker-compose.yml:
-  ```yaml
-  user: "${UID:-1000}:${GID:-1000}"  # Uses your actual user ID
-  ```
 
 **Problem: Symlink errors during model download**
 
@@ -479,6 +454,7 @@ watcher:
   # This allows the script to translate container paths from Bazarr jobs to real host paths.
   # Key (left): Path on the host machine
   # Value (right): Corresponding path inside the container
+  path_map:
     "/mnt/an/ja-anime/": "/data/ja-anime/"
     "/some/unmapped_media/": "/some/unmapped_media/"
 
@@ -601,7 +577,6 @@ To make Bazarr a producer, you need to configure its **Custom Post-Processing** 
    echo "{\"directory\":\"$(echo "{{directory}}" | tr -d '\"')\",\"episode_path\":\"$(echo "{{episode}}" | tr -d '\"')\",\"episode_name\":\"$(echo "{{episode_name}}" | tr -d '\"')\",\"subtitle_path\":\"$(echo "{{subtitles}}" | tr -d '\"')\",\"subtitles_language\":\"$(echo "{{subtitles_language}}" | tr -d '\"')\",\"subtitles_language_code2\":\"$(echo "{{subtitles_language_code2}}" | tr -d '\"')\",\"subtitles_language_code2_dot\":\"$(echo "{{subtitles_language_code2_dot}}" | tr -d '\"')\",\"subtitles_language_code3\":\"$(echo "{{subtitles_language_code3}}" | tr -d '\"')\",\"subtitles_language_code3_dot\":\"$(echo "{{subtitles_language_code3_dot}}" | tr -d '\"')\",\"episode_language\":\"$(echo "{{episode_language}}" | tr -d '\"')\",\"episode_language_code2\":\"$(echo "{{episode_language_code2}}" | tr -d '\"')\",\"episode_language_code3\":\"$(echo "{{episode_language_code3}}" | tr -d '\"')\",\"score\":$(echo "{{score}}" | tr -d '\"'),\"subtitle_id\":\"$(echo "{{subtitle_id}}" | tr -d '\"')\",\"provider\":\"$(echo "{{provider}}" | tr -d '\"')\",\"uploader\":\"$(echo "{{uploader}}" | tr -d '\"')\",\"release_info\":\"$(echo "{{release_info}}" | tr -d '\"')\",\"series_id\":\"$(echo "{{series_id}}" | tr -d '\"')\",\"episode_id\":\"$(echo "{{episode_id}}" | tr -d '\"')\",\"timestamp_utc\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > /subplz/jobs/"{{episode_name}}".json
    ```
 
-   *Note: We only need the `directory` key for the job file. The filename is appended with `-bazarr.json` for easier identification in the queue.*
 
 5. **Save** your settings.
 
@@ -789,4 +764,7 @@ The GOAT delivers again; The best Japanese reading experience ttu-reader paired 
 
 A cool tool to turn these audiobook subs into Visual Novels
 
+
 - https://github.com/asayake-b5/audiobooksync2renpy
+
+
