@@ -14,12 +14,30 @@ from ..batch import run_batch
 from ..utils import resolve_local_path
 
 
+def format_duration(seconds: float) -> str:
+    if seconds < 0:
+        seconds = 0
+    d = int(seconds // (3600 * 24))
+    h = int((seconds // 3600) % 24)
+    m = int((seconds // 60) % 60)
+    s = seconds % 60
+    parts = []
+    if d > 0: parts.append(f"{d}d")
+    if h > 0: parts.append(f"{h}h")
+    if m > 0: parts.append(f"{m}m")
+    if s > 0 or not parts: parts.append(f"{s:.2f}s")
+    return " ".join(parts) if parts else "0.00s"
+
+
 def process_job_file(job_file_path, full_config):
     """
     Directly calls the batch processing function and handles the outcome.
     """
     logger.info(f"--- Starting Job: {os.path.basename(job_file_path)} ---")
     job_succeeded = False
+
+    start_time = time.monotonic()
+
     try:
         with open(job_file_path, "r", encoding="utf-8") as f:
             job_data = json.load(f)
@@ -48,6 +66,8 @@ def process_job_file(job_file_path, full_config):
         )
         job_succeeded = False
 
+    duration = time.monotonic() - start_time
+
     # --- File Cleanup ---
     if job_succeeded:
         logger.success(
@@ -64,6 +84,9 @@ def process_job_file(job_file_path, full_config):
             )
         except OSError as e:
             logger.error(f"Failed to delete successful job file {job_file_path}: {e}")
+
+        return duration
+
     else:
         logger.info(
             f"Moving failed job '{os.path.basename(job_file_path)}' to error directory."
@@ -74,7 +97,7 @@ def process_job_file(job_file_path, full_config):
             logger.warning(
                 "'base_dirs.watcher_errors' key not found in config. Failed job file was not moved."
             )
-            return
+            return None
         try:
             if os.path.exists(job_file_path):
                 error_path = os.path.join(
@@ -91,15 +114,17 @@ def process_job_file(job_file_path, full_config):
                 "Additionally failed to move the job file to the error directory!"
             )
 
+        return None
+
 
 def get_next_job(job_dir):
     """Get the oldest job file from the directory, or None if no jobs exist."""
     try:
-        job_paths = [
-            os.path.join(job_dir, f) for f in os.listdir(job_dir) if f.endswith(".json")
-        ]
-        if not job_paths:
+        job_files = [f for f in os.listdir(job_dir) if f.endswith(".json")]
+        if not job_files:
             return None
+
+        job_paths = [os.path.join(job_dir, f) for f in job_files]
         logger.info(f"📊 Found {len(job_paths)} job(s) in the queue.")
         oldest_job = min(job_paths, key=os.path.getctime)
         return oldest_job
@@ -108,7 +133,7 @@ def get_next_job(job_dir):
         return None
 
 
-def process_job_queue(job_dir, full_config):
+def process_job_queue(job_dir, full_config, job_completion_times):
     """Process all jobs in the directory, one at a time, in creation order."""
     while True:
         next_job = get_next_job(job_dir)
@@ -116,14 +141,34 @@ def process_job_queue(job_dir, full_config):
             logger.info("No more jobs to process in the current queue.")
             break
 
-        process_job_file(next_job, full_config)
+        duration = process_job_file(next_job, full_config)
+
+        if duration is not None:
+            job_completion_times.append(duration)
+            running_avg = sum(job_completion_times) / len(job_completion_times)
+
+            # Re-check directory to see how many jobs are left for ETA
+            remaining_jobs = [f for f in os.listdir(job_dir) if f.endswith(".json")]
+            eta_seconds = running_avg * len(remaining_jobs)
+
+            stats_msg = (
+                f"📈 Job finished in {format_duration(duration)}. "
+                f"Running avg: {format_duration(running_avg)} ({len(job_completion_times)} jobs)."
+            )
+            if remaining_jobs:
+                stats_msg += f" ETA for remaining {len(remaining_jobs)} jobs: {format_duration(eta_seconds)}."
+            else:
+                stats_msg += " Queue cleared."
+            logger.info(stats_msg)
+
         time.sleep(0.5)
 
 
 class JobEventHandler(FileSystemEventHandler):
-    def __init__(self, full_config, job_dir):
+    def __init__(self, full_config, job_dir, job_completion_times):
         self.full_config = full_config
         self.job_dir = job_dir
+        self.job_completion_times = job_completion_times
         self.processing_lock = threading.Lock()
         logger.success("Watcher event handler initialized.")
 
@@ -138,7 +183,7 @@ class JobEventHandler(FileSystemEventHandler):
         if self.processing_lock.acquire(blocking=False):
             logger.info("Acquired lock. Starting job queue processing...")
             try:
-                process_job_queue(self.job_dir, self.full_config)
+                process_job_queue(self.job_dir, self.full_config, self.job_completion_times)
             finally:
                 logger.info("...job queue processing finished. Releasing lock.")
                 self.processing_lock.release()
@@ -154,6 +199,8 @@ def run_watcher(args):
     config = args.config_data
     observer = None
 
+    job_completion_times = []
+
     try:
         logger.info(f"Starting watcher with config file: {args.config}")
         base_dirs = config.get("base_dirs", {})
@@ -166,10 +213,10 @@ def run_watcher(args):
             )
 
         logger.info("Scanning for existing jobs on startup...")
-        process_job_queue(job_dir, config)
+        process_job_queue(job_dir, config, job_completion_times)
 
         logger.info(f"👀 Watching for .json files in: {job_dir}")
-        event_handler = JobEventHandler(full_config=config, job_dir=job_dir)
+        event_handler = JobEventHandler(full_config=config, job_dir=job_dir, job_completion_times=job_completion_times)
         poll_interval = watcher_settings.get("polling_interval_seconds")
 
         if poll_interval is not None:
