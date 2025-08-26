@@ -118,20 +118,45 @@ def process_job_file(job_file_path, full_config):
 
 
 def get_next_job(job_dir):
-    """Get the oldest job file from the directory, or None if no jobs exist."""
+    """
+    Get the oldest job file from the directory, or None if no jobs exist.
+    This version is resilient to files being deleted during the scan.
+    """
     try:
-        job_files = [f for f in os.listdir(job_dir) if f.endswith(".json")]
-        if not job_files:
+        # Create a list of (creation_time, full_path) tuples
+        # for all existing job files.
+        job_infos = []
+        for filename in os.listdir(job_dir):
+            if not filename.endswith(".json"):
+                continue
+
+            full_path = os.path.join(job_dir, filename)
+            try:
+                # Get the creation time immediately. If the file was deleted
+                # between os.listdir() and here, this will raise an error.
+                creation_time = os.path.getctime(full_path)
+                job_infos.append((creation_time, full_path))
+            except FileNotFoundError:
+                # The file disappeared, which is the scenario we need to handle.
+                # Simply log it and continue to the next file.
+                logger.debug(
+                    f"Job file '{filename}' was deleted during scan. Skipping."
+                )
+                continue
+
+        if not job_infos:
             return None
 
-        job_paths = [os.path.join(job_dir, f) for f in job_files]
-        logger.info(f"📊 Found {len(job_paths)} job(s) in the queue.")
-        oldest_job = min(job_paths, key=os.path.getctime)
-        return oldest_job
+        logger.info(f"📊 Found {len(job_infos)} job(s) in the queue.")
+
+        # Find the job with the minimum creation time. Since we're sorting
+        # the tuple, it will sort by the first element (the timestamp).
+        oldest_job_path = min(job_infos)[1]
+        return oldest_job_path
+
     except Exception as e:
         logger.error(f"Error scanning for next job: {e}")
         return None
-
 
 def process_job_queue(job_dir, full_config, job_completion_times):
     """Process all jobs in the directory, one at a time, in creation order."""
