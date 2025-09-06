@@ -155,7 +155,7 @@ docker run -it --rm --gpus all --entrypoint python kanjieater/subplz:latest -c "
 CUDA available: True
 ```
 
-If this test fails, you can proceed with CPU but, it may be as much as 10x slower. So my recommendation is **do not proceed** until GPU access is working. 
+If this test fails, you can proceed with CPU but, it may be as much as 10x slower. So my recommendation is **do not proceed** until GPU access is working.
 
 ### Troubleshooting Docker GPU Issues
 
@@ -458,7 +458,9 @@ watcher:
     "/mnt/an/ja-anime/": "/data/ja-anime/"
     "/some/unmapped_media/": "/some/unmapped_media/"
 
-
+  # If a job were to hang due to CUDA resources or any other reason you can kill it automatically after this timeout
+  # Defaults to 10 mins (600s). Consider raising it if you're running on CPU
+  job_timeout_seconds: 600
   # [OPTIONAL] If this key is present, the watcher will use a polling-based
   # mechanism instead of native OS events. This is less efficient but is
   # REQUIRED if you are running this script inside WSL and watching a
