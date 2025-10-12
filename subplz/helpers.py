@@ -115,6 +115,8 @@ def rename(inputs: RenameParams) -> bool:
     for rename_text in target_texts:
         text_path, new_name = list(rename_text.items())[0]
         old_path = Path(text_path)
+        is_unique = True
+
         if new_name.exists() and not overwrite:
             logger.info(
                 f"😐 Skipping rename for '{new_name.name}': Target file already exists and overwrite is false."
@@ -142,7 +144,6 @@ def rename(inputs: RenameParams) -> bool:
                         old_path.unlink()
                     continue
 
-            is_unique = True
             all_subs_in_dir = get_text(dir_path)
             other_subs = [
                 Path(p)

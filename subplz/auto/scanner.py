@@ -14,6 +14,7 @@ from ..utils import resolve_local_path, get_docker_path
 def create_job_file(job_dir, media_dir_path, episode_path, full_config):
     """
     Creates a deterministic, human-readable, and length-safe JSON job file.
+    Returns True if a job was created, False otherwise.
     """
     base_name = Path(episode_path).stem
     # Replace characters that are invalid in filenames on most operating systems.
@@ -52,6 +53,23 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
 
     job_filename = f"{prefix}{truncated_base_name}{suffix}"
     job_filepath = os.path.join(job_dir, job_filename)
+
+    # --- Check for existing failed job before creating a new one ---
+    base_dirs = full_config.get("base_dirs", {})
+    error_dir_path = base_dirs.get("watcher_errors")
+
+    if error_dir_path and os.path.isdir(error_dir_path):
+        failed_job_path = os.path.join(error_dir_path, job_filename)
+        if os.path.exists(failed_job_path):
+            logger.warning(
+                f"Skipping job creation for '{Path(episode_path).name}'. "
+                f"A failed job already exists: {job_filename}"
+            )
+            return False  # MODIFIED: Return False as no job was created
+    else:
+        logger.debug("'watcher_errors' directory not configured; cannot check for failed jobs.")
+
+
     docker_media_dir = get_docker_path(full_config, media_dir_path)
     docker_episode_path = get_docker_path(full_config, episode_path)
 
@@ -65,6 +83,7 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
         json.dump(job_data, f, indent=2)
 
     logger.success(f"Created/Updated job for file: {Path(episode_path).name}")
+    return True # MODIFIED: Return True on successful creation
 
 
 def is_blacklisted(filename, blacklist_terms):
@@ -98,6 +117,7 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
     Returns True if at least one required sub is missing, triggering a job. False otherwise.
     """
     target_exts = scanner_settings.get("target_sub_extensions", [])
+    only_if_exts = scanner_settings.get("only_if", [])
     blacklist_files = scanner_settings.get("blacklist_filenames", [])
     media_exts = ["." + ext.lower() for ext in VIDEO_FORMATS + AUDIO_FORMATS]
 
@@ -123,6 +143,30 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 
         logger.info(f"--> Base name identified as: '{file_basename}'")
 
+        # NEW: Check 'only_if' condition first if configured
+        if only_if_exts:
+            logger.info(f"--> Checking 'only_if' prerequisites: {only_if_exts}")
+
+            only_if_found = False
+            for only_if_ext in only_if_exts:
+                only_if_path = media_path.parent / (file_basename + only_if_ext)
+                logger.info(f"---> Checking prerequisite: {only_if_path.name}")
+
+                if os.path.exists(only_if_path):
+                    logger.info(f"----> FOUND prerequisite: {only_if_path.name}")
+                    only_if_found = True
+                    break  # Found at least one, that's enough
+                else:
+                    logger.debug(f"----> Missing prerequisite: {only_if_path.name}")
+
+            if not only_if_found:
+                logger.info(f"--> No 'only_if' prerequisites found. Skipping job creation for {media_path.name}")
+                return False
+            else:
+                logger.info(f"--> Prerequisites satisfied, proceeding with target extension check")
+        else:
+            logger.debug(f"--> No 'only_if' restrictions configured, proceeding with normal check")
+
         # Track what we're looking for vs what we found
         missing_subs = []
 
@@ -141,9 +185,14 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
 
         # Summary logging
         if missing_subs:
-            logger.info(
-                f"--> Missing subtitles: {missing_subs}. Creating job for {media_path.name}"
-            )
+            if only_if_exts:
+                logger.info(
+                    f"--> Prerequisites found AND missing subtitles: {missing_subs}. Creating job for {media_path.name}"
+                )
+            else:
+                logger.info(
+                    f"--> Missing subtitles: {missing_subs}. Creating job for {media_path.name}"
+                )
             return True
         else:
             logger.info(
@@ -201,8 +250,11 @@ def scan_library(config, override_dirs=None, target_file=None):
         if check_file_for_missing_subs(
             str(target_path.parent), target_path.name, scanner_settings
         ):
-            create_job_file(job_dir, str(target_path.parent), target_path, config)
-            logger.success("--- Scan Complete. Scanned 1 file, created 1 new job. ---")
+            # MODIFIED: Check if the job was actually created
+            if create_job_file(job_dir, str(target_path.parent), target_path, config):
+                logger.success("--- Scan Complete. Scanned 1 file, created 1 new job. ---")
+            else:
+                logger.success("--- Scan Complete. Scanned 1 file, job skipped as failed version exists. ---")
         else:
             logger.success("--- Scan Complete. Scanned 1 file, no job needed. ---")
         return
@@ -257,8 +309,9 @@ def scan_library(config, override_dirs=None, target_file=None):
 
     job_counter = 0
     for episode_path in sorted_paths:
-        create_job_file(job_dir, episode_path.parent, episode_path, config)
-        job_counter += 1
+        # MODIFIED: Only increment the counter if the job was actually created.
+        if create_job_file(job_dir, episode_path.parent, episode_path, config):
+            job_counter += 1
         time.sleep(0.1)  # Guarantees sequential creation timestamps
 
     logger.success(
