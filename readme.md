@@ -709,7 +709,7 @@ For a glimpse of some of the technologies & techniques we're using depending on 
 - **Alass**: for language agnostic subtitle alignment
 - **Needleman–Wunsch algorithm**: for alignment to original source text
 
-Currently I am only developing this tool for Japanese use, though rumor has it, the `lang` flag can be used for other languages too.
+Currently I am only developing this tool for Japanese use, though rumor has it, the `language` flag can be used for other languages too.
 
 It requires a modern GPU with decent VRAM, CPU, and RAM. There's also a community built Google Colab notebook available on discord.
 
@@ -768,5 +768,6 @@ A cool tool to turn these audiobook subs into Visual Novels
 
 
 - https://github.com/asayake-b5/audiobooksync2renpy
+
 
 
