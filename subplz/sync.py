@@ -27,6 +27,8 @@ warnings.filterwarnings(
     message="This search incorrectly ignores the root element",
 )
 
+SCORE_THRESHOLD = 40
+
 
 def match_start(audio, text):
     ats, sta = {}, {}
@@ -67,7 +69,7 @@ def match_start(audio, text):
                     score = fuzz.ratio(acontent[:l], tcontent[:l])
                     # title = tc[j].titles[0] if hasattr(tc[j], 'titles') else basename(tc[j].path)
                     # tqdm.write(ac[i].cn + ' ' + title + ' ' + str(j) + ' ' + str(score))
-                    if score > 40 and score > best[-1]:
+                    if score > SCORE_THRESHOLD and score > best[-1]:
                         best = (ti, j, score)
 
             if best[:-1] in sta:
@@ -75,6 +77,12 @@ def match_start(audio, text):
             elif best != (-1, -1, 0):
                 ats[ai, i] = best
                 sta[best[:-1]] = (ai, i, best[-1])
+            else:
+                # THIS IS THE NEW BLOCK
+                logger.warning(
+                    f"❗ Failed to match audio '{afn}' (chapter {ac[i].cn}). "
+                    f"The generated transcript and the provided text file are too different (your transcript: {score} < minimum: {SCORE_THRESHOLD}). "
+                )
 
     return ats, sta
 
