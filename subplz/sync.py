@@ -50,6 +50,7 @@ def match_start(audio, text):
                 lang.clean("".join(seg["text"] for seg in l["segments"]))
             )
             best = (-1, -1, 0)
+            score = 0
             for ti in range(len(text)):
                 tfn, tc = text[ti]
 
