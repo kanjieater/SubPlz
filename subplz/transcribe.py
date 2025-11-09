@@ -20,7 +20,7 @@ class TranscriptionResult:
 def _get_transcribe_args(be):
     """Helper function to build the arguments dictionary for transcription."""
     # (This function remains unchanged from the previous answer)
-    return {
+    args = {
         "language": be.language,
         "initial_prompt": be.initial_prompt,
         "length_penalty": be.length_penalty,
@@ -36,8 +36,11 @@ def _get_transcribe_args(be):
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
         "denoiser": be.denoiser,
-        "vad": be.vad,
+        "vad": be.vad, # pyTorch, for onnx it should be dict(onnx=be.vad)
     }
+    if be.batch_size:
+        args["batch_size"] = be.batch_size
+    return args
 
 
 def transcribe(source, be) -> TranscriptionResult:
