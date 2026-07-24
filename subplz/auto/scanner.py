@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 from ..logger import logger
 from ..files import VIDEO_FORMATS, AUDIO_FORMATS, get_true_stem
+
 # Import all necessary path functions from the central utility
 from ..utils import resolve_local_path, get_docker_path
 
@@ -23,18 +24,16 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
     #    between identically named files in different folders.
     media_path_str = str(episode_path)
     full_hash = hashlib.md5(media_path_str.encode("utf-8")).hexdigest()
-    short_hash = full_hash[
-        :8
-    ]
+    short_hash = full_hash[:8]
     prefix = "scanner_"
     suffix = f"_{short_hash}.json"
 
     # --- NEW: Byte-Aware Truncation Logic ---
 
     # Encode all components to bytes to accurately measure their length
-    prefix_bytes = prefix.encode('utf-8')
-    suffix_bytes = suffix.encode('utf-8')
-    base_name_bytes = sanitized_base_name.encode('utf-8')
+    prefix_bytes = prefix.encode("utf-8")
+    suffix_bytes = suffix.encode("utf-8")
+    base_name_bytes = sanitized_base_name.encode("utf-8")
 
     # Calculate the max length for the base name in BYTES
     # 255 is a common limit, we'll use 240 to be safe.
@@ -46,7 +45,7 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
 
         # IMPORTANT: The truncation might have cut a multi-byte character in half.
         # We decode it back to a string, safely ignoring any partial characters at the end.
-        truncated_base_name = truncated_base_bytes.decode('utf-8', errors='ignore')
+        truncated_base_name = truncated_base_bytes.decode("utf-8", errors="ignore")
     else:
         # If it's already short enough, no need to truncate.
         truncated_base_name = sanitized_base_name
@@ -67,8 +66,9 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
             )
             return False  # MODIFIED: Return False as no job was created
     else:
-        logger.debug("'watcher_errors' directory not configured; cannot check for failed jobs.")
-
+        logger.debug(
+            "'watcher_errors' directory not configured; cannot check for failed jobs."
+        )
 
     docker_media_dir = get_docker_path(full_config, media_dir_path)
     docker_episode_path = get_docker_path(full_config, episode_path)
@@ -83,7 +83,7 @@ def create_job_file(job_dir, media_dir_path, episode_path, full_config):
         json.dump(job_data, f, indent=2)
 
     logger.success(f"Created/Updated job for file: {Path(episode_path).name}")
-    return True # MODIFIED: Return True on successful creation
+    return True  # MODIFIED: Return True on successful creation
 
 
 def is_blacklisted(filename, blacklist_terms):
@@ -160,12 +160,18 @@ def check_file_for_missing_subs(root, file_name, scanner_settings):
                     logger.debug(f"----> Missing prerequisite: {only_if_path.name}")
 
             if not only_if_found:
-                logger.info(f"--> No 'only_if' prerequisites found. Skipping job creation for {media_path.name}")
+                logger.info(
+                    f"--> No 'only_if' prerequisites found. Skipping job creation for {media_path.name}"
+                )
                 return False
             else:
-                logger.info(f"--> Prerequisites satisfied, proceeding with target extension check")
+                logger.info(
+                    f"--> Prerequisites satisfied, proceeding with target extension check"
+                )
         else:
-            logger.debug(f"--> No 'only_if' restrictions configured, proceeding with normal check")
+            logger.debug(
+                f"--> No 'only_if' restrictions configured, proceeding with normal check"
+            )
 
         # Track what we're looking for vs what we found
         missing_subs = []
@@ -252,9 +258,13 @@ def scan_library(config, override_dirs=None, target_file=None):
         ):
             # MODIFIED: Check if the job was actually created
             if create_job_file(job_dir, str(target_path.parent), target_path, config):
-                logger.success("--- Scan Complete. Scanned 1 file, created 1 new job. ---")
+                logger.success(
+                    "--- Scan Complete. Scanned 1 file, created 1 new job. ---"
+                )
             else:
-                logger.success("--- Scan Complete. Scanned 1 file, job skipped as failed version exists. ---")
+                logger.success(
+                    "--- Scan Complete. Scanned 1 file, job skipped as failed version exists. ---"
+                )
         else:
             logger.success("--- Scan Complete. Scanned 1 file, no job needed. ---")
         return

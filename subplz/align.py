@@ -1,6 +1,6 @@
 from rapidfuzz import fuzz
 import re
-from typing import List
+from typing import List, Optional
 
 from tqdm import tqdm
 from ats.main import Segment
@@ -243,10 +243,6 @@ def recursively_find_match(
             bar,
         )
 
-        scr_out = get_script(script, script_pos, num_used_script, "")
-        scr = get_script(script, script_pos, num_used_script, " ‖ ")
-        base = get_base(subs, sub_pos, num_used_sub, " ‖ ")
-
         result.append((script_pos, num_used_script, sub_pos, num_used_sub))
 
         recursively_find_match(
@@ -330,59 +326,137 @@ def to_float(time_str):
     return total_seconds
 
 
+def align_segments_with_scriptlines_sliding_window(
+    chunks: List[Segment],
+    script_lines: List[ScriptLine],
+    threshold: int = 90,
+    max_chunks_window_size: int = 10,
+    max_script_lines_window_size: int = 50,
+    bar: Optional[tqdm] = None,
+) -> List[Segment]:
+    from rapidfuzz import process, fuzz
+
+    results: List[Segment] = []
+    script_idx = 0
+    n_scripts = len(script_lines)
+    chunk_idx = 0
+    n_chunks = len(chunks)
+
+    while chunk_idx < n_chunks:
+        ch = chunks[chunk_idx]
+        chunk_text = ch.text
+
+        # Handle special marker chunks (＊)
+        if chunk_text.startswith("＊"):
+            results.append(
+                Segment(text=ch.text, start=to_float(ch.start), end=to_float(ch.end))
+            )
+            chunk_idx += 1
+            if bar:
+                bar.update(1)
+            continue
+
+        best_score = 0
+        best_script_idx = -1
+        best_combined_text = ""
+        best_start_time = ch.start
+        best_end_time = ch.end
+        best_chunk_span = 1
+
+        # Try sliding windows of chunk combinations
+        for window_size in range(1, max_chunks_window_size + 1):
+            if chunk_idx + window_size > n_chunks:
+                break
+            window_chunks = chunks[chunk_idx : chunk_idx + window_size]
+            combined_text = "".join(c.text for c in window_chunks)
+            start_time = window_chunks[0].start
+            end_time = window_chunks[-1].end
+
+            # build candidate window of script lines to compare against
+            end_script_window = min(
+                script_idx + max_script_lines_window_size, n_scripts
+            )
+            if script_idx >= end_script_window:
+                # no script lines left to compare
+                continue
+
+            candidates = [
+                script_lines[i].text for i in range(script_idx, end_script_window)
+            ]
+            match = process.extractOne(combined_text, candidates, scorer=fuzz.ratio)
+            if match is None:
+                continue
+
+            matched_text, score, rel_index = (
+                match  # rel_index is index within candidates
+            )
+            absolute_script_index = script_idx + rel_index
+
+            if score > best_score:
+                best_score = score
+                best_script_idx = absolute_script_index
+                best_combined_text = combined_text
+                best_start_time = start_time
+                best_end_time = end_time
+                best_chunk_span = window_size
+
+        # If we found a good match, align it
+        if best_score >= threshold and best_script_idx >= 0:
+            results.append(
+                Segment(
+                    text=best_combined_text,
+                    start=to_float(best_start_time),
+                    end=to_float(best_end_time),
+                )
+            )
+            script_idx = best_script_idx + 1
+            chunk_idx += best_chunk_span
+        else:
+            # No good match found, treat current chunk as orphan
+            orphan_chunk = chunks[chunk_idx]
+            results.append(
+                Segment(
+                    text=orphan_chunk.text,
+                    start=to_float(orphan_chunk.start),
+                    end=to_float(orphan_chunk.end),
+                )
+            )
+            chunk_idx += 1
+
+        if bar:
+            bar.update(1)
+
+    return results
+
+
 def nc_align(split_script, subs_file, max_merge_count):
     with open(split_script, encoding="utf-8") as s:
         script = [ScriptLine(line) for line in read_script(s)]
     print(subs_file)
     with open(subs_file, encoding="utf-8") as vtt:
         subs = read_subtitles(vtt)
-    new_subs = []
 
     result = []
     print("🤝 Grouping based on transcript...")
-    bar = tqdm(total=0)
-    recursively_find_match(
-        script, subs, result, 0, len(script), 0, len(subs), max_merge_count, bar
-    )
-    bar.close()
-    for i, (script_pos, num_used_script, sub_pos, num_used_sub) in enumerate(
-        tqdm(result)
-    ):
-        if i == 0:
-            script_pos = 0
-            sub_pos = 0
-
-        if i + 1 < len(result):
-            num_used_script = result[i + 1][0] - script_pos
-            num_used_sub = result[i + 1][2] - sub_pos
-        else:
-            num_used_script = len(script) - script_pos
-            num_used_sub = len(subs) - sub_pos
-
-        scr_out = get_script(script, script_pos, num_used_script, "")
-        scr = get_script(script, script_pos, num_used_script, " ‖ ")
-        base = get_base(subs, sub_pos, num_used_sub, " ‖ ")
-
-        # print('Record:', script_pos, scr, '==', base)
-        new_subs.append(
-            Segment(
-                scr_out,
-                to_float(subs[sub_pos].start),
-                to_float(subs[sub_pos + num_used_sub - 1].end),
-            )
+    with tqdm(total=len(subs)) as bar:
+        result = align_segments_with_scriptlines_sliding_window(
+            subs, script, bar=bar, max_script_lines_window_size=max_merge_count
         )
+    return result
 
-    return new_subs
 
-
-def double_check_misaligned_pairs(segments):
+def double_check_misaligned_pairs(segments, modified_indices: set = None):
     if not segments or len(segments) < 2:
         return segments
+    if modified_indices is None:
+        modified_indices = set()
 
     adjusted_segments = []
     for i, segment in enumerate(segments):
         segment = handle_specific_pattern(segment, segments, i)
-        segment = handle_starting_punctuation(segment, adjusted_segments, i)
+        segment = handle_starting_punctuation(
+            segment, adjusted_segments, i, modified_indices
+        )
         segment = handle_ending_punctuation(segment, segments, i)
         adjusted_segments.append(segment)
 
@@ -403,10 +477,18 @@ def handle_specific_pattern(segment, segments, index):
     return segment
 
 
-def handle_starting_punctuation(segment, adjusted_segments, index):
+def handle_starting_punctuation(segment, adjusted_segments, index, modified_indices):
     if segment.text and segment.text[0] in END_PUNC and index > 0:
-        adjusted_segments[-1].text += segment.text[0]
-        segment.text = segment.text[1:]
+        # If this segment was just modified (text moved into it),
+        # only move punctuation back if it's NOT followed by non-punctuation immediately
+        # (meaning the entire moved chunk was just punctuation).
+        if index in modified_indices:
+            if len(segment.text) > 1 and segment.text[1] in PUNCTUATION:
+                adjusted_segments[-1].text += segment.text[0]
+                segment.text = segment.text[1:]
+        else:
+            adjusted_segments[-1].text += segment.text[0]
+            segment.text = segment.text[1:]
     return segment
 
 
@@ -487,21 +569,17 @@ def print_modified_segments(
 ):
     print("Modified Start segments:")
     for index in modified_new_segment_debug_log:
-        print(
-            f"""
+        print(f"""
             Original: {segments[index].text}
             Modified: {new_segments[index].text}
-            """
-        )
+            """)
 
     print("Modified End segments:")
     for index in modified_final_segment_debug_log:
-        print(
-            f"""
+        print(f"""
             Original: {segments[index].text}
             Modified: {final_segments[index].text}
-            """
-        )
+            """)
 
 
 def shift_align(segments: List[Segment]) -> List[Segment]:
@@ -512,7 +590,7 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
         text = segment.text
 
         # If no punctuation is present, keep the segment unchanged
-        if not has_punctuation(text):
+        if not has_punctuation(text) or text.startswith("＊"):
             new_segments.append(segment)
             continue
 
@@ -550,25 +628,33 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
         new_segments.append(Segment(text, segment.start, segment.end))
 
     final_segments = []
+    modified_next_segment_indices = set()
     for i, segment in enumerate(new_segments):
         text = segment.text
+        if text.startswith("＊"):
+            final_segments.append(segment)
+            continue
         indices = find_punctuation_index(text)
         if indices:
-            last_index = find_index_with_non_punctuation_end(indices)[-1]
+            last_index_list = find_index_with_non_punctuation_end(indices)
+            last_index = last_index_list[-1]
             non_punc_count = count_non_punctuation(text[last_index:])
-            if non_punc_count == 0 or (len(text[last_index:])) == len(text):
+            if (non_punc_count == 0 and len(indices) == len(text)) or (
+                len(text) == last_index + 1
+            ):
                 final_segments.append(segment)
                 continue
-            if count_non_punctuation(text[indices[-1] :]) <= 2:
+
+            punc_count_trailing = count_non_punctuation(text[indices[-1] :])
+            if punc_count_trailing <= 2:
                 # Move part of the text to the next segment
                 if (
                     i + 1 < len(new_segments)
                     and not has_ending_punctuation(new_segments[i + 1].text[0])
-                    and not has_double_comma(
-                        new_segments[i + 1].text[0], text[: start_index + 1]
-                    )
+                    and not has_double_comma(new_segments[i + 1].text[0], text)
+                    and not new_segments[i + 1].text.startswith("＊")
                 ):
-                    next_segment = segments[i + 1]
+                    next_segment = new_segments[i + 1]
                     next_segment.text = (
                         text[last_index + 1 :] + next_segment.text
                     )  # Keep the punctuation
@@ -576,8 +662,12 @@ def shift_align(segments: List[Segment]) -> List[Segment]:
                     final_segments.append(Segment(text, segment.start, segment.end))
                     new_segments[i + 1] = next_segment
                     modified_final_segment_debug_log.append(i)
+                    # The segment at index i+1 was modified
+                    modified_next_segment_indices.add(i + 1)
                     continue
         final_segments.append(Segment(text, segment.start, segment.end))
 
     # print_modified_segments(segments, new_segments, final_segments, modified_new_segment_debug_log, modified_final_segment_debug_log)
-    return trim_segments(double_check_misaligned_pairs(final_segments))
+    return trim_segments(
+        double_check_misaligned_pairs(final_segments, modified_next_segment_indices)
+    )

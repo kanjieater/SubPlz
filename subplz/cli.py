@@ -5,7 +5,6 @@ import multiprocessing
 import torch
 from dataclasses import dataclass, fields, field
 
-
 START_PUNC = """『「(（《｟[{"'“¿""" + """'“"¿([{-『「（〈《〔【｛［｟＜<‘“〝※"""
 END_PUNC = """'"・.。!！?？:：”>＞⦆)]}』」）〉》〕】｝］’〟／＼～〜~;；─―–-➡"""
 OTHER_PUNC = "＊　,，、…"

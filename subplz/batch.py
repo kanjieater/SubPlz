@@ -20,6 +20,7 @@ COMMAND_MAP = {
     "copy": copy,
 }
 
+
 # MINIMAL CHANGE: Worker now accepts a command name and lazy-imports AI functions.
 def _step_worker(command_name, inputs, config):
     try:
@@ -28,9 +29,11 @@ def _step_worker(command_name, inputs, config):
         func_to_call = None
         if command_name == "sync":
             from .sync import run_sync
+
             func_to_call = run_sync
         elif command_name == "gen":
             from .gen import run_gen
+
             func_to_call = run_gen
         else:
             func_to_call = COMMAND_MAP[command_name]
@@ -64,7 +67,9 @@ def run_batch(inputs):
     for dir_string in directories:
         dir_path = Path(dir_string)
         if not dir_path.is_dir():
-            raise FileNotFoundError(f"The directory specified in the job does not exist or is not a directory: {dir_path}")
+            raise FileNotFoundError(
+                f"The directory specified in the job does not exist or is not a directory: {dir_path}"
+            )
 
         logger.info(f"--- Processing directory: {dir_path.name} ---")
 
@@ -121,7 +126,9 @@ def run_batch(inputs):
                 process.join(timeout=job_timeout)
 
                 if process.is_alive():
-                    logger.critical(f"🚨 Step '{step_name}' timed out after {job_timeout} seconds. Terminating.")
+                    logger.critical(
+                        f"🚨 Step '{step_name}' timed out after {job_timeout} seconds. Terminating."
+                    )
                     process.terminate()
                     process.join(timeout=5)
                     if process.is_alive():
@@ -147,7 +154,6 @@ def run_batch(inputs):
                 if process and process.is_alive():
                     process.kill()
                     process.join()
-
 
         if not pipeline_overall_success:
             raise Exception(

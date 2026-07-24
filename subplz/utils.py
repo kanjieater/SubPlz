@@ -16,7 +16,6 @@ def get_lang_code(lang_code_input: str) -> str | None:
         # Common Abbreviations
         "jap": "ja",
         "jp": "ja",
-
         # Old ISO 639-2/B (Bibliographic) codes to new ISO 639-1 (2-letter) codes
         "chi": "zh",
         "ger": "de",
@@ -37,7 +36,6 @@ def get_lang_code(lang_code_input: str) -> str | None:
         "cze": "cs",
         "geo": "ka",
         "slo": "sk",
-
         # Common full language names
         "english": "en",
         "japanese": "ja",
@@ -146,6 +144,7 @@ def get_tmp_path(file_path):
     filename = file_path.stem
     return file_path.parent / f"{filename}.tmp{file_path.suffix}"
 
+
 def get_host_path(config, docker_path):
     """
     Translates a canonical Docker path to its corresponding host path using the path_map.
@@ -155,7 +154,9 @@ def get_host_path(config, docker_path):
     str_docker_path = str(docker_path)
 
     # Sort items by the length of the container path (value) to handle nested paths
-    sorted_map_items = sorted(path_map.items(), key=lambda item: len(item[1]), reverse=True)
+    sorted_map_items = sorted(
+        path_map.items(), key=lambda item: len(item[1]), reverse=True
+    )
 
     for host_path, container_path in sorted_map_items:
         if str_docker_path.startswith(container_path):
@@ -166,6 +167,7 @@ def get_host_path(config, docker_path):
 
     return str_docker_path
 
+
 def get_docker_path(config, host_path):
     """
     Translates a host path back to its canonical Docker path for writing into job files.
@@ -175,7 +177,9 @@ def get_docker_path(config, host_path):
     str_host_path = str(host_path)
 
     # Sort items by the length of the host path (key) to handle nested paths
-    sorted_map_items = sorted(path_map.items(), key=lambda item: len(item[0]), reverse=True)
+    sorted_map_items = sorted(
+        path_map.items(), key=lambda item: len(item[0]), reverse=True
+    )
 
     for h_path, container_path in sorted_map_items:
         if str_host_path.startswith(h_path):
@@ -233,6 +237,7 @@ def resolve_local_path(config, any_path):
         return potential_docker_path
     # Otherwise, default to the host path.
     return potential_host_path
+
 
 def find_and_show_lingering_tensors():
     """

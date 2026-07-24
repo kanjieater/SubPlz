@@ -133,11 +133,17 @@ def load_config(config_path: str | None) -> dict:
 
         except (YAMLError, FileNotFoundError) as e:
             logger.critical(f"Failed to load configuration from '{config_path}': {e}")
-            logger.critical("Please check your config.yml for formatting errors (especially indentation) or ensure the file exists.")
-            logger.critical("The application cannot continue with an invalid configuration. Exiting.")
+            logger.critical(
+                "Please check your config.yml for formatting errors (especially indentation) or ensure the file exists."
+            )
+            logger.critical(
+                "The application cannot continue with an invalid configuration. Exiting."
+            )
             sys.exit(1)
         except Exception as e:
-            logger.opt(exception=True).critical(f"An unexpected error occurred while loading config file '{config_path}': {e}")
+            logger.opt(exception=True).critical(
+                f"An unexpected error occurred while loading config file '{config_path}': {e}"
+            )
             sys.exit(1)
 
     final_config = resolve_based_paths(final_config)

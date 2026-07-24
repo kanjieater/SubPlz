@@ -29,11 +29,6 @@ def align_sub(coords, text, subs, thing=2):
                 while current[0] < len(text) and target >= len(text[current[0]]):
                     start, end = toff, len(text[current[0]])
 
-                    # ips, ipe = pos[0], pos[0] + (end - start)
-                    # for  r, j in gaps_text: # TODO:
-                    #     if (r >= ips) and (ipe <= j):
-                    #         print(ips, ipe, r, j)
-
                     if (end - start) != 0:
                         region = text[current[0]][start:end]
                         prev = segments[-1]
@@ -44,7 +39,6 @@ def align_sub(coords, text, subs, thing=2):
                                 prev[-1][1] = end
                             else:
                                 prev.append([start, end, current[1]])
-                                # print("Hmm")
                         else:
                             # Two chunks stuck together, fix later
                             if target > end:
@@ -59,7 +53,8 @@ def align_sub(coords, text, subs, thing=2):
                 if c2:
                     count += 1
                 pos[0] += target - toff
-                segments[-1].append([toff, target, current[1]])
+                if target - toff != 0:
+                    segments[-1].append([toff, target, current[1]])
                 toff = target
             else:
                 unused.append(subs[current[1]])
@@ -96,7 +91,7 @@ def fix_punc(text, segments, prepend, append, nopend):
                     break
                 if p[1] < len(t) and t[p[1]] in append:
                     p[1] += 1
-                elif t[p[1] - 1] in prepend:
+                elif p[1] > 0 and t[p[1] - 1] in prepend:
                     p[1] -= 1
                 elif (
                     (p[1] > 0 and t[p[1] - 1] in nopend)
@@ -116,11 +111,11 @@ def fix_punc(text, segments, prepend, append, nopend):
                     while end < len(t) - 1 and t[end] in nopend:
                         end += 1
 
-                    if t[start] in prepend:
+                    if start >= 0 and t[start] in prepend:
                         if p[1] == start:
                             break
                         p[1] = start
-                    elif t[start] in append:
+                    elif start >= 0 and t[start] in append:
                         if p[1] == start + 1:
                             break
                         p[1] = start + 1
@@ -145,17 +140,16 @@ def fix(lang, original, edited, segments):
     for l, s in enumerate(segments):
         o, e = lang.translate(original[l]), edited[l]
         m = {}
-        oi, ei, ii = 0, 0, 0
+        ei = 0
         for oi in range(len(o)):
             if ei < len(e) and o[oi] == e[ei]:
                 m[ei] = oi
                 ei += 1
-            oi += 1
-        m[ei] = oi  # Snap to end
+        m[ei] = len(o)  # Snap to end
         m[0] = 0  # Snap to zero
 
         last = 0
-        for i in range(len(e)):
+        for i in range(len(e) + 1):
             if i in m:
                 last = i
             else:
@@ -193,4 +187,4 @@ def align(model, lang, transcript, text, references, prepend, append, nopend):
         fix_punc(text, segments, prepend, append, nopend)
         return segments
 
-    return inner(text), []  # references
+    return inner(text)  # references

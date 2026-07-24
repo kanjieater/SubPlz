@@ -112,7 +112,7 @@ def get_subtitle_idx(
         return None
 
     logger.info(
-        f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Codec: {best_match['stream_info'].get('codec_name', 'N/A')}, Lang: {best_match_lang or 'N/A'}, Title: {best_match['stream_info'].get('tags',{}).get('title','N/A')}) for file: {path}"
+        f"字 Selected subtitle stream (Index: {best_match['stream_info'].get('index')}, Score: {best_match['score']}, Codec: {best_match['stream_info'].get('codec_name', 'N/A')}, Lang: {best_match_lang or 'N/A'}, Title: {best_match['stream_info'].get('tags', {}).get('title', 'N/A')}) for file: {path}"
     )
     return best_match["stream_info"]
 

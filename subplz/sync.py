@@ -109,7 +109,7 @@ def do_batch(ach, tch, prepend, append, nopend, offset):
     language = get_lang(ach[0][0]["language"])
 
     tcontent = [p for t in tch for p in t.text()]
-    alignment, references = align.align(
+    alignment = align.align(
         None,
         language,
         [p["text"] for p in acontent],
