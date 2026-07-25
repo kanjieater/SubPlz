@@ -29,6 +29,8 @@ def gen(source, model, streams, be):
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
     }
+    if be.batch_size:
+        args["batch_size"] = be.batch_size
     print("🤖 Writing generated subs...")
     segments = []
     offset = 0

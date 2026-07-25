@@ -141,6 +141,8 @@ def sync(source: sourceData, model, streams, be):
         "no_speech_threshold": be.no_speech_threshold,
         "word_timestamps": be.word_timestamps,
     }
+    if be.batch_size:
+        args["batch_size"] = be.batch_size
     audio_batches = fuzzy_match_chapters(streams, chapters)
     print("🔄 Syncing...")
     with tqdm(audio_batches) as bar:
